@@ -28,6 +28,7 @@
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 
+#include <cgogn/geometry/types/dual_quaternion.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
 #include <boost/synapse/connect.hpp>
@@ -41,6 +42,7 @@ namespace ui
 using geometry::Mat3;
 using geometry::Scalar;
 using geometry::Vec3;
+using geometry::DualQuaternion;
 
 template <typename SURFACE>
 class DQModeling : public Module

@@ -1,0 +1,185 @@
+/*******************************************************************************
+ * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
+ * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
+ *                                                                              *
+ * This library is free software; you can redistribute it and/or modify it      *
+ * under the terms of the GNU Lesser General Public License as published by the *
+ * Free Software Foundation; either version 2.1 of the License, or (at your     *
+ * option) any later version.                                                   *
+ *                                                                              *
+ * This library is distributed in the hope that it will be useful, but WITHOUT  *
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or        *
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License  *
+ * for more details.                                                            *
+ *                                                                              *
+ * You should have received a copy of the GNU Lesser General Public License     *
+ * along with this library; if not, write to the Free Software Foundation,      *
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.           *
+ *                                                                              *
+ * Web site: http://cgogn.unistra.fr/                                           *
+ * Contact information: cgogn@unistra.fr                                        *
+ *                                                                              *
+ *******************************************************************************/
+
+#ifndef CGOGN_GEOMETRY_TYPES_DUAL_QUATERNION_H_
+#define CGOGN_GEOMETRY_TYPES_DUAL_QUATERNION_H_
+
+#include <cgogn/core/utils/numerics.h>
+#include <cgogn/geometry/types/vector_traits.h>
+#include <cgogn/geometry/functions/quaternion_operations.h>
+
+namespace cgogn
+{
+
+namespace geometry
+{
+
+class DualQuaternion
+{
+public:
+	DualQuaternion() = delete;
+
+	[[nodiscard]]
+	static inline DualQuaternion from_rt(const Quaternion& r, const Vec3& t)
+	{
+		return DualQuaternion{r, t};
+	}
+
+	[[nodiscard]]
+	static inline DualQuaternion from_tr(const Vec3& t, const Quaternion& r)
+	{
+		return DualQuaternion{t, r};
+	}
+
+	[[nodiscard]]
+	static inline DualQuaternion identity()
+	{
+		return DualQuaternion({1, 0, 0, 0}, {0, 0, 0});
+	}
+
+	[[nodiscard]]
+	static inline Scalar dot(const DualQuaternion& a, const DualQuaternion& b)
+	{
+		return a.dot(b);
+	}
+
+	[[nodiscard]]
+	inline Quaternion real() const { return r_; }
+
+	[[nodiscard]]
+	inline Quaternion dual() const { return d_; }
+
+	[[nodiscard]]
+	inline Quaternion rotation() const { return r_; }
+
+	[[nodiscard]]
+	inline Vec3 translation() const
+	{
+		Quaternion t = d_ * r_.conjugate();
+		return Vec3{ 2.0 * t.x(), 2.0 * t.y(), 2.0 * t.z() };
+	}
+
+	[[nodiscard]]
+	inline Scalar dot(const DualQuaternion& other) const
+	{
+		return r_.dot(other.r_);
+	}
+
+	[[nodiscard]]
+	inline Scalar magnitude() const
+	{
+		return r_.dot(r_);
+	}
+
+	inline void normalize()
+	{
+		Scalar m = magnitude();
+
+		// Not normalizable
+		if (cgogn::almost_equal_relative(m, Scalar(0)))
+			return;
+
+		r_ *= 1.0 / m;
+		d_ *= 1.0 / m;
+	}
+
+	[[nodiscard]]
+	inline DualQuaternion normalized() const
+	{
+		DualQuaternion res = *this;
+		res.normalize();
+		return res;
+	}
+
+	inline void conjugate()
+	{
+		r_ = r_.conjugate();
+		d_ = d_.conjugate();
+	}
+
+	[[nodiscard]]
+	inline DualQuaternion conjugated() const
+	{
+		return DualQuaternion(r_.conjugate(), d_.conjugate());
+	}
+
+	friend inline DualQuaternion operator+(DualQuaternion a, const DualQuaternion& b)
+	{
+		return DualQuaternion(a.r_ + b.r_, a.d_ + b.d_);
+	}
+
+	friend inline DualQuaternion operator*(const Scalar& s, const DualQuaternion& dq)
+	{
+		return DualQuaternion(s * dq.r_, s * dq.d_);
+	}
+
+	friend inline DualQuaternion operator*(const DualQuaternion& dq, const Scalar& s)
+	{
+		return s * dq;
+	}
+
+	friend inline DualQuaternion operator*(const DualQuaternion& a, const DualQuaternion& b)
+	{
+		return DualQuaternion(a.r_ * b.r_, a.r_ * b.d_ + a.d_ * b.r_);
+	}
+
+	friend inline std::ostream& operator<<(std::ostream& os, const DualQuaternion& dq)
+	{
+		os << dq.r_ << " + (" << dq.d_ << ")e";
+		return os;
+	}
+
+	inline DualQuaternion& operator+=(const DualQuaternion& other)
+	{
+		return (*this = *this + other);
+	}
+
+	template <class T> // Scalar and DualQuaternion
+	inline DualQuaternion& operator*=(const T& other)
+	{
+		return (*this = *this * other);
+	}
+
+private:
+	inline explicit DualQuaternion(Quaternion r, Quaternion d) : r_(r), d_(d) {}
+
+	inline explicit DualQuaternion(const Quaternion& r, const Vec3& t) : r_(r.normalized())
+	{
+		d_ = r * Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()};
+	}
+
+	inline explicit DualQuaternion(const Vec3& t, const Quaternion& r) : r_(r.normalized())
+	{
+		d_ = Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()} * r;
+	}
+
+private:
+	Quaternion r_; // real part (rotation)
+	Quaternion d_; // dual part (translation)
+};
+
+} // namespace geometry
+
+} // namespace cgogn
+
+#endif // CGOGN_GEOMETRY_TYPES_DUAL_QUATERNION_H_

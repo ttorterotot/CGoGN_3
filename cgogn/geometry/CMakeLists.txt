@@ -18,6 +18,7 @@ set(src_list
 	    "${CMAKE_CURRENT_LIST_DIR}/types/grid.h"
 	    "${CMAKE_CURRENT_LIST_DIR}/types/quadric.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/slab_quadric.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/dual_quaternion.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/functions/angle.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/area.h"
@@ -28,6 +29,7 @@ set(src_list
 		"${CMAKE_CURRENT_LIST_DIR}/functions/intersection.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/normal.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/orientation.h"
+		"${CMAKE_CURRENT_LIST_DIR}/functions/quaternion_operations.h"
 
         "${CMAKE_CURRENT_LIST_DIR}/algos/angle.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/area.h"

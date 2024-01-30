@@ -44,6 +44,9 @@ using Vec2d = Eigen::Vector2d;
 using Vec3d = Eigen::Vector3d;
 using Vec4d = Eigen::Vector4d;
 
+using Quatf = Eigen::Quaternionf;
+using Quatd = Eigen::Quaterniond;
+
 using Mat2i = Eigen::Matrix2i;
 using Mat3i = Eigen::Matrix3i;
 using Mat4i = Eigen::Matrix3i;
@@ -95,6 +98,8 @@ struct vector_traits<Eigen::MatrixBase<V>, typename std::enable_if<is_eigen<Eige
 using Vec2 = Eigen::Vector2d;
 using Vec3 = Eigen::Vector3d;
 using Vec4 = Eigen::Vector4d;
+
+using Quaternion = Eigen::Quaterniond;
 
 using Mat2 = Eigen::Matrix2d;
 using Mat3 = Eigen::Matrix3d;

@@ -72,7 +72,7 @@ private:
 public:
 	void do_something(SURFACE& m, Attribute<Vec3>* vertex_position)
 	{
-		std::cout << "Placeholder" << std::endl;
+		std::cout << DualQuaternion::identity() << std::endl;
 	}
 
 protected:

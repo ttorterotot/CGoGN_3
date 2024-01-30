@@ -80,6 +80,17 @@ target_link_libraries(convex_hull
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(dq_modeling dq_modeling.cpp)
+target_link_libraries(dq_modeling
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)

@@ -123,6 +123,12 @@ public:
 		return DualQuaternion(r_.conjugate(), d_.conjugate());
 	}
 
+	inline bool isApprox(const DualQuaternion& other,
+		const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
+	{
+		return r_.isApprox(other.r_, prec) && d_.isApprox(other.d_, prec);
+	}
+
 	friend inline DualQuaternion operator+(DualQuaternion a, const DualQuaternion& b)
 	{
 		return DualQuaternion(a.r_ + b.r_, a.d_ + b.d_);

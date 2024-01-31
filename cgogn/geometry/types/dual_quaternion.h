@@ -40,6 +40,18 @@ public:
 	DualQuaternion() = delete;
 
 	[[nodiscard]]
+	static inline DualQuaternion from_rotation(const Quaternion& r)
+	{
+		return DualQuaternion{r, {0, 0, 0}};
+	}
+
+	[[nodiscard]]
+	static inline DualQuaternion from_translation(const Vec3& t)
+	{
+		return DualQuaternion{{1, 0, 0, 0}, t};
+	}
+
+	[[nodiscard]]
 	static inline DualQuaternion from_rt(const Quaternion& r, const Vec3& t)
 	{
 		return DualQuaternion{r, t};
@@ -54,7 +66,7 @@ public:
 	[[nodiscard]]
 	static inline DualQuaternion identity()
 	{
-		return DualQuaternion({1, 0, 0, 0}, {0, 0, 0});
+		return DualQuaternion{{1, 0, 0, 0}, {0, 0, 0}};
 	}
 
 	[[nodiscard]]
@@ -75,8 +87,7 @@ public:
 	[[nodiscard]]
 	inline Vec3 translation() const
 	{
-		Quaternion t = d_ * r_.conjugate();
-		return Vec3{ 2.0 * t.x(), 2.0 * t.y(), 2.0 * t.z() };
+		return (d_ * r_.conjugate()).vec() * 2.0;
 	}
 
 	[[nodiscard]]

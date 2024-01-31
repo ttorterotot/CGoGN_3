@@ -40,7 +40,7 @@ public:
 TEST_F(DualQuaternionTest, identity)
 {
 	EXPECT_TRUE((DualQuaternion::identity().rotation().isApprox(Quaternion{1, 0, 0, 0})));
-	EXPECT_TRUE((DualQuaternion::identity().translation().isMuchSmallerThan(0, prec)));
+	EXPECT_TRUE((DualQuaternion::identity().translation().squaredNorm() <= prec * prec));
 }
 
 TEST_F(DualQuaternionTest, isApprox)
@@ -67,7 +67,7 @@ TEST_F(DualQuaternionTest, from_rotation)
 	Quaternion r{1.0, 2.0, 4.0, 8.0};
 	DualQuaternion q = DualQuaternion::from_rotation(r);
 	EXPECT_TRUE(q.rotation().isApprox(r.normalized()));
-	EXPECT_TRUE(q.translation().isMuchSmallerThan(0, prec));
+	EXPECT_TRUE(q.translation().squaredNorm() <= prec * prec);
 }
 
 TEST_F(DualQuaternionTest, from_translation)

@@ -47,9 +47,19 @@ TEST_F(DualQuaternionTest, isApprox)
 {
 	DualQuaternion a = DualQuaternion::from_rt({0.0625, 1.0, 16.0, 1024.0}, {256.0, 0.0, -256.0});
 	DualQuaternion b = DualQuaternion::from_rt({0.0625, 1.0, 16.0, 1024.0}, {256.0, 0.0, -256.0});
+	DualQuaternion c = DualQuaternion::from_rt({0.0625, 1.0, 16.0, 1024.0},
+			{256.0, 0.0, -256.0 + 64.0 * prec}); // precision is relative, this is a quarter of the threshold
+	DualQuaternion d = DualQuaternion::from_rt({0.0625, 1.0, 16.0, 1024.0},
+			{256.0, 0.0, -256.0 + 1024.0 * prec}); // precision is relative, this is four times the threshold
+	DualQuaternion y = DualQuaternion::from_translation({4.0 * prec, 0.0, 0.0});
+	DualQuaternion z = DualQuaternion::from_translation({0.25 * prec, 0.0, 0.0});
 
 	EXPECT_FALSE(a.isApprox(DualQuaternion::identity()));
 	EXPECT_TRUE(a.isApprox(b));
+	EXPECT_TRUE(a.isApprox(c, prec));
+	EXPECT_FALSE(a.isApprox(d, prec));
+	EXPECT_FALSE(y.isApprox(DualQuaternion::identity(), prec));
+	EXPECT_TRUE(z.isApprox(DualQuaternion::identity(), prec));
 }
 
 TEST_F(DualQuaternionTest, from_rotation)

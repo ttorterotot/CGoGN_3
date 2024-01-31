@@ -91,6 +91,29 @@ public:
 	}
 
 	[[nodiscard]]
+	inline DualQuaternion transform(const DualQuaternion& p) const
+	{
+		return *this * p * conjugated();
+	}
+
+	[[nodiscard]]
+	inline Quaternion transform(const Quaternion& r) const
+	{
+		return transform(from_rotation(r)).rotation();
+	}
+
+	[[nodiscard]]
+	inline Vec3 transform(const Vec3& t) const
+	{
+		return transform(from_translation(t)).translation();
+	}
+
+	inline void transform_by(const DualQuaternion& q)
+	{
+		*this = q.transform(*this);
+	}
+
+	[[nodiscard]]
 	inline Scalar dot(const DualQuaternion& other) const
 	{
 		return r_.dot(other.r_);

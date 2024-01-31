@@ -120,9 +120,15 @@ public:
 	}
 
 	[[nodiscard]]
-	inline Scalar magnitude() const
+	inline Scalar squaredMagnitude() const
 	{
 		return r_.dot(r_);
+	}
+
+	[[nodiscard]]
+	inline Scalar magnitude() const
+	{
+		return std::sqrt(squaredMagnitude());
 	}
 
 	inline void normalize()

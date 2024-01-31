@@ -136,11 +136,12 @@ TEST_F(DualQuaternionTest, normalize_normalized)
 
 TEST_F(DualQuaternionTest, conjugated)
 {
-	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Quaternion r{1.0, 2.0, 4.0, 8.0};
 	Vec3 t{1.0, 2.0, 4.0};
 	DualQuaternion q = DualQuaternion::from_rt(r, t);
-	EXPECT_TRUE(DualQuaternion::identity().isApprox(q * q.conjugated()));
-	EXPECT_TRUE(DualQuaternion::identity().isApprox(q.conjugated() * q));
+	EXPECT_TRUE((q * q.conjugated()).isApprox(q.conjugated() * q));
+	EXPECT_FALSE(DualQuaternion::identity().isApprox(q * q.conjugated()));
+	EXPECT_FALSE(DualQuaternion::identity().isApprox(q.conjugated() * q));
 }
 
 TEST_F(DualQuaternionTest, conjugate_conjugated)

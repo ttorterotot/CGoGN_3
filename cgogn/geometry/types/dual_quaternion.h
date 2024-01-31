@@ -64,6 +64,12 @@ public:
 	}
 
 	[[nodiscard]]
+	static inline DualQuaternion from_point(const Vec3& p)
+	{
+		return DualQuaternion{p};
+	}
+
+	[[nodiscard]]
 	static inline DualQuaternion identity()
 	{
 		return DualQuaternion{{1, 0, 0, 0}, {0, 0, 0}};
@@ -85,10 +91,7 @@ public:
 	inline Quaternion rotation() const { return r_; }
 
 	[[nodiscard]]
-	inline Vec3 translation() const
-	{
-		return (d_ * r_.conjugate()).vec() * 2.0;
-	}
+	inline Vec3 translation() const { return point() * 2.0; }
 
 	[[nodiscard]]
 	inline DualQuaternion transform(const DualQuaternion& p) const
@@ -105,7 +108,7 @@ public:
 	[[nodiscard]]
 	inline Vec3 transform(const Vec3& t) const
 	{
-		return transform(from_translation(t)).translation();
+		return transform(from_point(t)).point();
 	}
 
 	inline void transform_by(const DualQuaternion& q)
@@ -219,12 +222,22 @@ private:
 		d_ = Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()} * r;
 	}
 
+	inline explicit DualQuaternion(const Vec3& p) : r_({1, 0, 0, 0})
+	{
+		d_ = Quaternion{0, p.x(), p.y(), p.z()};
+	}
+
 	inline static bool qIsApprox(const Quaternion& a, const Quaternion& b, const Scalar& prec)
 	{
 		// isApprox fails for quaternions close to zero
 		// isMuchSmallerThan somehow does not work, so we use squaredNorm instead
 		return a.isApprox(b, prec)
 				|| a.coeffs().squaredNorm() <= prec * prec && b.coeffs().squaredNorm() <= prec * prec;
+	}
+
+	inline Vec3 point() const
+	{
+		return (d_ * r_.conjugate()).vec();
 	}
 
 private:

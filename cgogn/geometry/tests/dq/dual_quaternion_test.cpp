@@ -154,4 +154,13 @@ TEST_F(DualQuaternionTest, conjugate_conjugated)
 	EXPECT_TRUE(q.conjugated().isApprox(q_));
 }
 
+TEST_F(DualQuaternionTest, transform_rt_tr)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 0.0, 0.0}, Vec3{0.0, 1.0, 0.0});
+	Vec3 t{0.0, 1.0, 1.0};
+	Vec3 p{-1.0, -1.0, 0.0};
+	EXPECT_TRUE(DualQuaternion::from_rt(r, t).transform(p).isApprox(Vec3{0.0, -1.0, 1.0}));
+	EXPECT_TRUE(DualQuaternion::from_tr(t, r).transform(p).isApprox(Vec3{1.0, 0.0, 1.0}));
+}
+
 } // namespace cgogn

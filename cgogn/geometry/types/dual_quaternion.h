@@ -94,6 +94,9 @@ public:
 	inline Vec3 translation() const { return point() * 2.0; }
 
 	[[nodiscard]]
+	inline Vec3 point() const { return (d_ * r_.conjugate()).vec(); }
+
+	[[nodiscard]]
 	inline DualQuaternion transform(const DualQuaternion& p) const
 	{
 		return *this * p * conjugated();
@@ -233,11 +236,6 @@ private:
 		// isMuchSmallerThan somehow does not work, so we use squaredNorm instead
 		return a.isApprox(b, prec)
 				|| a.coeffs().squaredNorm() <= prec * prec && b.coeffs().squaredNorm() <= prec * prec;
-	}
-
-	inline Vec3 point() const
-	{
-		return (d_ * r_.conjugate()).vec();
 	}
 
 private:

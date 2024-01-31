@@ -82,10 +82,9 @@ TEST_F(DualQuaternionTest, from_rt)
 {
 	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
 	Vec3 t{1.0, 2.0, 4.0};
-	Vec3 t_ = r.normalized()._transformVector(t);
 	DualQuaternion q = DualQuaternion::from_rt(r, t);
 	EXPECT_TRUE(q.rotation().isApprox(r.normalized()));
-	EXPECT_TRUE(q.translation().isApprox(t_));
+	EXPECT_TRUE(q.translation().isApprox(r.normalized()._transformVector(t)));
 }
 
 TEST_F(DualQuaternionTest, from_tr)

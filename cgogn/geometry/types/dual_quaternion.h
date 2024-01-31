@@ -160,7 +160,7 @@ public:
 	inline bool isApprox(const DualQuaternion& other,
 		const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
 	{
-		return r_.isApprox(other.r_, prec) && d_.isApprox(other.d_, prec);
+		return qIsApprox(r_, other.r_, prec) && qIsApprox(d_, other.d_, prec);
 	}
 
 	friend inline DualQuaternion operator+(DualQuaternion a, const DualQuaternion& b)
@@ -211,6 +211,14 @@ private:
 	inline explicit DualQuaternion(const Vec3& t, const Quaternion& r) : r_(r.normalized())
 	{
 		d_ = Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()} * r;
+	}
+
+	inline static bool qIsApprox(const Quaternion& a, const Quaternion& b, const Scalar& prec)
+	{
+		// isApprox fails for quaternions close to zero
+		// isMuchSmallerThan somehow does not work, so we use squaredNorm instead
+		return a.isApprox(b, prec)
+				|| a.coeffs().squaredNorm() <= prec * prec && b.coeffs().squaredNorm() <= prec * prec;
 	}
 
 private:

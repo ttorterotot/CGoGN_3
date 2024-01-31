@@ -154,13 +154,13 @@ public:
 	inline void conjugate()
 	{
 		r_ = r_.conjugate();
-		d_ = d_.conjugate();
+		d_.w() *= -1.0;
 	}
 
 	[[nodiscard]]
 	inline DualQuaternion conjugated() const
 	{
-		return DualQuaternion(r_.conjugate(), d_.conjugate());
+		return DualQuaternion(r_.conjugate(), d_.conjugate() * -1.0);
 	}
 
 	inline bool isApprox(const DualQuaternion& other,

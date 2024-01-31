@@ -97,4 +97,60 @@ TEST_F(DualQuaternionTest, from_tr)
 	EXPECT_TRUE(q.translation().isApprox(t));
 }
 
+TEST_F(DualQuaternionTest, identity_rt)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	EXPECT_TRUE(q.isApprox(q * DualQuaternion::identity()));
+	EXPECT_TRUE(q.isApprox(DualQuaternion::identity() * q));
+}
+
+TEST_F(DualQuaternionTest, identity_tr)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_tr(t, r);
+	EXPECT_TRUE(q.isApprox(q * DualQuaternion::identity()));
+	EXPECT_TRUE(q.isApprox(DualQuaternion::identity() * q));
+}
+
+TEST_F(DualQuaternionTest, normalized)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t) * 2.0;
+	EXPECT_FALSE(almost_equal_relative(q.magnitude(), geometry::Scalar(1)));
+	EXPECT_TRUE(almost_equal_relative(q.normalized().magnitude(), geometry::Scalar(1)));;
+}
+
+TEST_F(DualQuaternionTest, normalize_normalized)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	DualQuaternion q_ = q;
+	q_.normalize();
+	EXPECT_TRUE(q.normalized().isApprox(q_));
+}
+
+TEST_F(DualQuaternionTest, conjugated)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q * q.conjugated()));
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q.conjugated() * q));
+}
+
+TEST_F(DualQuaternionTest, conjugate_conjugated)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	DualQuaternion q_ = q;
+	q_.conjugate();
+	EXPECT_TRUE(q.conjugated().isApprox(q_));
+}
+
 } // namespace cgogn

@@ -78,6 +78,12 @@ TEST_F(DualQuaternionTest, from_translation)
 	EXPECT_TRUE(q.translation().isApprox(t));
 }
 
+TEST_F(DualQuaternionTest, from_point)
+{
+	Vec3 p{1.0, 2.0, 4.0};
+	EXPECT_TRUE(DualQuaternion::from_point(p).point().isApprox(p));
+}
+
 TEST_F(DualQuaternionTest, from_rt)
 {
 	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});

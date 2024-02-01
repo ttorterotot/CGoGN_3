@@ -42,6 +42,7 @@ namespace ui
 using geometry::Mat3;
 using geometry::Scalar;
 using geometry::Vec3;
+using geometry::Quaternion;
 using geometry::DualQuaternion;
 
 template <typename SURFACE>
@@ -70,9 +71,23 @@ private:
 	}
 
 public:
-	void do_something(SURFACE& m, Attribute<Vec3>* vertex_position)
+	void interpolate_pose(MeshProvider<SURFACE>& mesh_provider,
+			const SURFACE& selected_mesh, Attribute<Vec3>* vertex_position,
+			float t, DualQuaternion q)
 	{
-		std::cout << DualQuaternion::identity() << std::endl;
+		Attribute<Vec3>& positions = *vertex_position;
+		q = DualQuaternion::lerp(DualQuaternion::identity(), q, t);
+		DualQuaternion qi{q};
+
+		for (int i = 0; i < positions.size(); i += 2)
+		{
+			qi.normalize();
+			positions[i] = qi.transform({0, 0, 0}); // helix (cumulative transforms)
+			positions[i + 1] = qi.transform({Scalar(i), 1, 0}); // initial-position-dependent spiral
+			qi *= q;
+		}
+
+		mesh_provider.emit_attribute_changed(selected_mesh, vertex_position);
 	}
 
 protected:
@@ -103,9 +118,10 @@ protected:
 
 			if (selected_surface_vertex_position_)
 			{
-				if (ImGui::Button("Placeholder"))
+				if (ImGui::SliderFloat("Pose", &pose_, 0.f, 1.f))
 				{
-					do_something(*selected_surface_, selected_surface_vertex_position_.get());
+					interpolate_pose(*surface_provider_,
+							*selected_surface_, selected_surface_vertex_position_.get(), pose_, pose_q_);
 				}
 			}
 		}
@@ -118,6 +134,10 @@ private:
 	std::shared_ptr<Attribute<Vec3>> selected_surface_vertex_position_ = nullptr;
 
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
+
+	float pose_ = 0.f;
+	DualQuaternion pose_q_ = DualQuaternion::from_rt(
+			Quaternion{Eigen::AngleAxisd(0.25 * M_PI, Vec3::UnitZ())}, {0, 0.25, 1});
 };
 
 } // namespace ui

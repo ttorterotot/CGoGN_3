@@ -76,6 +76,13 @@ public:
 	}
 
 	[[nodiscard]]
+	static inline DualQuaternion lerp(const DualQuaternion& a, const DualQuaternion& b,
+			const Scalar& s)
+	{
+		return a * (1.0 - s) + b * s;
+	}
+
+	[[nodiscard]]
 	static inline Scalar dot(const DualQuaternion& a, const DualQuaternion& b)
 	{
 		return a.dot(b);

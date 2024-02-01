@@ -76,9 +76,12 @@ public:
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion lerp(const DualQuaternion& a, const DualQuaternion& b,
-			const Scalar& s)
+	static inline DualQuaternion lerp(DualQuaternion a, const DualQuaternion& b,
+			const Scalar& s, bool shortest = false)
 	{
+		if (shortest && a.dot(b) < 0)
+			a *= -1.0;
+
 		return a * (1.0 - s) + b * s;
 	}
 

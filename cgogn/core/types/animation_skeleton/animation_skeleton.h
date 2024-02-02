@@ -182,7 +182,7 @@ auto foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
 
 	if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
-		if (!f(get_root_joint(as)))
+		if (as.nb_bones() == 0 || !f(get_root_joint(as)))
 			return;
 
 	for (const auto& id : as.bone_traverser_)

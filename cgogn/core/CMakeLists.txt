@@ -82,6 +82,7 @@ set(src_list
 		"${CMAKE_CURRENT_LIST_DIR}/types/container/chunk_array.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/container/vector.h"
 
+		"${CMAKE_CURRENT_LIST_DIR}/functions/identity.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/attributes.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/convert.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/mesh_info.h"

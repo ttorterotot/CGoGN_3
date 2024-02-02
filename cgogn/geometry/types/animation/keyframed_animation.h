@@ -24,6 +24,9 @@
 #ifndef CGOGN_GEOMETRY_TYPES_KEYFRAMED_ANIMATION_H_
 #define CGOGN_GEOMETRY_TYPES_KEYFRAMED_ANIMATION_H_
 
+#include <cgogn/core/functions/identity.h>
+#include <cgogn/core/utils/type_traits.h>
+
 namespace cgogn
 {
 
@@ -41,7 +44,65 @@ struct AnimationKeyframe
 };
 
 template <template <typename> typename ContainerT, typename TimeT, typename TransformT>
-using KeyframedAnimation = ContainerT<AnimationKeyframe<TimeT, TransformT>>;
+class KeyframedAnimation : public ContainerT<AnimationKeyframe<TimeT, TransformT>>
+{
+public:
+    using Keyframe = AnimationKeyframe<TimeT, TransformT>;
+
+private:
+
+    static constexpr const auto CompareKeyframes = [](const Keyframe& a, const Keyframe& b)
+    {
+        return a.time_ < b.time_;
+    };
+
+    template <typename T, typename S>
+    static inline T default_lerp(const T& a, const T& b, const S& t)
+    {
+        return (1.0 - t) * a + t * b;
+    }
+
+public:
+
+    using ContainerT<Keyframe>::ContainerT; // inherit container's constructors
+
+    inline void sort(bool stable = true)
+    {
+        if (stable)
+            std::stable_sort(ContainerT<Keyframe>::begin(), ContainerT<Keyframe>::end(), CompareKeyframes);
+        else
+            std::sort(ContainerT<Keyframe>::begin(), ContainerT<Keyframe>::end(), CompareKeyframes);
+    }
+
+    template <typename InterpolatedT = TransformT,
+            typename T = decltype(identity_c<const InterpolatedT&>),
+            typename U = decltype(default_lerp<InterpolatedT, TimeT>)>
+    [[nodiscard]]
+    inline InterpolatedT get_transform(TimeT time,
+            T to_interpolation_space = identity_c<InterpolatedT>,
+            U interpolate = default_lerp<InterpolatedT, TimeT>) const
+    {
+        // Not using ::empty so ContainerT doesn't have to implement it
+        cgogn_assert(ContainerT<Keyframe>::size() > 0);
+
+        auto it = std::find_if(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(),
+                [&time](const Keyframe& k){ return k.time_ > time; });
+
+        if (it == ContainerT<Keyframe>::cbegin())
+            return to_interpolation_space((*this)[0].transform_);
+
+        if (it == ContainerT<Keyframe>::cend())
+            return to_interpolation_space((*this)[ContainerT<Keyframe>::size() - 1].transform_);
+
+        const Keyframe& before = *(it - 1);
+        const Keyframe& after = *it;
+
+        return interpolate(
+                to_interpolation_space(before.transform_),
+                to_interpolation_space(after.transform_),
+                (time - before.time_) / (after.time_ - before.time_));
+    }
+};
 
 } // namespace geometry
 

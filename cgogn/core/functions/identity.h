@@ -33,6 +33,14 @@ constexpr T&& identity(T&& value) noexcept
     return std::forward<T>(value);
 }
 
+// It seems perfect forwarding doesn't help in certain template resolution cases,
+// so we provide this const version for these purposes
+template <typename T>
+constexpr const T& identity_c(const T& value) noexcept
+{
+    return value;
+}
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_FUNCTIONS_IDENTITY_H_

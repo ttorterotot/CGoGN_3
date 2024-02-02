@@ -71,6 +71,9 @@ set(src_list
 		"${CMAKE_CURRENT_LIST_DIR}/types/incidence_graph/incidence_graph.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/incidence_graph/incidence_graph.cpp"
 
+		"${CMAKE_CURRENT_LIST_DIR}/types/animation_skeleton/animation_skeleton.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/animation_skeleton/animation_skeleton.cpp"
+
 		"${CMAKE_CURRENT_LIST_DIR}/types/triangle_soup/triangle_soup.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/triangle_soup/triangle_soup.cpp"
 

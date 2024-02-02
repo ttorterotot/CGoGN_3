@@ -21,7 +21,7 @@
  *                                                                              *
  *******************************************************************************/
 
-#include <cgogn/core/types/animation_skeleton/animation_skeleton.h>
+#include <cgogn/core/types/animation/animation_skeleton.h>
 
 namespace cgogn
 {

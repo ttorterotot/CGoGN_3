@@ -199,6 +199,25 @@ auto foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 	}
 }
 
+/*************************************************************************/
+// Applicative utility
+/*************************************************************************/
+
+template <typename TransformT>
+void compute_world_transforms(const AnimationSkeleton& as,
+		const AnimationSkeleton::Attribute<TransformT>& local_transforms,
+		AnimationSkeleton::Attribute<TransformT>& world_transforms)
+{
+	for (const auto& bone : as.bone_traverser_)
+	{
+		const auto& parent = (*as.bone_parent_)[bone];
+
+		world_transforms[bone] = parent.is_valid()
+				? world_transforms[parent] * local_transforms[bone] // non-root
+				: local_transforms[bone]; // root
+	}
+}
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_TYPES_ANIMATION_SKELETON_H_

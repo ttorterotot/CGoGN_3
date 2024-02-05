@@ -66,6 +66,8 @@ public:
 
     using ContainerT<Keyframe>::ContainerT; // inherit container's constructors
 
+    /// @brief Sorts keyframes by time, useful if it's unknown whether they were added in order or not.
+    /// @param stable whether or not to use a stable sort (preserves the order of equal elements)
     inline void sort(bool stable = true)
     {
         if (stable)
@@ -74,6 +76,18 @@ public:
             std::sort(ContainerT<Keyframe>::begin(), ContainerT<Keyframe>::end(), CompareKeyframes);
     }
 
+    /// @brief Interpolates a transform between both neighboring keyframes.
+    /// Requires keyframes to be sorted, see sort().
+    /// Converts transforms to interpolate - using `to_interpolation_space` -
+    /// then either returns the result - constant extrapolation - outside keyframes,
+    /// or interpolates between both neighboring transforms - using `interpolate` - between keyframes.
+    /// The possible conversion of the return value from interpolation space is left to the caller.
+    /// @param time the time value to interpolate for
+    /// @param to_interpolation_space a mapping function from storage to interpolation space in the form
+    ///                               `(const TransformT&) -> InterpolatedT`
+    /// @param interpolate an interpolation function in the form
+    ///                    `(const InterpolatedT&, const InterpolatedT&, const TimeT&) -> InterpolatedT`
+    /// @return the interpolated transform as `InterpolatedT`
     template <typename InterpolatedT = TransformT,
             typename T = decltype(identity_c<const InterpolatedT&>),
             typename U = decltype(default_lerp<InterpolatedT, TimeT>)>

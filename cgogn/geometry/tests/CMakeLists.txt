@@ -8,7 +8,7 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 target_sources(${PROJECT_NAME}
 	PRIVATE
-		"${CMAKE_CURRENT_LIST_DIR}/dq/dual_quaternion_test.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/types/dual_quaternion_test.cpp"
 )
 
 target_link_libraries(cgogn_geometry_test gtest gmock cgogn::geometry)

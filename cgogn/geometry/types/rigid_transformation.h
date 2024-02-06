@@ -51,6 +51,10 @@ public:
 	inline RigidTransformation(const Eigen::Vector<OtherScalar, OtherSize>& translation) :
 			RigidTransformation(R::Identity(), translation) {}
 
+	template <typename OtherScalar>
+	inline RigidTransformation(const Eigen::Vector<OtherScalar, 4>& translation) :
+			RigidTransformation(R::Identity(), translation.template head<_Dim>() * (1.0 / translation[_Dim])) {}
+
 	template <typename OtherScalar, int OtherDim>
 	inline RigidTransformation(Eigen::Translation<OtherScalar, OtherDim> translation) :
 			RigidTransformation(R::Identity(), translation) {}
@@ -102,7 +106,7 @@ RigidTransformation(const Eigen::Vector<OtherScalar, 3>& translation)
 
 template <typename OtherScalar>
 RigidTransformation(const Eigen::Vector<OtherScalar, 4>& translation)
-		-> RigidTransformation<Eigen::Quaternion<OtherScalar>, Eigen::Vector<OtherScalar, 4>>;
+		-> RigidTransformation<Eigen::Quaternion<OtherScalar>, Eigen::Vector<OtherScalar, 3>>;
 
 template <typename OtherScalar>
 RigidTransformation(Eigen::Translation<OtherScalar, 2> translation)

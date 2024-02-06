@@ -24,6 +24,7 @@
 #include <gtest/gtest.h>
 
 #include <cgogn/geometry/types/rigid_transformation.h>
+#include <cgogn/geometry/functions/quaternion_operations.h>
 
 namespace cgogn
 {
@@ -100,6 +101,39 @@ TEST_F(RigidTransformationTest, template_scalar)
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix3d{}})::Scalar, double>));
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix4f{}})::Scalar, float>));
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix4d{}})::Scalar, double>));
+}
+
+// Test if RigidTransformation(Transform(Rotation2D)) initializes the RT properly
+TEST_F(RigidTransformationTest, from_transform_rotation2)
+{
+	Eigen::Rotation2Dd rotation{0.25};
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry2d{rotation}}.rotation().isApprox(rotation));
+}
+
+// Test if RigidTransformation(Transform(Quaternion)) initializes the RT properly
+TEST_F(RigidTransformationTest, from_transform_rotation3)
+{
+	using namespace geometry; // required for operator*(Quatd, double), otherwise convenience
+	Quatd rotation{Eigen::AngleAxisd(30.0, Vec3{1.0, 2.0, 4.0}.normalized())};
+	const bool& equal_direct = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation);
+	const bool& equal_opposite = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation * -1.0);
+	EXPECT_TRUE(equal_direct || equal_opposite);
+}
+
+// Test if RigidTransformation(Transform(Translation2)) initializes the RT properly
+TEST_F(RigidTransformationTest, from_transform_translation2)
+{
+	geometry::Vec2 translation{0.5, -1.0};
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry2d{Eigen::Translation2d{translation}}}
+			.translation().isApprox(translation));
+}
+
+// Test if RigidTransformation(Transform(Translation3)) initializes the RT properly
+TEST_F(RigidTransformationTest, from_transform_translation3)
+{
+	geometry::Vec3 translation{0.5, -1.0, 2.0};
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry3d{Eigen::Translation3d{translation}}}
+			.translation().isApprox(translation));
 }
 
 } // namespace cgogn

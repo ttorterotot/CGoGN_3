@@ -18,6 +18,7 @@ set(src_list
 	    "${CMAKE_CURRENT_LIST_DIR}/types/grid.h"
 	    "${CMAKE_CURRENT_LIST_DIR}/types/quadric.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/slab_quadric.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/rigid_transformation.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/dual_quaternion.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/animation/keyframed_animation.h"
 

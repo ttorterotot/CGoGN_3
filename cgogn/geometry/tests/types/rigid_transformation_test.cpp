@@ -36,71 +36,75 @@ class RigidTransformationTest : public ::testing::Test
 // Test if dimension is correctly inferred from template resolution
 TEST_F(RigidTransformationTest, template_dim)
 {
+	// Implying namespaces to be concise
+	using namespace Eigen;
+	using geometry::RigidTransformation;
 	// 2D vectors
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector2f{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector2d{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Vector2f{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Vector2d{}}.Dim == 2);
 	// 2D transformations
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Df{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Dd{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Translation2f{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Translation2d{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Df{} * Eigen::Translation2f{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Dd{} * Eigen::Translation2d{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Rotation2Df{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Rotation2Dd{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Translation2f{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Translation2d{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Rotation2Df{} * Translation2f{}}.Dim == 2);
+	EXPECT_TRUE(RigidTransformation{Rotation2Dd{} * Translation2d{}}.Dim == 2);
 	// 3D/4D vectors and quaternions
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector3f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector3d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector4f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector4d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaternionf{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaterniond{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Vector3f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Vector3d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Vector4f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Vector4d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Quaternionf{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Quaterniond{}}.Dim == 3);
 	// 3D transformations
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::AngleAxisf{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::AngleAxisd{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Translation3f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Translation3d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaternionf{} * Eigen::Translation3f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaterniond{} * Eigen::Translation3d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{AngleAxisf{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{AngleAxisd{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Translation3f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Translation3d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Quaternionf{} * Translation3f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Quaterniond{} * Translation3d{}}.Dim == 3);
 	// Matrices (3D, regular or homogeneous)
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Matrix3f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Matrix3d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Matrix4f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Matrix4d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Matrix3f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Matrix3d{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Matrix4f{}}.Dim == 3);
+	EXPECT_TRUE(RigidTransformation{Matrix4d{}}.Dim == 3);
 }
 
 // Test if scalar is correctly inferred from template resolution
 TEST_F(RigidTransformationTest, template_scalar)
 {
+	// Implying namespaces to be concise
+	using namespace Eigen;
+	using geometry::RigidTransformation;
 	// 2D vectors
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector2f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector2d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector2f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector2d{}})::Scalar, double>));
 	// 2D transformations
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Rotation2Df{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Rotation2Dd{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Translation2f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Translation2d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{
-			Eigen::Rotation2Df{} * Eigen::Translation2f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{
-			Eigen::Rotation2Dd{} * Eigen::Translation2d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Rotation2Df{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Rotation2Dd{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Translation2f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Translation2d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Rotation2Df{} * Translation2f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Rotation2Dd{} * Translation2d{}})::Scalar, double>));
 	// 3D/4D vectors and quaternions
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector3f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector3d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector4f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector4d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaternionf{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaterniond{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector3f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector3d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector4f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Vector4d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Quaternionf{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Quaterniond{}})::Scalar, double>));
 	// 3D transformations
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::AngleAxisf{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::AngleAxisd{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Translation3f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Translation3d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaternionf{} * Eigen::Translation3f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaterniond{} * Eigen::Translation3d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{AngleAxisf{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{AngleAxisd{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Translation3f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Translation3d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Quaternionf{} * Translation3f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Quaterniond{} * Translation3d{}})::Scalar, double>));
 	// Matrices (3D, regular or homogeneous)
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix3f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix3d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix4f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Matrix4d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Matrix3f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Matrix3d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Matrix4f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(RigidTransformation{Matrix4d{}})::Scalar, double>));
 }
 
 // Test if RigidTransformation(Transform(Rotation2D)) initializes the RT properly

@@ -48,6 +48,7 @@ class KeyframedAnimation : public ContainerT<AnimationKeyframe<TimeT, TransformT
 {
 public:
     using Keyframe = AnimationKeyframe<TimeT, TransformT>;
+    static_assert(!std::is_integral_v<TimeT>, "Time type should not be integral");
 
 private:
 

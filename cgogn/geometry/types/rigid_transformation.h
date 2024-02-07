@@ -82,11 +82,16 @@ public:
 	inline T translation() const { return t_; }
 
 	[[nodiscard]]
+	auto to_transform(bool rotation_affects_translation = false) const
+	{
+		auto t = Eigen::Translation<_Scalar, _Dim>{t_};
+		return rotation_affects_translation ? r_ * t : t * r_;
+	}
+
+	[[nodiscard]]
 	auto to_transform_matrix(bool rotation_affects_translation = false) const
 	{
-		auto r = r_.toRotationMatrix();
-		auto t = Eigen::Translation<_Scalar, _Dim>{t_};
-		return rotation_affects_translation ? r * t : t * r;
+		return to_transform(rotation_affects_translation).matrix();
 	}
 
 private:

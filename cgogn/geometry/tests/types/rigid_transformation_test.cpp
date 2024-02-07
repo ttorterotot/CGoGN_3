@@ -142,4 +142,147 @@ TEST_F(RigidTransformationTest, from_transform_translation3)
 			.translation().isApprox(translation));
 }
 
+// Test if RigidTransformation(Rotation2D) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_rotation2D)
+{
+	Eigen::Rotation2Dd rotation{0.25};
+	EXPECT_TRUE(geometry::RigidTransformation{rotation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry2d{rotation}.matrix()));
+}
+
+// Test if RigidTransformation(AngleAxis) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_angle_axis)
+{
+	Eigen::AngleAxisd rotation{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()};
+	EXPECT_TRUE(geometry::RigidTransformation{rotation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{rotation}.matrix()));
+}
+
+// Test if RigidTransformation(Quaternion) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_quaternion)
+{
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()}};
+	EXPECT_TRUE(geometry::RigidTransformation{rotation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{rotation}.matrix()));
+}
+
+// Test if RigidTransformation(Vector2) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_vector2)
+{
+	Eigen::Vector2d translation{0.5, -1.0};
+	EXPECT_TRUE(geometry::RigidTransformation{translation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry2d{Eigen::Translation2d{translation}}.matrix()));
+}
+
+// Test if RigidTransformation(Vector3) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_vector3)
+{
+	Eigen::Vector3d translation{0.5, -1.0, 2.0};
+	EXPECT_TRUE(geometry::RigidTransformation{translation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{Eigen::Translation3d{translation}}.matrix()));
+}
+
+// Test if RigidTransformation(Vector4) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_vector4)
+{
+	Eigen::Vector4d translation_h{0.5, -1.0, 2.0, 4.0};
+	Eigen::Vector3d translation = translation_h.head<3>() / translation_h.w();
+	// Expecting homogeneous vector to be converted to its 3D form properly
+	EXPECT_TRUE(geometry::RigidTransformation{translation_h}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{Eigen::Translation3d{translation}}.matrix()));
+	// Expecting improperly-converted vector to produce different results
+	EXPECT_FALSE(geometry::RigidTransformation{translation_h}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{Eigen::Translation3d{translation_h.head<3>()}}.matrix()));
+}
+
+// Test if RigidTransformation(Translation2) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_translation2)
+{
+	Eigen::Translation2d translation{0.5, -1.0};
+	EXPECT_TRUE(geometry::RigidTransformation{translation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry2d{translation}.matrix()));
+}
+
+// Test if RigidTransformation(Translation3) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_translation3)
+{
+	Eigen::Translation3d translation{0.5, -1.0, 2.0};
+	EXPECT_TRUE(geometry::RigidTransformation{translation}.to_transform_matrix()
+			.isApprox(Eigen::Isometry3d{translation}.matrix()));
+}
+
+// Test if RigidTransformation(Rotation2D, Vector2) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_r2v2)
+{
+	using T = Eigen::Isometry2d; // conciseness
+	Eigen::Rotation2Dd rotation{0.25};
+	Eigen::Vector2d v{0.5, -1.0};
+	Eigen::Translation2d translation{v};
+	// Rotation shouldn't affect translation
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(false)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(false)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+	// Rotation should affect translation
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(true)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(true)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+}
+
+// Test if RigidTransformation(Rotation2D, Translation2) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_r2t2)
+{
+	using T = Eigen::Isometry2d; // conciseness
+	Eigen::Rotation2Dd rotation{0.25};
+	Eigen::Translation2d translation{0.5, -1.0};
+	// Rotation shouldn't affect translation
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(false)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(false)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+	// Rotation should affect translation
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(true)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(true)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+}
+
+// Test if RigidTransformation(AngleAxis, Translation3) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_at3)
+{
+	using T = Eigen::Isometry3d; // conciseness
+	Eigen::AngleAxisd rotation{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()};
+	Eigen::Translation3d translation{0.5, -1.0, 2.0};
+	// Rotation shouldn't affect translation
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(false)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(false)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+	// Rotation should affect translation
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(true)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, translation}.to_transform_matrix(true)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+}
+
+// Test if RigidTransformation(Quaternion, Vector3) outputs the correct transformation matrix
+TEST_F(RigidTransformationTest, matrix_from_qv3)
+{
+	using T = Eigen::Isometry3d; // conciseness
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()}};
+	Eigen::Vector3d v{0.5, -1.0, 2.0};
+	Eigen::Translation3d translation{v};
+	// Rotation shouldn't affect translation
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(false)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(false)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+	// Rotation should affect translation
+	EXPECT_FALSE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(true)
+			.isApprox((T{translation} * T{rotation}).matrix())));
+	EXPECT_TRUE((geometry::RigidTransformation{rotation, v}.to_transform_matrix(true)
+			.isApprox((T{rotation} * T{translation}).matrix())));
+}
+
 } // namespace cgogn

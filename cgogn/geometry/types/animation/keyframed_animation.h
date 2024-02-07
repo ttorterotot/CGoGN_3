@@ -37,6 +37,9 @@ namespace geometry
 template <typename TimeT, typename TransformT>
 struct AnimationKeyframe
 {
+    using Time = TimeT;
+    using Transform = TransformT;
+
     TimeT time_;
     TransformT transform_;
 

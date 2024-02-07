@@ -172,6 +172,22 @@ CELL add_cell(AnimationSkeleton& as)
 }
 
 /*************************************************************************/
+// Attributes management
+/*************************************************************************/
+
+template <typename T, typename CELL>
+std::shared_ptr<AnimationSkeleton::Attribute<T>> add_attribute(AnimationSkeleton& as, const std::string& name)
+{
+	return as.attribute_containers_[CELL::CELL_INDEX].template add_attribute<T>(name);
+}
+
+template <typename T, typename CELL>
+std::shared_ptr<AnimationSkeleton::Attribute<T>> get_attribute(const AnimationSkeleton& as, const std::string& name)
+{
+	return as.attribute_containers_[CELL::CELL_INDEX].template get_attribute<T>(name);
+}
+
+/*************************************************************************/
 // Global cells traversals
 /*************************************************************************/
 

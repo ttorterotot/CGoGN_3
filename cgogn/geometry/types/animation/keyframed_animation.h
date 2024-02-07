@@ -26,6 +26,7 @@
 
 #include <cgogn/core/functions/identity.h>
 #include <cgogn/core/utils/type_traits.h>
+#include <cgogn/core/utils/assert.h>
 
 namespace cgogn
 {

@@ -114,7 +114,7 @@ TEST_F(RigidTransformationTest, from_transform_rotation2)
 TEST_F(RigidTransformationTest, from_transform_rotation3)
 {
 	using namespace geometry; // required for operator*(Quatd, double), otherwise convenience
-	Quatd rotation{Eigen::AngleAxisd(30.0, Vec3{1.0, 2.0, 4.0}.normalized())};
+	Quatd rotation{Eigen::AngleAxisd(30.0, Vec3d{1.0, 2.0, 4.0}.normalized())};
 	const bool& equal_direct = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation);
 	const bool& equal_opposite = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation * -1.0);
 	EXPECT_TRUE(equal_direct || equal_opposite);
@@ -123,7 +123,7 @@ TEST_F(RigidTransformationTest, from_transform_rotation3)
 // Test if RigidTransformation(Transform(Translation2)) initializes the RT properly
 TEST_F(RigidTransformationTest, from_transform_translation2)
 {
-	geometry::Vec2 translation{0.5, -1.0};
+	geometry::Vec2d translation{0.5, -1.0};
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry2d{Eigen::Translation2d{translation}}}
 			.translation().isApprox(translation));
 }
@@ -131,7 +131,7 @@ TEST_F(RigidTransformationTest, from_transform_translation2)
 // Test if RigidTransformation(Transform(Translation3)) initializes the RT properly
 TEST_F(RigidTransformationTest, from_transform_translation3)
 {
-	geometry::Vec3 translation{0.5, -1.0, 2.0};
+	geometry::Vec3d translation{0.5, -1.0, 2.0};
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry3d{Eigen::Translation3d{translation}}}
 			.translation().isApprox(translation));
 }

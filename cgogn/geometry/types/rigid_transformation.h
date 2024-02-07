@@ -53,7 +53,7 @@ public:
 
 	template <typename OtherScalar>
 	inline RigidTransformation(const Eigen::Vector<OtherScalar, 4>& translation) :
-			RigidTransformation(R::Identity(), translation.template head<_Dim>() * (1.0 / translation[_Dim])) {}
+			RigidTransformation(R::Identity(), translation.template head<_Dim>() / translation[_Dim]) {}
 
 	template <typename OtherScalar, int OtherDim>
 	inline RigidTransformation(Eigen::Translation<OtherScalar, OtherDim> translation) :

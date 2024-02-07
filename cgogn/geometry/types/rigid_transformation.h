@@ -44,7 +44,7 @@ public:
 
 public:
 
-	inline RigidTransformation(const R& rotation, const T& translation = Eigen::Vector<typename R::Scalar, _Dim>{}) :
+	inline RigidTransformation(const R& rotation, const T& translation = Eigen::Vector<typename R::Scalar, _Dim>::Zero()) :
 			r_(rotation), t_(translation) {}
 
 	template <typename OtherScalar, int OtherSize>

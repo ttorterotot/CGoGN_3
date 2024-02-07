@@ -37,8 +37,8 @@ class RigidTransformationTest : public ::testing::Test
 TEST_F(RigidTransformationTest, template_dim)
 {
 	// 2D vectors
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec2f{}}.Dim == 2);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec2d{}}.Dim == 2);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector2f{}}.Dim == 2);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector2d{}}.Dim == 2);
 	// 2D transformations
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Df{}}.Dim == 2);
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Dd{}}.Dim == 2);
@@ -47,12 +47,12 @@ TEST_F(RigidTransformationTest, template_dim)
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Df{} * Eigen::Translation2f{}}.Dim == 2);
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Rotation2Dd{} * Eigen::Translation2d{}}.Dim == 2);
 	// 3D/4D vectors and quaternions
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec3f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec3d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec4f{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Vec4d{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Quatf{}}.Dim == 3);
-	EXPECT_TRUE(geometry::RigidTransformation{geometry::Quatd{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector3f{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector3d{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector4f{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Vector4d{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaternionf{}}.Dim == 3);
+	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Quaterniond{}}.Dim == 3);
 	// 3D transformations
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::AngleAxisf{}}.Dim == 3);
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::AngleAxisd{}}.Dim == 3);
@@ -71,8 +71,8 @@ TEST_F(RigidTransformationTest, template_dim)
 TEST_F(RigidTransformationTest, template_scalar)
 {
 	// 2D vectors
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec2f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec2d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector2f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector2d{}})::Scalar, double>));
 	// 2D transformations
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Rotation2Df{}})::Scalar, float>));
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Rotation2Dd{}})::Scalar, double>));
@@ -83,12 +83,12 @@ TEST_F(RigidTransformationTest, template_scalar)
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{
 			Eigen::Rotation2Dd{} * Eigen::Translation2d{}})::Scalar, double>));
 	// 3D/4D vectors and quaternions
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec3f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec3d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec4f{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Vec4d{}})::Scalar, double>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Quatf{}})::Scalar, float>));
-	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{geometry::Quatd{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector3f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector3d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector4f{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Vector4d{}})::Scalar, double>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaternionf{}})::Scalar, float>));
+	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::Quaterniond{}})::Scalar, double>));
 	// 3D transformations
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::AngleAxisf{}})::Scalar, float>));
 	EXPECT_TRUE((std::is_same_v<decltype(geometry::RigidTransformation{Eigen::AngleAxisd{}})::Scalar, double>));
@@ -114,7 +114,7 @@ TEST_F(RigidTransformationTest, from_transform_rotation2)
 TEST_F(RigidTransformationTest, from_transform_rotation3)
 {
 	using namespace geometry; // required for operator*(Quatd, double), otherwise convenience
-	Quatd rotation{Eigen::AngleAxisd(30.0, Vec3d{1.0, 2.0, 4.0}.normalized())};
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd(30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized())};
 	const bool& equal_direct = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation);
 	const bool& equal_opposite = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation * -1.0);
 	EXPECT_TRUE(equal_direct || equal_opposite);
@@ -123,7 +123,7 @@ TEST_F(RigidTransformationTest, from_transform_rotation3)
 // Test if RigidTransformation(Transform(Translation2)) initializes the RT properly
 TEST_F(RigidTransformationTest, from_transform_translation2)
 {
-	geometry::Vec2d translation{0.5, -1.0};
+	Eigen::Vector2d translation{0.5, -1.0};
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry2d{Eigen::Translation2d{translation}}}
 			.translation().isApprox(translation));
 }
@@ -131,7 +131,7 @@ TEST_F(RigidTransformationTest, from_transform_translation2)
 // Test if RigidTransformation(Transform(Translation3)) initializes the RT properly
 TEST_F(RigidTransformationTest, from_transform_translation3)
 {
-	geometry::Vec3d translation{0.5, -1.0, 2.0};
+	Eigen::Vector3d translation{0.5, -1.0, 2.0};
 	EXPECT_TRUE(geometry::RigidTransformation{Eigen::Isometry3d{Eigen::Translation3d{translation}}}
 			.translation().isApprox(translation));
 }

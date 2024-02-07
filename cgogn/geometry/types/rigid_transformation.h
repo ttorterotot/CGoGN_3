@@ -24,7 +24,7 @@
 #ifndef CGOGN_GEOMETRY_TYPES_RIGID_TRANSFORMATION_H_
 #define CGOGN_GEOMETRY_TYPES_RIGID_TRANSFORMATION_H_
 
-#include <cgogn/geometry/types/vector_traits.h>
+#include <Eigen/Dense>
 
 namespace cgogn
 {
@@ -129,9 +129,9 @@ RigidTransformation(const Eigen::MatrixBase<OtherDerived>& other)
 		-> RigidTransformation<Eigen::Quaternion<typename OtherDerived::Scalar>,
 				Eigen::Vector<typename OtherDerived::Scalar, 3>>;
 
-using RigidTransformationQVf = RigidTransformation<Quatf, Vec3f>;
-using RigidTransformationQVd = RigidTransformation<Quatd, Vec3d>;
-using RigidTransformationQV = RigidTransformation<Quaternion, Vec3>;
+using RigidTransformationQVf = RigidTransformation<Eigen::Quaternionf, Eigen::Vector3f>;
+using RigidTransformationQVd = RigidTransformation<Eigen::Quaterniond, Eigen::Vector3d>;
+using RigidTransformationQV = RigidTransformationQVd;
 
 } // namespace geometry
 

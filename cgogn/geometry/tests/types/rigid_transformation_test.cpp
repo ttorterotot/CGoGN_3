@@ -118,7 +118,9 @@ TEST_F(RigidTransformationTest, from_transform_rotation2)
 TEST_F(RigidTransformationTest, from_transform_rotation3)
 {
 	using namespace geometry; // required for operator*(Quatd, double), otherwise convenience
-	Eigen::Quaterniond rotation{Eigen::AngleAxisd(30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized())};
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()}};
+	// A quaternion and the same with opposite coefficients represent the same rotation
+	// (the only difference is whether or not interpolation with another quaternion would take the shortest path)
 	const bool& equal_direct = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation);
 	const bool& equal_opposite = RigidTransformation{Eigen::Isometry3d{rotation}}.rotation().isApprox(rotation * -1.0);
 	EXPECT_TRUE(equal_direct || equal_opposite);

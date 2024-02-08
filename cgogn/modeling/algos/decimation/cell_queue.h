@@ -64,6 +64,11 @@ public:
 	public:
 		const Self* const queue_ptr_;
 		typename CellCostMap::const_iterator cell_it_;
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = const CELL;
+		using pointer = const CELL*;
+		using reference = const CELL&;
 
 		inline const_iterator(const Self* trav, typename CellCostMap::const_iterator it)
 			: queue_ptr_(trav), cell_it_(it)
@@ -87,6 +92,11 @@ public:
 		inline const CELL& operator*() const
 		{
 			return (*cell_it_).second;
+		}
+		inline bool operator==(const_iterator it) const
+		{
+			cgogn_assert(queue_ptr_ == it.queue_ptr_);
+			return cell_it_ == it.cell_it_;
 		}
 		inline bool operator!=(const_iterator it) const
 		{

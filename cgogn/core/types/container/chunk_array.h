@@ -159,6 +159,13 @@ public:
 		uint32 index_;
 
 	public:
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = const T;
+		using pointer = const T*;
+		using reference = const T&;
+
+	public:
 		inline const_iterator(const ChunkArray<T>* ca, uint32 index) : ca_(ca), index_(index)
 		{
 		}
@@ -170,6 +177,11 @@ public:
 			ca_ = it.ca_;
 			index_ = it.index_;
 			return *this;
+		}
+		inline bool operator==(const_iterator it) const
+		{
+			cgogn_assert(ca_ == it.ca_);
+			return index_ == it.index_;
 		}
 		inline bool operator!=(const_iterator it) const
 		{
@@ -205,6 +217,13 @@ public:
 		uint32 index_;
 
 	public:
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = T*;
+		using reference = T&;
+
+	public:
 		inline iterator(ChunkArray<T>* ca, uint32 index) : ca_(ca), index_(index)
 		{
 		}
@@ -216,6 +235,11 @@ public:
 			ca_ = it.ca_;
 			index_ = it.index_;
 			return *this;
+		}
+		inline bool operator==(iterator it) const
+		{
+			cgogn_assert(ca_ == it.ca_);
+			return index_ == it.index_;
 		}
 		inline bool operator!=(iterator it) const
 		{

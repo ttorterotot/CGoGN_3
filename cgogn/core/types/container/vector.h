@@ -135,6 +135,13 @@ public:
 		uint32 index_;
 
 	public:
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = const T;
+		using pointer = const T*;
+		using reference = const T&;
+
+	public:
 		inline const_iterator(const Vector<T>* vector, uint32 index) : vector_(vector), index_(index)
 		{
 		}
@@ -146,6 +153,11 @@ public:
 			vector_ = it.vector_;
 			index_ = it.index_;
 			return *this;
+		}
+		inline bool operator==(const_iterator it) const
+		{
+			cgogn_assert(vector_ == it.vector_);
+			return index_ == it.index_;
 		}
 		inline bool operator!=(const_iterator it) const
 		{
@@ -181,6 +193,13 @@ public:
 		uint32 index_;
 
 	public:
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = T*;
+		using reference = T&;
+
+	public:
 		inline iterator(Vector<T>* vector, uint32 index) : vector_(vector), index_(index)
 		{
 		}
@@ -192,6 +211,11 @@ public:
 			vector_ = it.vector_;
 			index_ = it.index_;
 			return *this;
+		}
+		inline bool operator==(iterator it) const
+		{
+			cgogn_assert(vector_ == it.vector_);
+			return index_ == it.index_;
 		}
 		inline bool operator!=(iterator it) const
 		{

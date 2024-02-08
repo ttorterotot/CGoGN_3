@@ -133,6 +133,13 @@ public:
 		typename std::unordered_map<uint32, CELL>::const_iterator map_it_;
 
 	public:
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = const CELL;
+		using pointer = const CELL*;
+		using reference = const CELL&;
+
+	public:
 		inline const_iterator(const CellsSet<MESH, CELL>* cs,
 							  typename std::unordered_map<uint32, CELL>::const_iterator&& map_it)
 			: cs_(cs), map_it_(map_it)
@@ -146,6 +153,11 @@ public:
 			cs_ = it.cs_;
 			map_it_ = it.map_it_;
 			return *this;
+		}
+		inline bool operator==(const_iterator it) const
+		{
+			cgogn_assert(cs_ == it.cs_);
+			return map_it_ == it.map_it_;
 		}
 		inline bool operator!=(const_iterator it) const
 		{

@@ -71,6 +71,14 @@ public:
 
     using ContainerT<Keyframe>::ContainerT; // inherit container's constructors
 
+    /// @brief Evaluates if the animation's keyframes are sorted in the container.
+    /// @return whether or not the keyframes are sorted
+    [[nodiscard]]
+    inline bool is_sorted() const
+    {
+        return std::is_sorted(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(), CompareKeyframes);
+    }
+
     /// @brief Sorts keyframes by time, useful if it's unknown whether they were added in order or not.
     /// @param stable whether or not to use a stable sort (preserves the order of equal elements)
     inline void sort(bool stable = true)
@@ -79,6 +87,16 @@ public:
             std::stable_sort(ContainerT<Keyframe>::begin(), ContainerT<Keyframe>::end(), CompareKeyframes);
         else
             std::sort(ContainerT<Keyframe>::begin(), ContainerT<Keyframe>::end(), CompareKeyframes);
+    }
+
+    /// @brief Finds the earliest and latest keyframes.
+    /// If the keyframes can be assumed to be sorted, use `operator[]` on `0` and `size() - 1` instead.
+    /// @return a pair containing the most extreme keyframes
+    template <typename It>
+    [[nodiscard]]
+    inline std::pair<It, It> minmax_element() const
+    {
+        return std::minmax_element(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(), CompareKeyframes);
     }
 
     /// @brief Interpolates a transform between both neighboring keyframes.

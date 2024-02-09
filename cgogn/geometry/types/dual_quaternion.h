@@ -37,7 +37,7 @@ namespace geometry
 class DualQuaternion
 {
 public:
-	DualQuaternion() = delete;
+	DualQuaternion() : DualQuaternion({1, 0, 0, 0}, {0, 0, 0}) {}
 
 	[[nodiscard]]
 	static inline DualQuaternion from_rotation(const Quaternion& r)

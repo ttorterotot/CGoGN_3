@@ -44,6 +44,8 @@ public:
 
 public:
 
+	inline RigidTransformation() : r_(R::Identity()), t_(T{Eigen::Vector<typename R::Scalar, _Dim>::Zero()}) {}
+
 	inline RigidTransformation(const R& rotation, const T& translation = Eigen::Vector<typename R::Scalar, _Dim>::Zero()) :
 			r_(rotation), t_(translation) {}
 

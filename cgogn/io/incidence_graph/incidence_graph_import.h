@@ -36,6 +36,7 @@ namespace cgogn
 
 struct IncidenceGraph;
 struct Graph;
+struct AnimationSkeleton;
 
 namespace io
 {
@@ -69,6 +70,7 @@ struct IncidenceGraphImportData
 
 void CGOGN_IO_EXPORT import_incidence_graph_data(IncidenceGraph& ig, IncidenceGraphImportData& graph_data);
 void CGOGN_IO_EXPORT import_incidence_graph_data(Graph& g, IncidenceGraphImportData& graph_data);
+void CGOGN_IO_EXPORT import_incidence_graph_data(AnimationSkeleton& g, IncidenceGraphImportData& incidence_graph_data);
 
 } // namespace io
 

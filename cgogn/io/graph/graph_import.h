@@ -35,6 +35,7 @@ namespace cgogn
 
 struct Graph;
 struct IncidenceGraph;
+struct AnimationSkeleton;
 
 namespace io
 {
@@ -53,6 +54,10 @@ struct GraphImportData
 
 void CGOGN_IO_EXPORT import_graph_data(Graph& g, const GraphImportData& graph_data);
 void CGOGN_IO_EXPORT import_graph_data(IncidenceGraph& g, const GraphImportData& graph_data);
+
+// Mostly placeholder, as graph data doesn't contain parenting information (we simply guess it from indices
+// within the constraints of connectivity - it needs to be a tree) nor bone names (which are thus left empty)
+void CGOGN_IO_EXPORT import_graph_data(AnimationSkeleton& as, const GraphImportData& graph_data);
 
 } // namespace io
 

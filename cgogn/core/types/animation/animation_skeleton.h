@@ -97,9 +97,13 @@ struct AnimationSkeleton
 		inline Bone(uint32 id) : Cell(id) {}
 	};
 
+	// Some functions don't go through mesh traits and want these types from this directly...
+	using Vertex = Joint;
+	using Edge = Bone;
+
 	using Cells = std::tuple<Joint, Bone>;
 
-	AnimationSkeleton()
+	inline AnimationSkeleton()
 	{
 		bone_parent_ =
 			attribute_containers_[Bone::CELL_INDEX].add_attribute<Bone>("bone_parents");
@@ -107,6 +111,19 @@ struct AnimationSkeleton
 			attribute_containers_[Bone::CELL_INDEX].add_attribute<std::pair<Joint, Joint>>("bone_joints");
 		bone_name_ =
 			attribute_containers_[Bone::CELL_INDEX].add_attribute<std::string>("bone_names");
+	}
+
+	inline void operator=(const AnimationSkeleton& other)
+	{
+		bone_traverser_ = other.bone_traverser_;
+		for (int i = 0; i < 2; ++i)
+			attribute_containers_[i].copy(other.attribute_containers_[i]);
+		bone_parent_ =
+			attribute_containers_[Bone::CELL_INDEX].get_attribute<Bone>("bone_parents");
+		bone_joints_ =
+			attribute_containers_[Bone::CELL_INDEX].get_attribute<std::pair<Joint, Joint>>("bone_joints");
+		bone_name_ =
+			attribute_containers_[Bone::CELL_INDEX].get_attribute<std::string>("bone_names");
 	}
 
 	auto nb_bones() const { return bone_traverser_.size(); }
@@ -119,7 +136,11 @@ struct AnimationSkeleton
 	/*************************************************************************/
 	// Cells attributes containers
 	/*************************************************************************/
-	std::array<AttributeContainer, 2> attribute_containers_;
+
+	// This is mutable because CellMarker holds a const reference to this struct
+	// but calls its release_mark_attribute method, which modifies said attribute
+	// This is dubious practice, but it isn't my call to change that class
+	mutable std::array<AttributeContainer, 2> attribute_containers_;
 
 	std::shared_ptr<Attribute<Bone>> bone_parent_;
 	std::shared_ptr<Attribute<std::pair<Joint, Joint>>> bone_joints_;
@@ -157,9 +178,18 @@ AnimationSkeleton::Bone add_root(AnimationSkeleton& as, std::string&& name);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, const std::string& name);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, std::string&& name);
+AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint);
 AnimationSkeleton::Joint get_base_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Joint get_root_joint(const AnimationSkeleton& as);
+
+/// @brief Adds a bone with joints that have already been created.
+/// Useful internally and for structure-aware functions e.g. `import_from_graph`.
+/// Does not check for topological validity, in normal circumstances use `add_root` and `add_bone` instead.
+AnimationSkeleton::Bone add_bone_from_existing_joints(AnimationSkeleton& as, AnimationSkeleton::Bone parent,
+		std::pair<AnimationSkeleton::Joint, AnimationSkeleton::Joint> joints);
+
+void copy(AnimationSkeleton& dst, const AnimationSkeleton& src);
 
 /*************************************************************************/
 // Cells basic functions
@@ -185,6 +215,85 @@ template <typename T, typename CELL>
 std::shared_ptr<AnimationSkeleton::Attribute<T>> get_attribute(const AnimationSkeleton& as, const std::string& name)
 {
 	return as.attribute_containers_[CELL::CELL_INDEX].template get_attribute<T>(name);
+}
+
+template <typename CELL>
+void remove_attribute(AnimationSkeleton& as, const std::shared_ptr<AnimationSkeleton::AttributeGen>& attribute)
+{
+	as.attribute_containers_[CELL::CELL_INDEX].remove_attribute(attribute);
+}
+
+template <typename CELL>
+void remove_attribute(AnimationSkeleton& as, AnimationSkeleton::AttributeGen* attribute)
+{
+	as.attribute_containers_[CELL::CELL_INDEX].remove_attribute(attribute);
+}
+
+template <typename CELL, typename FUNC>
+void foreach_attribute(const AnimationSkeleton& as, const FUNC& f)
+{
+	using AttributeGen = AnimationSkeleton::AttributeGen;
+	static_assert(is_func_parameter_same<FUNC, const std::shared_ptr<AttributeGen>&>::value,
+				  "Wrong function attribute parameter type");
+	for (const std::shared_ptr<AttributeGen>& a : as.attribute_containers_[CELL::CELL_INDEX])
+		f(a);
+}
+
+template <typename T, typename CELL, typename FUNC>
+void foreach_attribute(const AnimationSkeleton& as, const FUNC& f)
+{
+	using AttributeT = AnimationSkeleton::Attribute<T>;
+	using AttributeGen = AnimationSkeleton::AttributeGen;
+	static_assert(is_func_parameter_same<FUNC, const std::shared_ptr<AttributeT>&>::value,
+				  "Wrong function attribute parameter type");
+	for (const std::shared_ptr<AttributeGen>& a : as.attribute_containers_[CELL::CELL_INDEX])
+	{
+		std::shared_ptr<AttributeT> at = std::dynamic_pointer_cast<AttributeT>(a);
+		if (at)
+			f(at);
+	}
+}
+
+template <typename CELL>
+auto get_mark_attribute(const AnimationSkeleton& as)
+{
+	static_assert(has_cell_type_v<AnimationSkeleton, CELL>, "CELL not supported in this MESH");
+	return as.attribute_containers_[CELL::CELL_INDEX].get_mark_attribute();
+}
+
+template <typename CELL>
+auto release_mark_attribute(const AnimationSkeleton& as, typename AnimationSkeleton::MarkAttribute* attribute)
+{
+	static_assert(has_cell_type_v<AnimationSkeleton, CELL>, "CELL not supported in this MESH");
+	return as.attribute_containers_[CELL::CELL_INDEX].release_mark_attribute(attribute);
+}
+
+/*************************************************************************/
+// Cells indexing management
+/*************************************************************************/
+
+template <typename CELL>
+uint32 new_index(const AnimationSkeleton& as)
+{
+	return as.attribute_containers_[CELL::CELL_INDEX].new_index();
+}
+
+template <typename CELL>
+uint32 index_of(const AnimationSkeleton& /*as*/, CELL c)
+{
+	return c.index_;
+}
+
+template <typename CELL>
+CELL of_index(const AnimationSkeleton& /*as*/, uint32 index)
+{
+	return CELL(index);
+}
+
+template <typename CELL>
+bool is_indexed(const AnimationSkeleton& /*as*/)
+{
+	return true;
 }
 
 /*************************************************************************/
@@ -282,6 +391,28 @@ auto parallel_foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 		fu.wait();
 	for (auto& b : cells_buffers[1u])
 		buffers->release_buffer(b);
+}
+
+/*************************************************************************/
+// Local vertex traversals
+/*************************************************************************/
+
+template <typename CELL, typename FUNC>
+auto foreach_incident_vertex(const AnimationSkeleton& as, CELL c, const FUNC& func)
+{
+	using Vertex = typename mesh_traits<AnimationSkeleton>::Vertex;
+	using Edge = typename mesh_traits<AnimationSkeleton>::Edge;
+
+	static_assert(has_cell_type_v<AnimationSkeleton, CELL>, "CELL not supported in this MESH");
+	static_assert(is_func_parameter_same<FUNC, Vertex>::value, "Wrong function cell parameter type");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+
+	if constexpr (!std::is_same_v<CELL, Edge>)
+		return;
+
+	const auto& evs = (*as.bone_joints_)[c.index_];
+	if (func(evs.first))
+		func(evs.second);
 }
 
 /*************************************************************************/

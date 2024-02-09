@@ -30,6 +30,20 @@ namespace cgogn
 // Operators
 /*************************************************************************/
 
+AnimationSkeleton::Bone add_bone_from_existing_joints(
+		AnimationSkeleton& as, AnimationSkeleton::Bone parent,
+		std::pair<AnimationSkeleton::Joint, AnimationSkeleton::Joint> joints)
+{
+	AnimationSkeleton::Bone bone = add_cell<AnimationSkeleton::Bone>(as);
+
+	(*as.bone_parent_)[bone] = parent;
+	(*as.bone_joints_)[bone] = joints;
+	(*as.bone_name_)[bone].clear();
+	as.bone_traverser_.push_back(bone);
+
+	return bone;
+}
+
 AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent)
 {
 	using Joint = AnimationSkeleton::Joint;
@@ -41,14 +55,8 @@ AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, AnimationSkele
 
 	Joint first_joint = is_root ? add_cell<Joint>(as) : (*as.bone_joints_)[parent].second;
 	Joint second_joint = add_cell<Joint>(as);
-	Bone bone = add_cell<Bone>(as);
 
-	(*as.bone_parent_)[bone] = parent;
-	(*as.bone_joints_)[bone] = {first_joint, second_joint};
-	(*as.bone_name_)[bone].clear();
-	as.bone_traverser_.push_back(bone);
-
-	return bone;
+	return add_bone_from_existing_joints(as, parent, {first_joint, second_joint});
 }
 
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as)
@@ -89,6 +97,22 @@ AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone 
 	return bone;
 }
 
+AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint)
+{
+	cgogn_assert(as.nb_bones() > 0);
+
+	// Joint might be root joint (base joint of root)
+	if ((*as.bone_joints_)[as.bone_traverser_[0]].first == joint)
+		return as.bone_traverser_[0];
+
+	// Joint is necessarily tip joint of its parent bone
+	for (const auto& bone : as.bone_traverser_)
+		if ((*as.bone_joints_)[bone].second == joint)
+			return bone;
+
+	return INVALID_INDEX; // called with non-existent joint, or topology is broken
+}
+
 AnimationSkeleton::Joint get_base_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone)
 {
 	cgogn_assert(bone < as.nb_bones());
@@ -102,5 +126,10 @@ AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const Animat
 }
 
 AnimationSkeleton::Joint get_root_joint(const AnimationSkeleton& as) { return get_base_joint(as, 0); }
+
+void copy(AnimationSkeleton& dst, const AnimationSkeleton& src)
+{
+	dst = src;
+}
 
 } // namespace cgogn

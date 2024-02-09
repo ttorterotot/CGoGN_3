@@ -164,6 +164,9 @@ auto nb_darts_of_orbit(const MESH& m, CELL c) -> std::enable_if_t<std::is_conver
 	return result;
 }
 
+template <typename MESH>
+Dart phi(const MESH& m, Dart d); // defined in CMapBase/GMapBase, declared here to avoid extra includes
+
 /*************************************************************************/
 // Boundary marker management
 /*************************************************************************/

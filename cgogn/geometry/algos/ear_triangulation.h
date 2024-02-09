@@ -30,6 +30,7 @@
 
 #include <cgogn/core/utils/numerics.h>
 
+#include <cgogn/core/types/maps/map_base.h>
 #include <cgogn/core/types/maps/dart.h>
 
 #include <cmath>
@@ -418,7 +419,7 @@ public:
 	 * @brief apply ear triangulation to the face
 	 */
 	// TODO: not generic (call to phi function)
-	void apply()
+	auto apply() -> std::enable_if_t<std::is_convertible_v<MESH&, MapBase&>>
 	{
 		while (nb_verts_ > 3)
 		{

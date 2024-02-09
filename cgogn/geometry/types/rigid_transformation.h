@@ -69,6 +69,20 @@ public:
 	inline RigidTransformation(const Eigen::MatrixBase<OtherDerived>& other) :
 			RigidTransformation(Eigen::Transform<_Scalar, _Dim, Eigen::Isometry, OtherDerived::Options>(other)) {}
 
+	inline RigidTransformation& operator*=(const RigidTransformation& other)
+	{
+		const auto& transform = to_transform() * other.to_transform();
+		r_ = R{transform.rotation()};
+		t_ = T{transform.translation()};
+		return *this;
+	}
+
+	[[nodiscard]]
+	inline friend RigidTransformation operator*(RigidTransformation a, const RigidTransformation& b)
+	{
+		return a *= b;
+	}
+
 	template <typename S>
 	[[nodiscard]]
 	inline static RigidTransformation interpolate(

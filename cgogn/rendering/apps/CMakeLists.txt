@@ -52,6 +52,17 @@ target_link_libraries(simple_graph_viewer
 	${APPLE_LINK}
 )
 
+add_executable(simple_animation_skeleton_viewer simple_animation_skeleton_viewer.cpp)
+target_link_libraries(simple_animation_skeleton_viewer
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+	${APPLE_LINK}
+)
+
 add_executable(simple_incidence_graph_viewer simple_incidence_graph_viewer.cpp)
 target_link_libraries(simple_incidence_graph_viewer
 	cgogn::core

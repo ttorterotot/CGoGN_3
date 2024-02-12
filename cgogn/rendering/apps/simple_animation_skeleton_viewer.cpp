@@ -40,15 +40,15 @@ using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
 
 using Vec3 = cgogn::geometry::Vec3;
 using Scalar = cgogn::geometry::Scalar;
+using RigidTransformation = cgogn::geometry::RigidTransformation<cgogn::geometry::Quaternion, Vec3>;
 
-Mesh* create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp)
+auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp)
 {
-	using namespace cgogn::geometry;
-	using RT = RigidTransformation<Quaternion, Vec3>;
-	using KA = KeyframedAnimation<std::vector, double, RT>;
+	using RT = RigidTransformation;
+	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, RT>;
 
 	Mesh* m = mp.add_mesh("Placeholder");
-	add_root(*m);
+	add_bone(*m, add_root(*m));
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
 			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation");
@@ -56,8 +56,9 @@ Mesh* create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp)
 	anim.emplace_back(0.0, RT{Vec3{0, 0, 0}});
 	anim.emplace_back(1.0, RT{Vec3{1, 0, 0}});
 	(*anim_attr)[m->bone_traverser_[0]] = std::move(anim);
+	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
-	return m;
+	return std::make_pair(m, anim_attr);
 }
 
 int main(int argc, char** argv)
@@ -69,8 +70,7 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
-	cgogn::ui::AnimationSkeletonController<std::vector, double,
-			cgogn::geometry::RigidTransformation<cgogn::geometry::Quaternion, Vec3>> asc_rt(app);
+	cgogn::ui::AnimationSkeletonController<std::vector, double, RigidTransformation> asc_rt(app);
 	cgogn::ui::AnimationSkeletonController<std::vector, double, cgogn::geometry::DualQuaternion> asc_dq(app);
 	cgogn::ui::AnimationSkeletonRender asr(app);
 
@@ -80,10 +80,13 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&asr);
 
-	Mesh* m = create_placeholder_skeleton(mp);
+	auto [m, anims] = create_placeholder_skeleton(mp);
 
 	std::shared_ptr<Attribute<Vec3>> joint_position = cgogn::get_or_add_attribute<Vec3, Vertex>(*m, "position");
 	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Vertex>(*m, "radius");
+	auto rt_l = cgogn::add_attribute<RigidTransformation, Edge>(*m, decltype(asc_rt)::LOCAL_TRANSFORM_ATTRIBUTE_NAME);
+	auto rt_w = cgogn::add_attribute<RigidTransformation, Edge>(*m, decltype(asc_rt)::WORLD_TRANSFORM_ATTRIBUTE_NAME);
+	asc_rt.compute_everything(decltype(asc_rt)::TimePoint::Start, *m, *anims, *rt_l, *rt_w, *joint_position);
 	mp.set_mesh_bb_vertex_position(*m, joint_position);
 	asr.set_joint_position(*v1, *m, joint_position);
 	asr.set_joint_radius(*v1, *m, joint_radius);

@@ -33,8 +33,6 @@
 #include <cgogn/geometry/types/rigid_transformation.h>
 #include <cgogn/geometry/types/dual_quaternion.h>
 
-#define DUAL_QUATERNION_USE_SHORTEST_PATH_FOR_INTERPOLATION 1
-
 namespace cgogn
 {
 
@@ -56,6 +54,12 @@ public:
 		AssumeValid,
 	};
 
+	enum class TimePoint
+	{
+		Start,
+		End,
+	};
+
 private:
 	using MESH = AnimationSkeleton;
 
@@ -75,51 +79,306 @@ public:
 	{
 	}
 
+	// Static methods
+
+	/// @brief Checks whether an animation attribute has at least one keyframe for each bone.
+	/// @param anims the animation attribute to check for
+	/// @return whether or not the animation has at least one keyframe for each bone
+	static bool is_animation_attribute_complete(const Attribute<AnimationT>& anims)
+	{
+		return std::find_if(anims.begin(), anims.end(), [](const AnimationT& anim){ return anim.size() == 0; })
+				== anims.end();
+	}
+
+	/// @brief Checks whether an animation attribute is sorted by time for all bones.
+	/// Does not check if there's at least one keyframe for each bone, for that see `is_animation_attribute_complete`.
+	/// @param anims the animation attribute to check for
+	/// @param warn whether or not to print warnings in the standard output if the animation is found not to be sorted
+	/// @return whether or not the animation is sorted
+	static bool is_animation_attribute_sorted(const Attribute<AnimationT>& anims)
+	{
+		return std::find_if_not(anims.begin(), anims.end(), [](const AnimationT& anim){ return anim.is_sorted(); })
+				== anims.end();
+	}
+
+	/// @brief Computes the first and last keyframe's times across all bones' animations.
+	/// If no animation has any keyframe, then `start_time > end_time`.
+	/// @param anims the attribute containing the animations
+	/// @param start_time the variable to update with the start time
+	/// @param end_time the variable to update with the end time
+	/// @param all_sorted whether or not all animations can be expected to be sorted
+	static void compute_animation_time_extrema(const Attribute<AnimationT>& anims,
+			TimeT& start_time, TimeT& end_time, bool all_sorted = false)
+	{
+		start_time = std::numeric_limits<TimeT>::max();
+		end_time = std::numeric_limits<TimeT>::lowest();
+
+		if (all_sorted)
+		{
+			for (const auto& anim : anims)
+			{
+				if (anim.size() > 0)
+				{
+					start_time = std::min(start_time, anim[0].time_);
+					end_time = std::max(end_time, anim[anim.size() - 1].time_);
+				}
+			}
+		}
+		else
+		{
+			for (const auto& anim : anims)
+			{
+				for (const auto& keyframe : anim)
+				{
+					start_time = std::min(start_time, keyframe.time_);
+					end_time = std::max(end_time, keyframe.time_);
+				}
+			}
+		}
+	}
+
+	/// @brief Computes local transforms from an animation at a given time.
+	/// To compute world transforms from local ones see `compute_world_transforms`.
+	/// To compute both local and world transforms with a single method call see `compute_all_transforms`.
+	/// @param time the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to update
+	static void compute_local_transforms(
+			TimeT time,
+			const AnimationSkeleton& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms)
+	{
+		for (const auto& bone : as.bone_traverser_)
+			local_transforms[bone] = get_transform(anims[bone], time);
+	}
+
+	/// @brief Computes local transforms from an animation at a given time.
+	/// This concatenates calls to `compute_local_transforms` and `compute_world_transforms`.
+	/// To compute joint positions from world transforms see `compute_joint_positions`;
+	/// to compute them with transforms in a single method call see `compute_everything`.
+	/// @param time the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to update
+	/// @param world_transforms the bone world transform attribute to update
+	static void compute_all_transforms(
+			TimeT time,
+			const AnimationSkeleton& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms)
+	{
+		compute_local_transforms(time, as, anims, local_transforms);
+		compute_world_transforms(as, local_transforms, world_transforms);
+	}
+
+	/// @brief Updates joint positions from the skeleton and transforms.
+	/// Does not send any update signal.
+	/// @param as the skeleton the attributes are for
+	/// @param world_transforms the bone world transform attribute to use
+	/// @param positions the joint position attribute to update
+	static void compute_joint_positions(
+			const MESH& as,
+			const Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions)
+	{
+		for (const auto& bone : as.bone_traverser_)
+		{
+			Vec3 pos = get_basis_position(world_transforms[bone]);
+			const auto& joints = (*as.bone_joints_)[bone];
+			// Set position for the base joint of the bone
+			positions[joints.first] = pos;
+			// Also set position for the tip, may be overwritten if the bone isn't a leaf (given the order of the bone traverser)
+			positions[joints.second] = pos;
+		}
+	}
+
+	/// @brief Computes transforms and joint positions from an animation at a given time.
+	/// @param time the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to update
+	/// @param world_transforms the bone world transform attribute to update
+	/// @param positions the joint position attribute to update
+	static void compute_everything(
+			TimeT time,
+			const MESH& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions)
+	{
+		compute_all_transforms(time, as, anims, local_transforms, world_transforms);
+		compute_joint_positions(as, world_transforms, positions);
+	}
+
+	/// @brief Computes transforms and joint positions from an animation at a given time.
+	/// @param time_point the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param anims_start_time the variable to update with the start time
+	/// @param anims_end_time the variable to update with the end time
+	/// @param local_transforms the bone local transform attribute to update
+	/// @param world_transforms the bone world transform attribute to update
+	/// @param positions the joint position attribute to update
+	/// @param assume_all_anims_sorted whether or not all animations can be assumed to be sorted
+	static void compute_everything(
+			TimePoint time_point,
+			const MESH& as,
+			const Attribute<AnimationT>& anims,
+			TimeT& anims_start_time,
+			TimeT& anims_end_time,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions,
+			bool assume_all_anims_sorted = false)
+	{
+		compute_animation_time_extrema(anims, anims_start_time, anims_end_time, assume_all_anims_sorted);
+
+		TimeT time;
+		switch (time_point)
+		{
+		case TimePoint::Start:
+			time = anims_start_time;
+			break;
+		case TimePoint::End:
+			time = anims_end_time;
+			break;
+		default:
+			cgogn_assert_not_reached("Missing time point case");
+		}
+
+		compute_everything(time, as, anims, local_transforms, world_transforms, positions);
+	}
+
+	/// @brief Computes transforms and joint positions from an animation at a given time.
+	/// @param time_point the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to update
+	/// @param world_transforms the bone world transform attribute to update
+	/// @param positions the joint position attribute to update
+	/// @param assume_all_anims_sorted whether or not all animations can be assumed to be sorted
+	static void compute_everything(
+			TimePoint time_point,
+			const MESH& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions,
+			bool assume_all_anims_sorted = false)
+	{
+		TimeT anims_start_time, anims_end_time; // times not cached beyond this call
+		compute_everything(time_point, as, anims, anims_start_time, anims_end_time,
+				local_transforms, world_transforms, positions,
+				assume_all_anims_sorted);
+	}
+
+	// Transform-type-dependent static methods
+
+	template <typename R, typename T>
+	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
+					geometry::RigidTransformation<R, T>>& anim,
+			TimeT time)
+	{
+		return anim.get_transform(time, identity_c, geometry::RigidTransformation<R, T>::interpolate);
+	}
+
+	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
+					geometry::DualQuaternion>& anim,
+			TimeT time, bool shortest_path = true)
+	{
+		if (!shortest_path)
+			return anim.get_transform(time);
+
+		using DQ = geometry::DualQuaternion;
+		return anim.get_transform(time, identity_c,
+				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); });
+	}
+
+	template <typename R, typename T>
+	static Vec3 get_basis_position(const geometry::RigidTransformation<R, T>& world_transform)
+	{
+		Vec4 res = world_transform.to_transform_matrix() * Vec4{0, 0, 0, 1};
+		return res.head<3>() / res.w();
+	}
+
+	static Vec3 get_basis_position(const geometry::DualQuaternion& world_transform)
+	{
+		return world_transform.transform(Vec3{0, 0, 0});
+	}
+
+	// Instance methods
+
 	/// @brief Changes the linked bone animation attribute.
-	/// Does not check if a skeleton is already selected.
+	/// Does not affect the embedding, see `set_time` and `update_embedding`.
 	/// @param attribute the new attribute to use as animations
 	/// @param check_params what to check about animation validity (size and sorting)
 	void set_animation(const std::shared_ptr<Attribute<AnimationT>>& attribute, CheckParams check_params = CheckParams::CheckAndWarnInvalid)
 	{
 		selected_animation_ = attribute;
 
-		bool all_sorted = true;
+		if (!selected_animation_)
+			return; // animation unset
 
-		if (check_params != CheckParams::AssumeValid)
-		{
-			// Check for empty animations
-			cgogn_message_assert(std::find_if(attribute->begin(), attribute->end(), [](const AnimationT& anim){ return anim.size() == 0; })
-					== attribute->end(), "[AnimationSkeletonController::set_animation] Found empty animation");
-			// Check if all bones' animations are sorted
-			all_sorted = std::find_if_not(attribute->begin(), attribute->end(), [](const AnimationT& anim){ return anim.is_sorted(); })
-					== attribute->end();
-		}
+		// Check for empty animations
+		cgogn_message_assert(check_params == CheckParams::AssumeValid || is_animation_attribute_complete(*selected_animation_),
+				"[AnimationSkeletonController::set_animation] Found empty animation");
+
+		// Check if all bones' animations are sorted
+		bool all_sorted = check_params == CheckParams::AssumeValid || is_animation_attribute_sorted(*selected_animation_);
 
 		if (!all_sorted && check_params == CheckParams::CheckAndWarnInvalid)
 			std::cout << "[AnimationSkeletonController::set_animation] Found unsorted animation, "
 					"skeleton may be animated improperly" << std::endl;
 
-		update_animation_time_extrema(all_sorted);
-		update_embedding();
+		compute_animation_time_extrema(*selected_animation_,
+				selected_animation_start_time_, selected_animation_end_time_, all_sorted);
 	}
 
-	/// @brief Changes the linked joint position attribute.
-	/// Does not check if a skeleton is already selected.
+	/// @brief Changes the linked joint position attribute, and updates it if it's not null and a skeleton is selected.
+	/// Assumes that if a skeleton is selected, its world transform attribute also is.
 	/// @param attribute the new attribute to use as positions
 	void set_joint_position(const std::shared_ptr<Attribute<Vec3>>& attribute)
 	{
 		selected_joint_position_ = attribute;
-		update_joint_positions();
+
+		if (selected_skeleton_ && selected_joint_position_)
+			update_joint_positions_and_signal(mesh_provider_, *selected_skeleton_,
+					*selected_bone_world_transform_, selected_joint_position_.get());
 	}
 
-	/// @brief Changes the current time of the animation, and updates positions accordingly if a skeleton is selected.
+	/// @brief Changes the current time of the animation.
+	/// Updates positions accordingly if a skeleton and animation are selected.
 	/// @param time the new time to set the animation to
 	void set_time(TimeT time)
 	{
 		time_ = time;
 
-		if (selected_skeleton_)
+		if (selected_skeleton_ && selected_animation_)
 			update_embedding();
+	}
+
+	/// @brief Changes the current time of the animation, and updates positions accordingly if a skeleton is selected.
+	/// @param time_point the new time to set the animation to
+	void set_time(TimePoint time_point)
+	{
+		if (!selected_animation_)
+			return;
+
+		switch (time_point)
+		{
+		case TimePoint::Start:
+			set_time(selected_animation_start_time_);
+			break;
+		case TimePoint::End:
+			set_time(selected_animation_end_time_);
+			break;
+		default:
+			cgogn_assert_not_reached("Missing time point case");
+		}
 	}
 
 protected:
@@ -135,8 +394,8 @@ protected:
 			selected_skeleton_= &m;
 			selected_animation_.reset();
 			selected_joint_position_ = cgogn::get_attribute<Vec3, Joint>(m, "position"); // nullptr (equiv. to reset) if not found
-			selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, "local_transform");
-			selected_bone_global_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, "global_transform");
+			selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, LOCAL_TRANSFORM_ATTRIBUTE_NAME);
+			selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, WORLD_TRANSFORM_ATTRIBUTE_NAME);
 		});
 
 		if (selected_skeleton_)
@@ -156,92 +415,39 @@ protected:
 	}
 
 private:
-	// Caches the first and last keyframe's times across all bones' animations
-	// Assumes all animations have at least one keyframe
-	void update_animation_time_extrema(bool assume_all_sorted)
-	{
-		selected_animation_start_time_ = std::numeric_limits<TimeT>::max();
-		selected_animation_end_time_ = std::numeric_limits<TimeT>::lowest();
-
-		if (assume_all_sorted)
-		{
-			for (const auto& anim : *selected_animation_)
-			{
-				selected_animation_start_time_ = std::min(selected_animation_start_time_, anim[0].time_);
-				selected_animation_end_time_ = std::max(selected_animation_end_time_, anim[anim.size() - 1].time_);
-			}
-			return;
-		}
-
-		for (const auto& anim : *selected_animation_)
-		{
-			for (const auto& keyframe : anim)
-			{
-				selected_animation_start_time_ = std::min(selected_animation_start_time_, keyframe.time_);
-				selected_animation_end_time_ = std::max(selected_animation_end_time_, keyframe.time_);
-			}
-		}
-	}
-
-	// Computes local/global transforms and resulting positions
-	// Assumes a skeleton and animation are already selected, with corresponding transform attributes
+	// Updates transforms and joint positions.
+	// Assumes a skeleton and animation are selected as well as the corresponding transform attributes.
 	void update_embedding()
 	{
-		for (const auto& bone : selected_skeleton_->bone_traverser_)
-			(*selected_bone_local_transform_)[bone] = get_current_transform((*selected_animation_)[bone]);
-		compute_world_transforms(*selected_skeleton_, *selected_bone_local_transform_, *selected_bone_global_transform_);
-		update_joint_positions();
-	}
+		cgogn_assert(selected_skeleton_ && selected_animation_
+				&& selected_bone_world_transform_ && selected_bone_world_transform_);
 
-	void update_joint_positions()
-	{
+		compute_all_transforms(time_, *selected_skeleton_, *selected_animation_,
+				*selected_bone_local_transform_, *selected_bone_world_transform_);
+
 		// It's fine if no position attribute is selected, this should be called again as soon as one is
-		if (!selected_joint_position_)
-			return;
-
-		for (const auto& bone : selected_skeleton_->bone_traverser_)
-		{
-			Vec3 pos = get_basis_position((*selected_bone_global_transform_)[bone]);
-			const auto& joints = (*selected_skeleton_->bone_joints_)[bone];
-			// Set position for the base joint of the bone
-			(*selected_joint_position_)[joints.first] = pos;
-			// Also set position for the tip, will be overwritten if the bone isn't a leaf (given the order of the bone traverser)
-			(*selected_joint_position_)[joints.second] = pos;
-		}
-
-		mesh_provider_->emit_attribute_changed(*selected_skeleton_, selected_joint_position_.get());
+		if (selected_joint_position_)
+			update_joint_positions_and_signal(mesh_provider_, *selected_skeleton_,
+					*selected_bone_world_transform_, selected_joint_position_.get());
 	}
 
-	// Transform-type-dependent methods
-
-	template <typename R, typename T>
-	TransformT get_current_transform(geometry::KeyframedAnimation<ContainerT, TimeT, geometry::RigidTransformation<R, T>> anim)
+	// Updates joint positions from the skeleton and transforms,
+	// sending an update signal through the mesh provider.
+	static void update_joint_positions_and_signal(
+			MeshProvider<MESH>* mesh_provider,
+			const MESH& as,
+			const Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>* positions)
 	{
-		return anim.get_transform(time_, identity_c, geometry::RigidTransformation<R, T>::interpolate);
+		compute_joint_positions(as, world_transforms, *positions);
+
+		if (mesh_provider)
+			mesh_provider->emit_attribute_changed(as, positions);
 	}
 
-	TransformT get_current_transform(geometry::KeyframedAnimation<ContainerT, TimeT, geometry::DualQuaternion> anim)
-	{
-#if DUAL_QUATERNION_USE_SHORTEST_PATH_FOR_INTERPOLATION
-		using DQ = geometry::DualQuaternion;
-		return anim.get_transform(time_, identity_c,
-				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); });
-#else
-		return anim.get_transform(time_);
-#endif
-	}
-
-	template <typename R, typename T>
-	Vec3 get_basis_position(geometry::RigidTransformation<R, T> global_transform)
-	{
-		Vec4 res = global_transform.to_transform_matrix() * Vec4{0, 0, 0, 1};
-		return res.head<3>() / res.w();
-	}
-
-	Vec3 get_basis_position(geometry::DualQuaternion global_transform)
-	{
-		return global_transform.transform(Vec3{0, 0, 0});
-	}
+public:
+	static constexpr const char* LOCAL_TRANSFORM_ATTRIBUTE_NAME = "local_transform";
+	static constexpr const char* WORLD_TRANSFORM_ATTRIBUTE_NAME = "world_transform";
 
 private:
 	TimeT time_ = TimeT{};
@@ -251,14 +457,12 @@ private:
 	TimeT selected_animation_end_time_;
 	std::shared_ptr<Attribute<Vec3>> selected_joint_position_ = nullptr;
 	std::shared_ptr<Attribute<TransformT>> selected_bone_local_transform_ = nullptr;
-	std::shared_ptr<Attribute<TransformT>> selected_bone_global_transform_ = nullptr;
+	std::shared_ptr<Attribute<TransformT>> selected_bone_world_transform_ = nullptr;
 	MeshProvider<MESH>* mesh_provider_ = nullptr;
 };
 
 } // namespace ui
 
 } // namespace cgogn
-
-#undef ASC_BIND_INSTANCE_FUNC
 
 #endif // CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_

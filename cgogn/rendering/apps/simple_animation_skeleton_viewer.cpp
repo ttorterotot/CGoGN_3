@@ -43,21 +43,21 @@ using Scalar = cgogn::geometry::Scalar;
 
 Mesh* create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp)
 {
-    using namespace cgogn::geometry;
-    using RT = RigidTransformation<Quaternion, Vec3>;
-    using KA = KeyframedAnimation<std::vector, double, RT>;
+	using namespace cgogn::geometry;
+	using RT = RigidTransformation<Quaternion, Vec3>;
+	using KA = KeyframedAnimation<std::vector, double, RT>;
 
-    Mesh* m = mp.add_mesh("Placeholder");
-    add_root(*m);
+	Mesh* m = mp.add_mesh("Placeholder");
+	add_root(*m);
 
-    std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-            = cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation");
-    KA anim;
-    anim.emplace_back(0.0, RT{Vec3{0, 0, 0}});
-    anim.emplace_back(1.0, RT{Vec3{1, 0, 0}});
-    (*anim_attr)[m->bone_traverser_[0]] = std::move(anim);
+	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
+			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation");
+	KA anim;
+	anim.emplace_back(0.0, RT{Vec3{0, 0, 0}});
+	anim.emplace_back(1.0, RT{Vec3{1, 0, 0}});
+	(*anim_attr)[m->bone_traverser_[0]] = std::move(anim);
 
-    return m;
+	return m;
 }
 
 int main(int argc, char** argv)
@@ -70,9 +70,9 @@ int main(int argc, char** argv)
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::AnimationSkeletonController<std::vector, double,
-            cgogn::geometry::RigidTransformation<cgogn::geometry::Quaternion, Vec3>> asc_rt(app);
-    cgogn::ui::AnimationSkeletonController<std::vector, double, cgogn::geometry::DualQuaternion> asc_dq(app); 
-    cgogn::ui::AnimationSkeletonRender asr(app);
+			cgogn::geometry::RigidTransformation<cgogn::geometry::Quaternion, Vec3>> asc_rt(app);
+	cgogn::ui::AnimationSkeletonController<std::vector, double, cgogn::geometry::DualQuaternion> asc_dq(app);
+	cgogn::ui::AnimationSkeletonRender asr(app);
 
 	app.init_modules();
 

@@ -286,11 +286,12 @@ public:
 			TimeT time, bool shortest_path = true)
 	{
 		if (!shortest_path)
-			return anim.get_transform(time);
+			return anim.get_transform(time).normalized();
 
 		using DQ = geometry::DualQuaternion;
 		return anim.get_transform(time, identity_c,
-				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); });
+				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); })
+						.normalized();
 	}
 
 	template <typename R, typename T>

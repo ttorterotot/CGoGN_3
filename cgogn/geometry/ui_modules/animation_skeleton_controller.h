@@ -276,6 +276,103 @@ public:
 				assume_all_anims_sorted);
 	}
 
+	/// @brief Computes the (ordered) set of keyframes' times across all bones' animations.
+	/// @param anims the animation attribute to get keyframes from
+	/// @return the set of times of the animation
+	[[nodiscard]]
+	static std::set<TimeT> get_animation_times(const Attribute<AnimationT>& anims)
+	{
+		std::set<TimeT> res;
+
+		for (const auto& anim : anims)
+			for (const auto& keyframe : anim)
+				res.insert(keyframe.time_);
+
+		return res;
+	}
+
+	/// @brief Computes the (ordered) set of keyframes' times across all bones' animations.
+	/// @param anims the animation attribute to get keyframes from
+	/// @param prec the minimum distance from existing times that each new one has to be from to be added
+	/// @return the set of times of the animation
+	[[nodiscard]]
+	static std::set<TimeT> get_animation_times(const Attribute<AnimationT>& anims, TimeT prec)
+	{
+		std::set<TimeT> res{[&prec](const TimeT& a, const TimeT& b){ return a + prec < b; }};
+
+		for (const auto& anim : anims)
+			for (const auto& keyframe : anim)
+				res.insert(keyframe.time_);
+
+		return res;
+	}
+
+	/// @brief Computes the overarching bounding box across all bones' animations.
+	/// If no animation has any keyframe, then for each component `c` of the returned vectors,
+	/// `first.c > second.c`, otherwise for each component `first.c <= second.c`.
+	/// @param times the times at which to sample the animation (defaults to keyframes' times)
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to use as a buffer
+	/// @param world_transforms the bone world transform attribute to use as a buffer
+	/// @param positions the joint position attribute to use as a buffer
+	/// @return a pair of vectors representing the corner points of the bounding box
+	template <template <typename> typename ContainerU>
+	[[nodiscard]]
+	static std::pair<Vec3, Vec3> compute_animation_bb(
+			const ContainerU<TimeT>& times,
+			const MESH& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions)
+	{
+		constexpr const auto SCALAR_MIN = std::numeric_limits<Vec3::Scalar>::lowest();
+		constexpr const auto SCALAR_MAX = std::numeric_limits<Vec3::Scalar>::max();
+		Vec3 bb_min = {SCALAR_MAX, SCALAR_MAX, SCALAR_MAX};
+		Vec3 bb_max = {SCALAR_MIN, SCALAR_MIN, SCALAR_MIN};
+
+		for (const auto& time : times)
+		{
+			compute_everything(time, as, anims, local_transforms, world_transforms, positions);
+
+			for (const Vec3& position : positions)
+			{
+				bb_min = bb_min.cwiseMin(position);
+				bb_max = bb_max.cwiseMax(position);
+			}
+		}
+
+		return std::make_pair(bb_min, bb_max);
+	}
+
+	/// @brief Computes the overarching bounding box across all bones' animations.
+	/// If no animation has any keyframe, then for each component `c` of the returned vectors,
+	/// `first.c > second.c`, otherwise for each component `first.c <= second.c`.
+	/// For animations with nonlinear transformations such as rotations,
+	/// interpolated positions may fall outside the bounding box of positions at keyframes,
+	/// thus it may be recommended to use the overload of this method with custom times.
+	/// If the animations have many unequal but close keyframes, look into using that overload
+	/// with `get_animation_times(..., prec)`.
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param local_transforms the bone local transform attribute to use as a buffer
+	/// @param world_transforms the bone world transform attribute to use as a buffer
+	/// @param positions the joint position attribute to use as a buffer
+	/// @return a pair of vectors representing the corner points of the bounding box
+	[[nodiscard]]
+	static std::pair<Vec3, Vec3> compute_animation_bb(
+			const MESH& as,
+			const Attribute<AnimationT>& anims,
+			Attribute<TransformT>& local_transforms,
+			Attribute<TransformT>& world_transforms,
+			Attribute<Vec3>& positions,
+			bool assume_all_anims_sorted = false)
+	{
+		return compute_animation_bb(get_animation_times(anims), as, anims,
+				local_transforms, world_transforms, positions);
+	}
+
 	// Transform-type-dependent static methods
 
 	template <typename R, typename T>

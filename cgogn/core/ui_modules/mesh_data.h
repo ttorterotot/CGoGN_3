@@ -153,6 +153,11 @@ public:
 			std::tie(bb_min_, bb_max_) = geometry::bounding_box(*bb_vertex_position_);
 	}
 
+	void override_bb(std::pair<Vec3, Vec3> bb)
+	{
+		std::tie(bb_min_, bb_max_) = bb;
+	}
+
 	rendering::VBO* vbo(AttributeGen* attribute)
 	{
 		if (auto it = vbos_.find(attribute); it != vbos_.end())

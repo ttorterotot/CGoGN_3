@@ -485,6 +485,18 @@ public:
 		}
 	}
 
+	void set_mesh_bb_override(const MESH& m, std::pair<Vec3, Vec3> bb_override)
+	{
+		MeshData<MESH>& md = mesh_data(m);
+		md.override_bb(bb_override);
+		update_meshes_bb();
+		for (View* v : linked_views_)
+		{
+			v->update_scene_bb();
+			v->show_entire_scene();
+		}
+	}
+
 	/////////////
 	// SIGNALS //
 	/////////////

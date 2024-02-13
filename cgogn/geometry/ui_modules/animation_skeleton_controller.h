@@ -250,6 +250,10 @@ private:
 
 		TimeT new_time = time_ + static_cast<TimeT>(App::frame_time_ - last_frame_time_);
 
+		// If the animation changed to one that starts later,
+		// better to fast-forward to its start than to wait to catch up
+		new_time = std::max(new_time, selected_animation_start_time_);
+
 		if (play_mode_ == PlayMode::PlayLooping)
 			set_time(std::fmod(new_time - selected_animation_start_time_,
 							selected_animation_end_time_ - selected_animation_start_time_)

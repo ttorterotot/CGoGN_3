@@ -71,7 +71,7 @@ public:
 	AnimationSkeletonController(const App& app,
 			const std::string& local_transform_attribute_unique_name = "local_transform_" + get_demangled_transform_name(),
 			const std::string& world_transform_attribute_unique_name = "world_transform_" + get_demangled_transform_name()) :
-		Module(app, "AnimationSkeletonController (" + std::string{mesh_traits<MESH>::name} + ")"),
+		Module(app, "AnimationSkeletonController (" + std::string{mesh_traits<MESH>::name} + ", " + get_demangled_animation_name() + ")"),
 			local_transform_attribute_name_(local_transform_attribute_unique_name),
 			world_transform_attribute_name_(world_transform_attribute_unique_name)
 	{
@@ -232,6 +232,11 @@ private:
 	static std::string get_demangled_transform_name()
 	{
 		return boost::core::demangle(typeid(TransformT).name());
+	}
+
+	static std::string get_demangled_animation_name()
+	{
+		return boost::core::demangle(typeid(AnimationT).name());
 	}
 
 private:

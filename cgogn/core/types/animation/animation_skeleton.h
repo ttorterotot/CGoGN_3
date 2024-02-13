@@ -116,7 +116,7 @@ struct AnimationSkeleton
 	inline void operator=(const AnimationSkeleton& other)
 	{
 		bone_traverser_ = other.bone_traverser_;
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < attribute_containers_.size(); ++i)
 			attribute_containers_[i].copy(other.attribute_containers_[i]);
 		bone_parent_ =
 			attribute_containers_[Bone::CELL_INDEX].get_attribute<Bone>("bone_parents");
@@ -140,7 +140,7 @@ struct AnimationSkeleton
 	// This is mutable because CellMarker holds a const reference to this struct
 	// but calls its release_mark_attribute method, which modifies said attribute
 	// This is dubious practice, but it isn't my call to change that class
-	mutable std::array<AttributeContainer, 2> attribute_containers_;
+	mutable std::array<AttributeContainer, std::tuple_size_v<Cells>> attribute_containers_;
 
 	std::shared_ptr<Attribute<Bone>> bone_parent_;
 	std::shared_ptr<Attribute<std::pair<Joint, Joint>>> bone_joints_;

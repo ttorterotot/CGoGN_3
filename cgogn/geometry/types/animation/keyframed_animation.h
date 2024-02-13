@@ -24,6 +24,8 @@
 #ifndef CGOGN_GEOMETRY_TYPES_KEYFRAMED_ANIMATION_H_
 #define CGOGN_GEOMETRY_TYPES_KEYFRAMED_ANIMATION_H_
 
+#include <set>
+
 #include <cgogn/core/functions/identity.h>
 #include <cgogn/core/utils/type_traits.h>
 #include <cgogn/core/utils/assert.h>
@@ -70,6 +72,96 @@ private:
 public:
 
 	using ContainerT<Keyframe>::ContainerT; // inherit container's constructors
+
+	/// @brief Checks whether each animation in the container has at least one keyframe.
+	/// @param begin the iterator to start checking from
+	/// @param end the past-the-end iterator to stop checking at
+	/// @return whether or not each animation has at least one keyframe
+	template <typename It>
+	static bool are_none_empty(It begin, It end)
+	{
+		return std::find_if(begin, end, [](const KeyframedAnimation& anim){ return anim.size() == 0; }) == end;
+	}
+
+	/// @brief Checks whether each animation in the container is sorted by time.
+	/// Does not check if there's at least one keyframe per animation, for that see `are_none_empty`.
+	/// @param begin the iterator to start checking from
+	/// @param end the past-the-end iterator to stop checking at
+	/// @param warn whether or not to print warnings in the standard output if the animation is found not to be sorted
+	/// @return whether or not the animation is sorted
+	template <typename It>
+	static bool are_all_sorted(It begin, It end)
+	{
+		return std::find_if_not(begin, end, [](const KeyframedAnimation& anim){ return anim.is_sorted(); }) == end;
+	}
+
+	/// @brief Computes the first and last keyframe's times across all animations.
+	/// If no animation has any keyframe, then `start_time > end_time`.
+	/// @param anims the container containing the animations
+	/// @param start_time the variable to update with the start time
+	/// @param end_time the variable to update with the end time
+	/// @param all_sorted whether or not all animations can be expected to be sorted
+	template <template <typename> typename ContainerOther>
+	static void compute_keyframe_time_extrema(const ContainerOther<KeyframedAnimation>& anims,
+			TimeT& start_time, TimeT& end_time, bool all_sorted = false)
+	{
+		start_time = std::numeric_limits<TimeT>::max();
+		end_time = std::numeric_limits<TimeT>::lowest();
+
+		if (all_sorted)
+		{
+			for (const auto& anim : anims)
+			{
+				if (anim.size() > 0)
+				{
+					start_time = std::min(start_time, anim[0].time_);
+					end_time = std::max(end_time, anim[anim.size() - 1].time_);
+				}
+			}
+		}
+		else
+		{
+			for (const auto& anim : anims)
+			{
+				for (const auto& keyframe : anim)
+				{
+					start_time = std::min(start_time, keyframe.time_);
+					end_time = std::max(end_time, keyframe.time_);
+				}
+			}
+		}
+	}
+
+	/// @brief Computes the (ordered) set of keyframes' times across all animations.
+	/// @param anims the animation container to get keyframes from
+	/// @return the set of times of the animation
+	template <template <typename> typename ContainerOther>
+	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther<KeyframedAnimation>& anims)
+	{
+		std::set<TimeT> res;
+
+		for (const auto& anim : anims)
+			for (const auto& keyframe : anim)
+				res.insert(keyframe.time_);
+
+		return res;
+	}
+
+	/// @brief Computes the (ordered) set of keyframes' times across all animations.
+	/// @param anims the animation container to get keyframes from
+	/// @param prec the minimum distance from existing times that each new one has to be from to be added
+	/// @return the set of times of the animation
+	template <template <typename> typename ContainerOther>
+	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther<KeyframedAnimation>& anims, TimeT prec)
+	{
+		std::set<TimeT> res{[&prec](const TimeT& a, const TimeT& b){ return a + prec < b; }};
+
+		for (const auto& anim : anims)
+			for (const auto& keyframe : anim)
+				res.insert(keyframe.time_);
+
+		return res;
+	}
 
 	/// @brief Evaluates if the animation's keyframes are sorted in the container.
 	/// @return whether or not the keyframes are sorted

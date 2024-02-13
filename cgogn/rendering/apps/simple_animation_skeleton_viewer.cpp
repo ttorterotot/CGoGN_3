@@ -86,7 +86,7 @@ int main(int argc, char** argv)
 	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Vertex>(*m, "radius");
 	auto rt_l = cgogn::add_attribute<RigidTransformation, Edge>(*m, decltype(asc_rt)::LOCAL_TRANSFORM_ATTRIBUTE_NAME);
 	auto rt_w = cgogn::add_attribute<RigidTransformation, Edge>(*m, decltype(asc_rt)::WORLD_TRANSFORM_ATTRIBUTE_NAME);
-	mp.set_mesh_bb_override(*m, asc_rt.compute_animation_bb(*m, *anims, *rt_l, *rt_w, *joint_position));
+	mp.set_mesh_bb_override(*m, decltype(asc_rt)::Embedding::compute_animation_bb(*m, *anims, *rt_l, *rt_w, *joint_position));
 	asr.set_joint_position(*v1, *m, joint_position);
 	asr.set_joint_radius(*v1, *m, joint_radius);
 

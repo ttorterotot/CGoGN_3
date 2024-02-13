@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 #define CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 
+#include <boost/core/demangle.hpp>
+
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 
@@ -66,7 +68,12 @@ private:
 	using AnimationT = geometry::KeyframedAnimation<ContainerT, TimeT, TransformT>;
 
 public:
-	AnimationSkeletonController(const App& app) : Module(app, "AnimationSkeletonController (" + std::string{mesh_traits<MESH>::name} + ")")
+	AnimationSkeletonController(const App& app,
+			const std::string& local_transform_attribute_unique_name = "local_transform_" + get_demangled_transform_name(),
+			const std::string& world_transform_attribute_unique_name = "world_transform_" + get_demangled_transform_name()) :
+		Module(app, "AnimationSkeletonController (" + std::string{mesh_traits<MESH>::name} + ")"),
+			local_transform_attribute_name_(local_transform_attribute_unique_name),
+			world_transform_attribute_name_(world_transform_attribute_unique_name)
 	{
 	}
 	~AnimationSkeletonController()
@@ -144,6 +151,20 @@ public:
 		}
 	}
 
+	/// @return the attribute name for local transforms
+	[[nodiscard]]
+	const std::string& local_transform_attribute_name() const
+	{
+		return local_transform_attribute_name_;
+	}
+
+	/// @return the attribute name for world transforms
+	[[nodiscard]]
+	const std::string& world_transform_attribute_name() const
+	{
+		return world_transform_attribute_name_;
+	}
+
 protected:
 	void init() override
 	{
@@ -157,8 +178,8 @@ protected:
 			selected_skeleton_= &m;
 			selected_animation_.reset();
 			selected_joint_position_ = cgogn::get_attribute<Vec3, Joint>(m, "position"); // nullptr (equiv. to reset) if not found
-			selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, LOCAL_TRANSFORM_ATTRIBUTE_NAME);
-			selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, WORLD_TRANSFORM_ATTRIBUTE_NAME);
+			selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, local_transform_attribute_name_);
+			selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, world_transform_attribute_name_);
 		});
 
 		if (selected_skeleton_)
@@ -208,9 +229,10 @@ private:
 			mesh_provider->emit_attribute_changed(as, positions);
 	}
 
-public:
-	static constexpr const char* LOCAL_TRANSFORM_ATTRIBUTE_NAME = "local_transform";
-	static constexpr const char* WORLD_TRANSFORM_ATTRIBUTE_NAME = "world_transform";
+	static std::string get_demangled_transform_name()
+	{
+		return boost::core::demangle(typeid(TransformT).name());
+	}
 
 private:
 	TimeT time_ = TimeT{};
@@ -221,6 +243,8 @@ private:
 	std::shared_ptr<Attribute<Vec3>> selected_joint_position_ = nullptr;
 	std::shared_ptr<Attribute<TransformT>> selected_bone_local_transform_ = nullptr;
 	std::shared_ptr<Attribute<TransformT>> selected_bone_world_transform_ = nullptr;
+	std::string local_transform_attribute_name_;
+	std::string world_transform_attribute_name_;
 	MeshProvider<MESH>* mesh_provider_ = nullptr;
 };
 

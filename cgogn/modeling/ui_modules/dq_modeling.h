@@ -111,10 +111,10 @@ protected:
 		if (selected_surface_)
 		{
 			imgui_combo_attribute<Vertex, Vec3>(*selected_surface_, selected_surface_vertex_position_,
-													   "Position",
-													   [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-														   selected_surface_vertex_position_ = attribute;
-													   });
+													"Position",
+													[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+														selected_surface_vertex_position_ = attribute;
+													});
 
 			if (selected_surface_vertex_position_)
 			{

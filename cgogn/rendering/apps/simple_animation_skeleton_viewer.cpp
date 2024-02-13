@@ -39,26 +39,82 @@ using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
 using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
 
 using Vec3 = cgogn::geometry::Vec3;
+using Quaternion = cgogn::geometry::Quaternion;
 using Scalar = cgogn::geometry::Scalar;
-using RigidTransformation = cgogn::geometry::RigidTransformation<cgogn::geometry::Quaternion, Vec3>;
+using RigidTransformation = cgogn::geometry::RigidTransformation<Quaternion, Vec3>;
+using cgogn::geometry::DualQuaternion;
 
-auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp)
+using ASC_RT = cgogn::ui::AnimationSkeletonController<std::vector, double, RigidTransformation>;
+using ASC_DQ = cgogn::ui::AnimationSkeletonController<std::vector, double, DualQuaternion>;
+
+template <typename TransformT, typename ASCT>
+auto setup_transform_attributes_and_get_bb(
+		Mesh* m,
+		const ASCT& asc,
+		const Attribute<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
+		Attribute<Vec3>& positions)
+{
+	auto rt_l = cgogn::add_attribute<TransformT, Edge>(*m, asc.local_transform_attribute_name());
+	auto rt_w = cgogn::add_attribute<TransformT, Edge>(*m, asc.world_transform_attribute_name());
+	return ASCT::Embedding::compute_animation_bb(*m, anims, *rt_l, *rt_w, positions);
+}
+
+auto create_placeholder_skeleton_anim_rt(Mesh* m)
 {
 	using RT = RigidTransformation;
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, RT>;
 
-	Mesh* m = mp.add_mesh("Placeholder");
-	add_bone(*m, add_root(*m));
-
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation");
+			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT");
 	KA anim;
 	anim.emplace_back(0.0, RT{Vec3{0, 0, 0}});
 	anim.emplace_back(1.0, RT{Vec3{1, 0, 0}});
 	(*anim_attr)[m->bone_traverser_[0]] = std::move(anim);
 	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
+	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
+	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
-	return std::make_pair(m, anim_attr);
+	return anim_attr;
+}
+
+auto create_placeholder_skeleton_anim_dq(Mesh* m)
+{
+	using DQ = DualQuaternion;
+	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, DQ>;
+
+	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
+			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_DQ");
+
+	for (int i = 0; i < 4; ++i)
+	{
+		KA anim;
+		anim.emplace_back(0.0, DQ::from_translation({0, 0.25, 1}));
+		anim.emplace_back(1.0, DQ::from_rt(
+			Quaternion{Eigen::AngleAxisd(0.25 * M_PI, Vec3::UnitZ())}, {0, 0.25, 1}));
+		(*anim_attr)[m->bone_traverser_[i]] = std::move(anim);
+	}
+
+	return anim_attr;
+}
+
+auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT& asc_rt, const ASC_DQ& asc_dq)
+{
+	Mesh* m = mp.add_mesh("Placeholder");
+	std::shared_ptr<Attribute<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Vertex>(*m, "position");
+
+	Mesh::Bone b;
+	for (int i = 0; i < 4; ++i)
+		i == 0 ? (b = add_root(*m)) : (b = add_bone(*m, b));
+
+	auto anims_rt = create_placeholder_skeleton_anim_rt(m);
+	auto anims_dq = create_placeholder_skeleton_anim_dq(m);
+
+	auto bb_dq = setup_transform_attributes_and_get_bb(m, asc_dq, *anims_dq, *positions);
+	auto bb_rt = setup_transform_attributes_and_get_bb(m, asc_rt, *anims_rt, *positions);
+
+	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
+
+	return std::make_tuple(m, positions, bb);
 }
 
 int main(int argc, char** argv)
@@ -70,8 +126,8 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
-	cgogn::ui::AnimationSkeletonController<std::vector, double, RigidTransformation> asc_rt(app);
-	cgogn::ui::AnimationSkeletonController<std::vector, double, cgogn::geometry::DualQuaternion> asc_dq(app);
+	ASC_RT asc_rt(app);
+	ASC_DQ asc_dq(app);
 	cgogn::ui::AnimationSkeletonRender asr(app);
 
 	app.init_modules();
@@ -80,13 +136,10 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&asr);
 
-	auto [m, anims] = create_placeholder_skeleton(mp);
+	auto [m, joint_position, bb] = create_placeholder_skeleton(mp, asc_rt, asc_dq);
 
-	std::shared_ptr<Attribute<Vec3>> joint_position = cgogn::get_or_add_attribute<Vec3, Vertex>(*m, "position");
 	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Vertex>(*m, "radius");
-	auto rt_l = cgogn::add_attribute<RigidTransformation, Edge>(*m, asc_rt.local_transform_attribute_name());
-	auto rt_w = cgogn::add_attribute<RigidTransformation, Edge>(*m, asc_rt.world_transform_attribute_name());
-	mp.set_mesh_bb_override(*m, decltype(asc_rt)::Embedding::compute_animation_bb(*m, *anims, *rt_l, *rt_w, *joint_position));
+	mp.set_mesh_bb_override(*m, bb);
 	asr.set_joint_position(*v1, *m, joint_position);
 	asr.set_joint_radius(*v1, *m, joint_radius);
 

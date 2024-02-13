@@ -53,6 +53,13 @@ public:
 		AssumeValid,
 	};
 
+	enum class PlayMode
+	{
+		Pause,
+		PlayOnce,
+		PlayLooping,
+	};
+
 	using Embedding = geometry::AnimationSkeletonEmbeddingHelper<ContainerT, TimeT, TransformT>;
 	using TimePoint = typename Embedding::TimePoint;
 
@@ -151,6 +158,13 @@ public:
 		}
 	}
 
+	/// @brief Sets the animation, if any, to pause or resume.
+	/// @param play_mode see `PlayMode`
+	void set_play_mode(PlayMode play_mode)
+	{
+		play_mode_ = play_mode;
+	}
+
 	/// @return the attribute name for local transforms
 	[[nodiscard]]
 	const std::string& local_transform_attribute_name() const
@@ -170,6 +184,7 @@ protected:
 	{
 		mesh_provider_ = static_cast<ui::MeshProvider<MESH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
+		last_frame_time_ = App::frame_time_;
 	}
 
 	void left_panel() override
@@ -194,11 +209,81 @@ protected:
 				float t = static_cast<float>(time_);
 				if (ImGui::SliderFloat("Time", &t, selected_animation_start_time_, selected_animation_end_time_))
 					set_time(static_cast<TimeT>(t));
+
+				if (ImGui::Button("<<"))
+					set_time(TimePoint::Start);
+				show_tooltip_for_ui_above("Rewind");
+
+				ImGui::SameLine();
+				show_play_mode_button("><", "Play looping", PlayMode::PlayLooping);
+				ImGui::SameLine();
+
+				if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_) // end reached
+					show_play_mode_button("<>", "Play again", [&]{ set_time(TimePoint::Start); }, false);
+				else
+					show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
+
+				ImGui::SameLine();
+				show_play_mode_button("||", "Pause", PlayMode::Pause);
+				ImGui::SameLine();
+
+				if (ImGui::Button(">>"))
+					set_time(TimePoint::End);
+				show_tooltip_for_ui_above("Fast-forward");
 			}
 		}
+
+		advance_play();
+
+		last_frame_time_ = App::frame_time_;
 	}
 
 private:
+	// Sets the time according to the play mode if an animation is selected.
+	void advance_play()
+	{
+		if (!selected_animation_ || play_mode_ == PlayMode::Pause)
+			return;
+
+		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_)
+			return; // end already reached
+
+		TimeT new_time = time_ + static_cast<TimeT>(App::frame_time_ - last_frame_time_);
+
+		if (play_mode_ == PlayMode::PlayLooping)
+			set_time(std::fmod(new_time - selected_animation_start_time_,
+							selected_animation_end_time_ - selected_animation_start_time_)
+					+ selected_animation_start_time_);
+		else // PlayMode::PlayOnce
+			set_time(std::min(new_time, selected_animation_end_time_));
+	}
+
+	template <typename FUNC>
+	void show_play_mode_button(const char* label, const char* tooltip_text, FUNC f, bool disabled)
+	{
+		if (disabled)
+			ImGui::BeginDisabled();
+
+		if (ImGui::Button(label))
+			f();
+
+		if (disabled)
+			ImGui::EndDisabled();
+
+		show_tooltip_for_ui_above(tooltip_text);
+	}
+
+	void show_play_mode_button(const char* label, const char* tooltip_text, PlayMode play_mode)
+	{
+		show_play_mode_button(label, tooltip_text, [&]{ set_play_mode(play_mode); }, play_mode_ == play_mode);
+	}
+
+	void show_tooltip_for_ui_above(const char* tooltip_text)
+	{
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security
+	}
+
 	// Updates transforms and joint positions.
 	// Assumes a skeleton and animation are selected as well as the corresponding transform attributes.
 	void update_embedding()
@@ -240,6 +325,8 @@ private:
 	}
 
 private:
+	PlayMode play_mode_ = PlayMode::Pause;
+	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};
 	MESH* selected_skeleton_ = nullptr;
 	std::shared_ptr<Attribute<AnimationT>> selected_animation_ = nullptr;

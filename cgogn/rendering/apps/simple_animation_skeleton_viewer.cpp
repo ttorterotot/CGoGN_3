@@ -90,6 +90,11 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 		anim_single[m->bone_traverser_[i]]
 				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i), 0, 0}}}};
 
+	Mesh::Attribute<KA>& anim_unsorted
+			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_unsorted");
+	for (int i = 0; i < 4; ++i)
+		anim_unsorted[m->bone_traverser_[i]] = KA{{1.0, Vec3{1, 0, 0}}, {0.0, Vec3{0, 0, 0}}};
+
 	return anim_attr;
 }
 

@@ -271,7 +271,13 @@ private:
 		ImGui::SameLine();
 
 		if (play_mode_ != PlayMode::PlayLooping && time_ >= selected_animation_end_time_) // end reached
-			show_play_mode_button("<>", "Play again", [&]{ set_play_mode(PlayMode::PlayOnce); set_time(TimePoint::Start); }, false);
+		{
+			if (show_button_and_tooltip("<>", "Play again"))
+			{
+				set_play_mode(PlayMode::PlayOnce);
+				set_time(TimePoint::Start);
+			}
+		}
 		else
 			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
 
@@ -284,24 +290,28 @@ private:
 		show_tooltip_for_ui_above("Fast-forward");
 	}
 
-	template <typename FUNC>
-	void show_play_mode_button(const char* label, const char* tooltip_text, FUNC f, bool disabled)
+	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
 	{
+		bool res = false;
+
 		if (disabled)
 			ImGui::BeginDisabled();
 
 		if (ImGui::Button(label))
-			f();
+			res = true;
 
 		if (disabled)
 			ImGui::EndDisabled();
 
 		show_tooltip_for_ui_above(tooltip_text);
+
+		return res;
 	}
 
 	void show_play_mode_button(const char* label, const char* tooltip_text, PlayMode play_mode)
 	{
-		show_play_mode_button(label, tooltip_text, [&]{ set_play_mode(play_mode); }, play_mode_ == play_mode);
+		if (show_button_and_tooltip(label, tooltip_text, play_mode_ == play_mode))
+			set_play_mode(play_mode);
 	}
 
 	void show_tooltip_for_ui_above(const char* tooltip_text)

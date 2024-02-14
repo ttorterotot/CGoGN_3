@@ -99,9 +99,10 @@ public:
 			return; // animation unset
 
 		// Check for empty animations
-		cgogn_message_assert(check_params == CheckParams::AssumeValid || AnimationT::are_none_empty(
-						selected_animation_->begin(), selected_animation_->end()),
-				"[AnimationSkeletonController::set_animation] Found empty animation");
+		if (check_params == CheckParams::CheckAndWarnInvalid && !AnimationT::are_none_empty(
+				selected_animation_->begin(), selected_animation_->end()))
+			std::cout << "[AnimationSkeletonController::set_animation] Found empty animation, "
+					"some bones may be animated improperly" << std::endl;
 
 		// Check if all bones' animations are sorted
 		bool all_sorted = check_params == CheckParams::AssumeValid || AnimationT::are_all_sorted(
@@ -239,7 +240,12 @@ private:
 
 	void show_time_controls()
 	{
-		if (selected_animation_start_time_ >= selected_animation_end_time_) // single pose
+		if (selected_animation_start_time_ > selected_animation_end_time_) // no pose
+		{
+				ImGui::Text("Empty animation");
+				return;
+		}
+		if (selected_animation_start_time_ == selected_animation_end_time_) // single pose
 		{
 			ImGui::LabelText("Time##L", "%.3f", static_cast<float>(time_));
 

@@ -202,6 +202,7 @@ public:
 	///                               `(const TransformT&) -> InterpolatedT`
 	/// @param interpolate an interpolation function in the form
 	///                    `(const InterpolatedT&, const InterpolatedT&, const TimeT&) -> InterpolatedT`
+	/// @param default_value the return value if the animation is empty
 	/// @return the interpolated transform as `InterpolatedT`
 	template <typename InterpolatedT = TransformT,
 			typename T = decltype(identity_c<const InterpolatedT&>),
@@ -209,10 +210,12 @@ public:
 	[[nodiscard]]
 	inline InterpolatedT get_transform(TimeT time,
 			T to_interpolation_space = identity_c<InterpolatedT>,
-			U interpolate = default_lerp<InterpolatedT, TimeT>) const
+			U interpolate = default_lerp<InterpolatedT, TimeT>,
+			InterpolatedT default_value = InterpolatedT{}) const
 	{
 		// Not using ::empty so ContainerT doesn't have to implement it
-		cgogn_assert(ContainerT<Keyframe>::size() > 0);
+		if (ContainerT<Keyframe>::size() <= 0)
+			return default_value;
 
 		auto it = std::find_if(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(),
 				[&time](const Keyframe& k){ return k.time_ > time; });

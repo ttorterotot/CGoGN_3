@@ -270,16 +270,14 @@ private:
 		show_play_mode_button("><", "Play looping", PlayMode::PlayLooping);
 		ImGui::SameLine();
 
-		if (play_mode_ != PlayMode::PlayLooping && time_ >= selected_animation_end_time_) // end reached
-		{
-			if (show_button_and_tooltip("<>", "Play again"))
-			{
-				set_play_mode(PlayMode::PlayOnce);
-				set_time(TimePoint::Start);
-			}
-		}
-		else
+		if (play_mode_ == PlayMode::PlayLooping // avoid flashing at end when looping
+				|| time_ < selected_animation_end_time_) // end not reached
 			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
+		else if (show_button_and_tooltip("<>", "Play again"))
+		{
+			set_play_mode(PlayMode::PlayOnce);
+			set_time(TimePoint::Start);
+		}
 
 		ImGui::SameLine();
 		show_play_mode_button("||", "Pause", PlayMode::Pause);

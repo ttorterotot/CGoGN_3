@@ -74,6 +74,22 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
 	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
+	Mesh::Attribute<KA>& anim_empty
+			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_empty");
+	for (int i = 0; i < 4; ++i)
+		anim_empty[m->bone_traverser_[i]] = KA();
+
+	Mesh::Attribute<KA>& anim_partial
+			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_partial");
+	for (int i = 0; i < 4; i += 2) // some keyframes missing
+		anim_partial[m->bone_traverser_[i]] = KA{{16.0, RT{Vec3{1, 0, 0}}}};
+
+	Mesh::Attribute<KA>& anim_single
+			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_single");
+	for (int i = 0; i < 4; ++i)
+		anim_single[m->bone_traverser_[i]]
+				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i), 0, 0}}}};
+
 	return anim_attr;
 }
 

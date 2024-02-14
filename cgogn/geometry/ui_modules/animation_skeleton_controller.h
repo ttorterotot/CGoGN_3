@@ -205,32 +205,7 @@ protected:
 					"Position", [&](const std::shared_ptr<Attribute<Vec3>>& attribute){ set_joint_position(attribute); });
 			
 			if (selected_animation_)
-			{
-				float t = static_cast<float>(time_);
-				if (ImGui::SliderFloat("Time", &t, selected_animation_start_time_, selected_animation_end_time_))
-					set_time(static_cast<TimeT>(t));
-
-				if (ImGui::Button("<<"))
-					set_time(TimePoint::Start);
-				show_tooltip_for_ui_above("Rewind");
-
-				ImGui::SameLine();
-				show_play_mode_button("><", "Play looping", PlayMode::PlayLooping);
-				ImGui::SameLine();
-
-				if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_) // end reached
-					show_play_mode_button("<>", "Play again", [&]{ set_time(TimePoint::Start); }, false);
-				else
-					show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
-
-				ImGui::SameLine();
-				show_play_mode_button("||", "Pause", PlayMode::Pause);
-				ImGui::SameLine();
-
-				if (ImGui::Button(">>"))
-					set_time(TimePoint::End);
-				show_tooltip_for_ui_above("Fast-forward");
-			}
+				show_time_controls();
 		}
 
 		advance_play();
@@ -260,6 +235,34 @@ private:
 					+ selected_animation_start_time_);
 		else // PlayMode::PlayOnce
 			set_time(std::min(new_time, selected_animation_end_time_));
+	}
+
+	void show_time_controls()
+	{
+		float t = static_cast<float>(time_);
+		if (ImGui::SliderFloat("Time", &t, selected_animation_start_time_, selected_animation_end_time_))
+			set_time(static_cast<TimeT>(t));
+
+		if (ImGui::Button("<<"))
+			set_time(TimePoint::Start);
+		show_tooltip_for_ui_above("Rewind");
+
+		ImGui::SameLine();
+		show_play_mode_button("><", "Play looping", PlayMode::PlayLooping);
+		ImGui::SameLine();
+
+		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_) // end reached
+			show_play_mode_button("<>", "Play again", [&]{ set_time(TimePoint::Start); }, false);
+		else
+			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
+
+		ImGui::SameLine();
+		show_play_mode_button("||", "Pause", PlayMode::Pause);
+		ImGui::SameLine();
+
+		if (ImGui::Button(">>"))
+			set_time(TimePoint::End);
+		show_tooltip_for_ui_above("Fast-forward");
 	}
 
 	template <typename FUNC>

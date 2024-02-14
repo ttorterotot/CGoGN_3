@@ -33,7 +33,7 @@
 
 #include <cgogn/geometry/types/vector_traits.h>
 
-#include <cgogn/rendering/shaders/shader_bold_line.h>
+#include <cgogn/rendering/shaders/shader_animation_skeleton_bone.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 
 #include <cgogn/geometry/algos/length.h>
@@ -88,9 +88,9 @@ class AnimationSkeletonRender : public ViewModule
 
 			param_point_sprite_color_size_ = rendering::ShaderPointSpriteColorSize::generate_param();
 
-			param_bold_line_ = rendering::ShaderBoldLine::generate_param();
-			param_bold_line_->color_ = {1, 1, 1, 1};
-			param_bold_line_->width_ = 3.0f;
+			param_animation_skeleton_bone_ = rendering::ShaderAnimationSkeletonBone::generate_param();
+			param_animation_skeleton_bone_->color_ = {1, 1, 1, 1};
+			param_animation_skeleton_bone_->radius_ = 0.25f;
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);
@@ -106,7 +106,7 @@ class AnimationSkeletonRender : public ViewModule
 		std::unique_ptr<rendering::ShaderPointSpriteSize::Param> param_point_sprite_size_;
 		std::unique_ptr<rendering::ShaderPointSpriteColor::Param> param_point_sprite_color_;
 		std::unique_ptr<rendering::ShaderPointSpriteColorSize::Param> param_point_sprite_color_size_;
-		std::unique_ptr<rendering::ShaderBoldLine::Param> param_bold_line_;
+		std::unique_ptr<rendering::ShaderAnimationSkeletonBone::Param> param_animation_skeleton_bone_;
 
 		bool render_joints_;
 		bool render_bones_;
@@ -193,7 +193,7 @@ public:
 		p.param_point_sprite_size_->set_vbos({p.joint_position_vbo_, p.joint_radius_vbo_});
 		p.param_point_sprite_color_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_});
 		p.param_point_sprite_color_size_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_, p.joint_radius_vbo_});
-		p.param_bold_line_->set_vbos({p.joint_position_vbo_});
+		p.param_animation_skeleton_bone_->set_vbos({p.joint_position_vbo_});
 
 		v.request_update();
 	}
@@ -259,11 +259,11 @@ protected:
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
-			if (p.render_bones_ && p.param_bold_line_->attributes_initialized())
+			if (p.render_bones_ && p.param_animation_skeleton_bone_->attributes_initialized())
 			{
-				p.param_bold_line_->bind(proj_matrix, view_matrix);
+				p.param_animation_skeleton_bone_->bind(proj_matrix, view_matrix);
 				md.draw(rendering::LINES);
-				p.param_bold_line_->release();
+				p.param_animation_skeleton_bone_->release();
 			}
 
 			if (p.render_joints_)
@@ -346,7 +346,7 @@ protected:
 												  });
 
 			ImGui::Separator();
-			need_update |= ImGui::Checkbox("Vertices", &p.render_joints_);
+			need_update |= ImGui::Checkbox("Joints", &p.render_joints_);
 			if (p.render_joints_)
 			{
 				if (!p.joint_radius_)
@@ -387,12 +387,13 @@ protected:
 			}
 
 			ImGui::Separator();
-			need_update |= ImGui::Checkbox("Edges", &p.render_bones_);
+			need_update |= ImGui::Checkbox("Bones", &p.render_bones_);
 			if (p.render_bones_)
 			{
 				need_update |=
-					ImGui::ColorEdit3("Color##bones", p.param_bold_line_->color_.data(), ImGuiColorEditFlags_NoInputs);
-				need_update |= ImGui::SliderFloat("Width##bones", &(p.param_bold_line_->width_), 1.0f, 10.0f);
+					ImGui::ColorEdit3("Color##bones", p.param_animation_skeleton_bone_->color_.data(), ImGuiColorEditFlags_NoInputs);
+				need_update |= ImGui::SliderFloat("Thickness##bones", &p.param_animation_skeleton_bone_->radius_, 0.0f, 2.0f);
+				need_update |= ImGui::SliderFloat("Lighting##bones", &p.param_animation_skeleton_bone_->lighted_, 0.0f, 1.0f);
 			}
 
 			if (need_update)

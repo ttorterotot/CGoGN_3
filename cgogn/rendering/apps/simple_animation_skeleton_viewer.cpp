@@ -66,10 +66,7 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
 			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT");
-	KA anim;
-	anim.emplace_back(0.0, RT{Vec3{0, 0, 0}});
-	anim.emplace_back(1.0, RT{Vec3{1, 0, 0}});
-	(*anim_attr)[m->bone_traverser_[0]] = std::move(anim);
+	(*anim_attr)[m->bone_traverser_[0]] = KA{{0.0, RT{Vec3{0, 0, 0}}}, {1.0, RT{Vec3{1, 0, 0}}}};
 	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
 	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};

@@ -239,6 +239,16 @@ private:
 
 	void show_time_controls()
 	{
+		if (selected_animation_start_time_ >= selected_animation_end_time_) // single pose
+		{
+			ImGui::LabelText("Time##L", "%.3f", static_cast<float>(time_));
+
+			if (ImGui::Button("Set pose"))
+				set_time(TimePoint::Start);
+
+			return;
+		}
+
 		float t = static_cast<float>(time_);
 		if (ImGui::SliderFloat("Time", &t, selected_animation_start_time_, selected_animation_end_time_))
 			set_time(static_cast<TimeT>(t));

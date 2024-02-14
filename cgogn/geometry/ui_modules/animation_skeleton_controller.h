@@ -222,7 +222,10 @@ private:
 			return;
 
 		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_)
+		{
+			set_play_mode(PlayMode::Pause); // shouldn't start playing again if the user rewinds
 			return; // end already reached
+		}
 
 		TimeT new_time = time_ + static_cast<TimeT>(App::frame_time_ - last_frame_time_);
 
@@ -267,8 +270,8 @@ private:
 		show_play_mode_button("><", "Play looping", PlayMode::PlayLooping);
 		ImGui::SameLine();
 
-		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_) // end reached
-			show_play_mode_button("<>", "Play again", [&]{ set_time(TimePoint::Start); }, false);
+		if (play_mode_ != PlayMode::PlayLooping && time_ >= selected_animation_end_time_) // end reached
+			show_play_mode_button("<>", "Play again", [&]{ set_play_mode(PlayMode::PlayOnce); set_time(TimePoint::Start); }, false);
 		else
 			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
 

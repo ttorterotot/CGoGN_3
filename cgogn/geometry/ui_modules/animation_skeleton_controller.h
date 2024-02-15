@@ -221,6 +221,9 @@ private:
 		if (!selected_animation_ || play_mode_ == PlayMode::Pause)
 			return;
 
+		if (selected_animation_start_time_ >= selected_animation_end_time_) // 0-1 pose
+			return;
+
 		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_)
 		{
 			set_play_mode(PlayMode::Pause); // shouldn't start playing again if the user rewinds

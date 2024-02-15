@@ -172,6 +172,8 @@ struct mesh_traits<AnimationSkeleton>
 // Operators
 /*************************************************************************/
 
+bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint);
+bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as, const std::string& name);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as, std::string&& name);
@@ -181,7 +183,6 @@ AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone 
 AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint);
 AnimationSkeleton::Joint get_base_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
-AnimationSkeleton::Joint get_root_joint(const AnimationSkeleton& as);
 
 /// @brief Adds a bone with joints that have already been created.
 /// Useful internally and for structure-aware functions e.g. `import_from_graph`.
@@ -307,20 +308,16 @@ auto foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 	static_assert(has_cell_type_v<AnimationSkeleton, CELL>, "CELL not supported in this MESH");
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
 
-	if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
-		if (as.nb_bones() == 0 || !f(get_root_joint(as)))
-			return;
-
-	for (const auto& id : as.bone_traverser_)
+	for (const auto& bone : as.bone_traverser_)
 	{
-		CELL c;
-
 		if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
-			c = get_tip_joint(as, id);
-		else
-			c = id;
-
-		if (!f(c))
+		{
+			if (is_root(as, bone) && !f(get_base_joint(as, bone)))
+				break;
+			if (!f(get_tip_joint(as, bone)))
+				break;
+		}
+		else if (!f(CELL{bone}))
 			break;
 	}
 }
@@ -350,7 +347,6 @@ auto parallel_foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 	Buffers<uint32>* buffers = uint32_buffers();
 
 	auto it = as.bone_traverser_.cbegin();
-	auto first = it;
 	auto last = as.bone_traverser_.cend();
 
 	uint32 i = 0u; // buffer id (0/1)
@@ -362,13 +358,14 @@ auto parallel_foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 		cells_buffers[i].push_back(buffers->buffer());
 		VecCell& cells = *cells_buffers[i].back();
 		cells.reserve(PARALLEL_BUFFER_SIZE);
-		if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
-			if (it == first && it < last)
-				cells.push_back(get_base_joint(as, *it++));
 		for (uint32 k = 0u; k < PARALLEL_BUFFER_SIZE && it < last; ++k, ++it)
 		{
 			if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
+			{
+				if (is_root(as, *it))
+					cells.push_back(get_base_joint(as, *it));
 				cells.push_back(get_tip_joint(as, *it));
+			}
 			else
 				cells.push_back(*it);
 		}

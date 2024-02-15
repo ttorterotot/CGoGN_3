@@ -89,8 +89,9 @@ class AnimationSkeletonRender : public ViewModule
 			param_point_sprite_color_size_ = rendering::ShaderPointSpriteColorSize::generate_param();
 
 			param_animation_skeleton_bone_ = rendering::ShaderAnimationSkeletonBone::generate_param();
-			param_animation_skeleton_bone_->color_ = {1, 1, 1, 1};
+			param_animation_skeleton_bone_->color_ = {1, 0.5, 1, 1};
 			param_animation_skeleton_bone_->radius_ = 0.25f;
+			param_animation_skeleton_bone_->lighted_ = 0.75f;
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);

@@ -89,6 +89,8 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 		anim_single[m->bone_traverser_[i]]
 				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i < 4 ? i : 4 - i), 0, 0}}}};
 
+	// 4 will overlap with 0 and 5 with 1, so two invisible bones
+	// (this doesn't concern what this animation demonstrates)
 	Mesh::Attribute<KA>& anim_unsorted
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_unsorted");
 	for (int i = 0; i < 6; ++i)

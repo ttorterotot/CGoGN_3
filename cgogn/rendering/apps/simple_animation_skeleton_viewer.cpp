@@ -110,8 +110,8 @@ auto create_placeholder_skeleton_anim_dq(Mesh* m)
 		auto x = static_cast<Vec3::Scalar>(i == 4); // second root moved sideways to not overlap
 		KA anim;
 		anim.emplace_back(0.0, DQ::from_translation({x, 0.25, 1}));
-		anim.emplace_back(1.0, DQ::from_rt(
-			Quaternion{Eigen::AngleAxisd(0.25 * M_PI, Vec3::UnitZ())}, {x, 0.25, 1}));
+		anim.emplace_back(1.0, DQ::from_tr({x, 0.25, 1},
+			Quaternion{Eigen::AngleAxisd(0.25 * M_PI, Vec3::UnitZ())}));
 		(*anim_attr)[m->bone_traverser_[i]] = std::move(anim);
 	}
 

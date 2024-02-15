@@ -350,6 +350,7 @@ auto parallel_foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 	Buffers<uint32>* buffers = uint32_buffers();
 
 	auto it = as.bone_traverser_.cbegin();
+	auto first = it;
 	auto last = as.bone_traverser_.cend();
 
 	uint32 i = 0u; // buffer id (0/1)
@@ -361,8 +362,16 @@ auto parallel_foreach_cell(const AnimationSkeleton& as, const FUNC& f)
 		cells_buffers[i].push_back(buffers->buffer());
 		VecCell& cells = *cells_buffers[i].back();
 		cells.reserve(PARALLEL_BUFFER_SIZE);
+		if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
+			if (it == first && it < last)
+				cells.push_back(get_base_joint(as, *it++));
 		for (uint32 k = 0u; k < PARALLEL_BUFFER_SIZE && it < last; ++k, ++it)
-			cells.push_back(*it);
+		{
+			if constexpr (std::is_same_v<CELL, AnimationSkeleton::Joint>)
+				cells.push_back(get_tip_joint(as, *it));
+			else
+				cells.push_back(*it);
+		}
 		// launch thread
 		futures[i].push_back(pool->enqueue([&cells, &f]() {
 			for (uint32 index : cells)

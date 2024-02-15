@@ -59,6 +59,49 @@ public:
 	}
 };
 
+DECLARE_SHADER_CLASS(AnimationSkeletonBoneColor, true, CGOGN_STR(AnimationSkeletonBoneColor))
+
+class CGOGN_RENDERING_EXPORT ShaderParamAnimationSkeletonBoneColor : public ShaderParam
+{
+	void set_uniforms() override;
+
+	std::array<VBO*, 2> vbos_;
+	inline void set_texture_buffer_vbo(uint32 i, VBO* vbo) override
+	{
+		vbos_[i] = vbo;
+	}
+	void bind_texture_buffers() override;
+	void release_texture_buffers() override;
+
+	enum VBOName : uint32
+	{
+		JOINT_POSITION = 0,
+		BONE_COLOR = 1,
+	};
+
+	// Follow 10 and 11, see MeshRender::draw
+	static constexpr const int JOINT_POSITION_BIND_ID = 12;
+	static constexpr const int BONE_COLOR_BIND_ID = 13;
+
+public:
+	float32 radius_;
+	float32 lighted_;
+	GLVec4 plane_clip_;
+	GLVec4 plane_clip2_;
+
+	using ShaderType = ShaderAnimationSkeletonBoneColor;
+
+	ShaderParamAnimationSkeletonBoneColor(ShaderType* sh)
+		: ShaderParam(sh, true), radius_(1.0f), lighted_(0.0f),
+		        plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
+	{
+	}
+
+	inline ~ShaderParamAnimationSkeletonBoneColor() override
+	{
+	}
+};
+
 } // namespace rendering
 
 } // namespace cgogn

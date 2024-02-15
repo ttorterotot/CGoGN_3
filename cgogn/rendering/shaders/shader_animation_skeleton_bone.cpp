@@ -140,6 +140,142 @@ void ShaderParamAnimationSkeletonBone::set_uniforms()
 	shader_->set_uniforms_values(color_, radius_, lighted_);
 }
 
+ShaderAnimationSkeletonBoneColor* ShaderAnimationSkeletonBoneColor::instance_ = nullptr;
+
+ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
+{
+	const char* vertex_shader_source = R"(
+		#version 330
+		uniform usamplerBuffer joint_ind;
+		uniform usamplerBuffer bone_ind;
+		uniform samplerBuffer joint_position;
+		uniform samplerBuffer bone_color;
+
+		out vec3 color_b;
+
+		void main()
+		{
+			int ind_j = int(texelFetch(joint_ind, 2 * gl_InstanceID + gl_VertexID).r);
+			vec3 position_in = texelFetch(joint_position, ind_j).rgb;
+
+			int ind_b = int(texelFetch(bone_ind, int(gl_InstanceID)).r);
+			color_b = texelFetch(bone_color, ind_b).rgb;
+
+			gl_Position = vec4(position_in, 1.0);
+		}
+	)";
+
+	const char* geometry_shader_source = R"(
+		#version 330
+		layout (lines) in;
+		layout (triangle_strip, max_vertices = 12) out;
+
+		uniform mat4 projection_matrix;
+		uniform mat4 model_view_matrix;
+		uniform float base_radius;
+
+		in vec3 color_b[];
+
+		out vec3 color;
+		out float Nz;
+		out vec4 posi_clip;
+
+		#define M_PI 3.1415926535897932384626433832795
+
+		void emit_vertex(in vec3 P, in float n, in vec4 pc, in vec3 c)
+		{
+			Nz = n;
+			posi_clip = pc;
+			color = c;
+			gl_Position = projection_matrix * model_view_matrix * vec4(P, 1.0);
+			EmitVertex();
+		}
+
+		void emit_triangle(in vec3 A, in vec3 B, in vec3 C)
+		{
+			float n = normalize(cross(B - A, C - A)).z;
+			vec4 pc = vec4(0.0);
+			vec3 c = color_b[0];
+			emit_vertex(A, n, pc, c);
+			emit_vertex(B, n, pc, c);
+			emit_vertex(C, n, pc, c);
+			EndPrimitive();
+		}
+
+		void main()
+		{
+			vec4 p0 = gl_in[0].gl_Position;
+			vec4 p1 = gl_in[1].gl_Position;
+
+			vec3 base_center = p0.xyz / p0.w;
+			vec3 tip = p1.xyz / p1.w;
+
+			vec3 X = tip.xyz - base_center.xyz;
+
+			if (dot(X, X) <= 0.0)
+				return;
+
+			X = normalize(X);
+
+			vec3 Y = cross(X, vec3(1.0, 0.0, 0.0));
+
+			if (dot(Y, Y) < 1.0)
+				Y = cross(X, vec3(0.0, 1.0, 0.0));
+
+			vec3 Z = cross(X, Y);
+
+			float c = cos(2 * M_PI / 3) * base_radius;
+			float s = sin(2 * M_PI / 3) * base_radius;
+			vec3 base_A = base_center + Y * base_radius;
+			vec3 base_B = base_center + Y * c + Z * s;
+			vec3 base_C = base_center + Y * c - Z * s;
+
+			emit_triangle(base_A, base_B, base_C);
+			emit_triangle(base_A, tip, base_B);
+			emit_triangle(base_B, tip, base_C);
+			emit_triangle(base_C, tip, base_A);
+		}
+	)";
+
+	const char* fragment_shader_source = R"(
+		#version 330
+		uniform float lighted;
+
+		in vec3 color;
+		in float Nz;
+		in vec4 posi_clip;
+
+		out vec3 frag_out;
+
+		void main()
+		{
+			float lambert = max(1.0 - lighted, Nz); // Nz = dot(N,0,0,1)
+			frag_out = color.rgb * lambert;
+		}
+	)";
+
+	load3_bind(vertex_shader_source, fragment_shader_source, geometry_shader_source);
+	get_uniforms("joint_ind", "bone_ind", "joint_position", "bone_color", "base_radius", "lighted");
+}
+
+void ShaderParamAnimationSkeletonBoneColor::set_uniforms()
+{
+	// See MeshRender::draw for 10 and 11
+	shader_->set_uniforms_values(10, 11, JOINT_POSITION_BIND_ID, BONE_COLOR_BIND_ID, radius_, lighted_);
+}
+
+void ShaderParamAnimationSkeletonBoneColor::bind_texture_buffers()
+{
+	vbos_[JOINT_POSITION]->bind_texture_buffer(JOINT_POSITION_BIND_ID);
+	vbos_[BONE_COLOR]->bind_texture_buffer(BONE_COLOR_BIND_ID);
+}
+
+void ShaderParamAnimationSkeletonBoneColor::release_texture_buffers()
+{
+	vbos_[JOINT_POSITION]->release_texture_buffer(JOINT_POSITION_BIND_ID);
+	vbos_[BONE_COLOR]->release_texture_buffer(BONE_COLOR_BIND_ID);
+}
+
 } // namespace rendering
 
 } // namespace cgogn

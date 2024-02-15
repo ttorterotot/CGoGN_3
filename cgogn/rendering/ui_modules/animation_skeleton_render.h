@@ -56,7 +56,8 @@ class AnimationSkeletonRender : public ViewModule
 	enum AttributePerCell
 	{
 		GLOBAL = 0,
-		PER_VERTEX
+		PER_VERTEX,
+		PER_EDGE,
 	};
 	enum ColorType
 	{
@@ -75,8 +76,9 @@ class AnimationSkeletonRender : public ViewModule
 	{
 		Parameters()
 			: joint_position_(nullptr), joint_position_vbo_(nullptr), joint_radius_(nullptr),
-			  joint_radius_vbo_(nullptr), joint_color_(nullptr), joint_color_vbo_(nullptr), render_joints_(true),
-			  render_bones_(true), color_per_cell_(GLOBAL), color_type_(VECTOR), joint_scale_factor_(1.0)
+			  joint_radius_vbo_(nullptr), joint_color_(nullptr), joint_color_vbo_(nullptr), bone_color_vbo_(nullptr),
+			  render_joints_(true), render_bones_(true),
+			  color_per_cell_(GLOBAL), bone_color_per_cell_(GLOBAL), color_type_(VECTOR), joint_scale_factor_(1.0)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
 			param_point_sprite_->color_ = {1.0f, 0.5f, 0.0f, 1.0f};
@@ -92,6 +94,10 @@ class AnimationSkeletonRender : public ViewModule
 			param_animation_skeleton_bone_->color_ = {1, 0.5, 1, 1};
 			param_animation_skeleton_bone_->radius_ = 0.25f;
 			param_animation_skeleton_bone_->lighted_ = 0.75f;
+
+			param_animation_skeleton_bone_color_ = rendering::ShaderAnimationSkeletonBoneColor::generate_param();
+			param_animation_skeleton_bone_color_->radius_ = 0.25f;
+			param_animation_skeleton_bone_color_->lighted_ = 0.75f;
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);
@@ -102,17 +108,21 @@ class AnimationSkeletonRender : public ViewModule
 		rendering::VBO* joint_radius_vbo_;
 		std::shared_ptr<Attribute<Vec3>> joint_color_;
 		rendering::VBO* joint_color_vbo_;
+		std::shared_ptr<Attribute<Vec3>> bone_color_;
+		rendering::VBO* bone_color_vbo_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
 		std::unique_ptr<rendering::ShaderPointSpriteSize::Param> param_point_sprite_size_;
 		std::unique_ptr<rendering::ShaderPointSpriteColor::Param> param_point_sprite_color_;
 		std::unique_ptr<rendering::ShaderPointSpriteColorSize::Param> param_point_sprite_color_size_;
 		std::unique_ptr<rendering::ShaderAnimationSkeletonBone::Param> param_animation_skeleton_bone_;
+		std::unique_ptr<rendering::ShaderAnimationSkeletonBoneColor::Param> param_animation_skeleton_bone_color_;
 
 		bool render_joints_;
 		bool render_bones_;
 
 		AttributePerCell color_per_cell_;
+		AttributePerCell bone_color_per_cell_;
 		ColorType color_type_;
 
 		float32 joint_scale_factor_;
@@ -195,6 +205,7 @@ public:
 		p.param_point_sprite_color_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_});
 		p.param_point_sprite_color_size_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_, p.joint_radius_vbo_});
 		p.param_animation_skeleton_bone_->set_vbos({p.joint_position_vbo_});
+		p.param_animation_skeleton_bone_color_->set_vbos({p.joint_position_vbo_, p.bone_color_vbo_});
 
 		v.request_update();
 	}
@@ -241,6 +252,26 @@ public:
 		v.request_update();
 	}
 
+	void set_bone_color(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& bone_color)
+	{
+		Parameters& p = parameters_[&v][&m];
+		if (p.bone_color_ == bone_color)
+			return;
+
+		p.bone_color_ = bone_color;
+		if (p.bone_color_)
+		{
+			MeshData<MESH>& md = mesh_provider_->mesh_data(m);
+			p.bone_color_vbo_ = md.update_vbo(p.bone_color_.get(), true);
+		}
+		else
+			p.bone_color_vbo_ = nullptr;
+
+		p.param_animation_skeleton_bone_color_->set_vbos({p.joint_position_vbo_, p.bone_color_vbo_});
+
+		v.request_update();
+	}
+
 protected:
 	void init() override
 	{
@@ -260,11 +291,27 @@ protected:
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
-			if (p.render_bones_ && p.param_animation_skeleton_bone_->attributes_initialized())
+			if (p.render_bones_)
 			{
-				p.param_animation_skeleton_bone_->bind(proj_matrix, view_matrix);
-				md.draw(rendering::LINES);
-				p.param_animation_skeleton_bone_->release();
+				switch (p.bone_color_per_cell_)
+				{
+				case GLOBAL:
+					if (p.param_animation_skeleton_bone_->attributes_initialized())
+					{
+						p.param_animation_skeleton_bone_->bind(proj_matrix, view_matrix);
+						md.draw(rendering::LINES);
+						p.param_animation_skeleton_bone_->release();
+					}
+					break;
+				case PER_EDGE:
+					if (p.param_animation_skeleton_bone_color_->attributes_initialized())
+					{
+						p.param_animation_skeleton_bone_color_->bind(proj_matrix, view_matrix);
+						md.draw(rendering::LINES_TB);
+						p.param_animation_skeleton_bone_color_->release();
+					}
+					break;
+				}
 			}
 
 			if (p.render_joints_)
@@ -391,10 +438,47 @@ protected:
 			need_update |= ImGui::Checkbox("Bones", &p.render_bones_);
 			if (p.render_bones_)
 			{
-				need_update |=
-					ImGui::ColorEdit3("Color##bones", p.param_animation_skeleton_bone_->color_.data(), ImGuiColorEditFlags_NoInputs);
-				need_update |= ImGui::SliderFloat("Thickness##bones", &p.param_animation_skeleton_bone_->radius_, 0.0f, 2.0f);
-				need_update |= ImGui::SliderFloat("Lighting##bones", &p.param_animation_skeleton_bone_->lighted_, 0.0f, 1.0f);
+				ImGui::TextUnformatted("Colors");
+				ImGui::BeginGroup();
+				if (ImGui::RadioButton("Global##colorBones", p.bone_color_per_cell_ == GLOBAL))
+				{
+					p.bone_color_per_cell_ = GLOBAL;
+					need_update = true;
+				}
+				ImGui::SameLine();
+				if (ImGui::RadioButton("Per bone##colorBones", p.bone_color_per_cell_ == PER_EDGE))
+				{
+					p.bone_color_per_cell_ = PER_EDGE;
+					need_update = true;
+				}
+				ImGui::EndGroup();
+
+				switch (p.bone_color_per_cell_)
+				{
+				case GLOBAL:
+					need_update |=
+						ImGui::ColorEdit3("Color##bones", p.param_animation_skeleton_bone_->color_.data(), ImGuiColorEditFlags_NoInputs);
+					break;
+				case PER_EDGE:
+					imgui_combo_attribute<Bone, Vec3>(
+						*selected_mesh_, p.bone_color_, "Attribute##vectorbonecolor",
+						[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+							set_bone_color(*selected_view_, *selected_mesh_, attribute);
+						});
+					break;
+				}
+
+				if (ImGui::SliderFloat("Thickness##bones", &p.param_animation_skeleton_bone_->radius_, 0.0f, 2.0f))
+				{
+					p.param_animation_skeleton_bone_color_->radius_= p.param_animation_skeleton_bone_->radius_;
+					need_update = true;
+				}
+
+				if (ImGui::SliderFloat("Lighting##bones", &p.param_animation_skeleton_bone_->lighted_, 0.0f, 1.0f))
+				{
+					p.param_animation_skeleton_bone_color_->lighted_ = p.param_animation_skeleton_bone_->lighted_;
+					need_update = true;
+				}
 			}
 
 			if (need_update)

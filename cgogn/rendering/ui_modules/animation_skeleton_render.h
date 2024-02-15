@@ -56,8 +56,8 @@ class AnimationSkeletonRender : public ViewModule
 	enum AttributePerCell
 	{
 		GLOBAL = 0,
-		PER_VERTEX,
-		PER_EDGE,
+		PER_JOINT,
+		PER_BONE,
 	};
 	enum ColorType
 	{
@@ -303,7 +303,7 @@ protected:
 						p.param_animation_skeleton_bone_->release();
 					}
 					break;
-				case PER_EDGE:
+				case PER_BONE:
 					if (p.param_animation_skeleton_bone_color_->attributes_initialized())
 					{
 						p.param_animation_skeleton_bone_color_->bind(proj_matrix, view_matrix);
@@ -329,7 +329,7 @@ protected:
 						}
 					}
 					break;
-					case PER_VERTEX: {
+					case PER_JOINT: {
 						if (p.param_point_sprite_color_size_->attributes_initialized())
 						{
 							p.param_point_sprite_color_size_->bind(proj_matrix, view_matrix);
@@ -354,7 +354,7 @@ protected:
 						}
 					}
 					break;
-					case PER_VERTEX: {
+					case PER_JOINT: {
 						if (p.param_point_sprite_color_->attributes_initialized())
 						{
 							p.param_point_sprite_color_->point_size_ = p.joint_base_size_ * p.joint_scale_factor_;
@@ -408,9 +408,9 @@ protected:
 					need_update = true;
 				}
 				ImGui::SameLine();
-				if (ImGui::RadioButton("Per joint##color", p.color_per_cell_ == PER_VERTEX))
+				if (ImGui::RadioButton("Per joint##color", p.color_per_cell_ == PER_JOINT))
 				{
-					p.color_per_cell_ = PER_VERTEX;
+					p.color_per_cell_ = PER_JOINT;
 					need_update = true;
 				}
 				ImGui::EndGroup();
@@ -424,7 +424,7 @@ protected:
 						need_update = true;
 					}
 				}
-				else if (p.color_per_cell_ == PER_VERTEX)
+				else if (p.color_per_cell_ == PER_JOINT)
 				{
 					imgui_combo_attribute<Joint, Vec3>(
 						*selected_mesh_, p.joint_color_, "Attribute##vectorjointcolor",
@@ -446,9 +446,9 @@ protected:
 					need_update = true;
 				}
 				ImGui::SameLine();
-				if (ImGui::RadioButton("Per bone##colorBones", p.bone_color_per_cell_ == PER_EDGE))
+				if (ImGui::RadioButton("Per bone##colorBones", p.bone_color_per_cell_ == PER_BONE))
 				{
-					p.bone_color_per_cell_ = PER_EDGE;
+					p.bone_color_per_cell_ = PER_BONE;
 					need_update = true;
 				}
 				ImGui::EndGroup();
@@ -459,7 +459,7 @@ protected:
 					need_update |=
 						ImGui::ColorEdit3("Color##bones", p.param_animation_skeleton_bone_->color_.data(), ImGuiColorEditFlags_NoInputs);
 					break;
-				case PER_EDGE:
+				case PER_BONE:
 					imgui_combo_attribute<Bone, Vec3>(
 						*selected_mesh_, p.bone_color_, "Attribute##vectorbonecolor",
 						[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {

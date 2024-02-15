@@ -135,6 +135,15 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT
 	return std::make_tuple(m, positions, bb);
 }
 
+std::shared_ptr<Attribute<Vec3>> create_placeholder_bone_colors(Mesh& m)
+{
+	using S = Vec3::Scalar;
+	auto res = cgogn::get_or_add_attribute<Vec3, Bone>(m, "bone_colors");
+	for (int i = 0; i < 4; ++i)
+		(*res)[m.bone_traverser_[i]] = {static_cast<S>(i < 2), static_cast<S>(i > 0), static_cast<S>(i > 2)};
+	return res;
+}
+
 int main(int argc, char** argv)
 {
 	cgogn::thread_start();
@@ -155,11 +164,13 @@ int main(int argc, char** argv)
 	v1->link_module(&asr);
 
 	auto [m, joint_position, bb] = create_placeholder_skeleton(mp, asc_rt, asc_dq);
+	auto bone_color = create_placeholder_bone_colors(*m);
 
 	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Joint>(*m, "radius");
 	mp.set_mesh_bb_override(*m, bb);
 	asr.set_joint_position(*v1, *m, joint_position);
 	asr.set_joint_radius(*v1, *m, joint_radius);
+	asr.set_bone_color(*v1, *m, bone_color);
 
 	return app.launch();
 }

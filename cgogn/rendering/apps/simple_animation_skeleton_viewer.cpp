@@ -70,26 +70,28 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
 	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
+	(*anim_attr)[m->bone_traverser_[4]] = KA{{0.0, RT{Vec3{-1, 0, 0}}}};
+	(*anim_attr)[m->bone_traverser_[5]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
 	Mesh::Attribute<KA>& anim_empty
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_empty");
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 6; ++i)
 		anim_empty[m->bone_traverser_[i]] = KA();
 
 	Mesh::Attribute<KA>& anim_partial
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_partial");
-	for (int i = 0; i < 4; i += 2) // some keyframes missing
+	for (int i = 0; i < 6; i += 2) // some keyframes missing
 		anim_partial[m->bone_traverser_[i]] = KA{{16.0, RT{Vec3{1, 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_single
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_single");
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 6; ++i)
 		anim_single[m->bone_traverser_[i]]
 				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i), 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_unsorted
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_unsorted");
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 6; ++i)
 		anim_unsorted[m->bone_traverser_[i]] = KA{{1.0, Vec3{1, 0, 0}}, {0.0, Vec3{0, 0, 0}}};
 
 	return anim_attr;
@@ -103,7 +105,7 @@ auto create_placeholder_skeleton_anim_dq(Mesh* m)
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
 			= cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_DQ");
 
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 6; ++i)
 	{
 		KA anim;
 		anim.emplace_back(0.0, DQ::from_translation({0, 0.25, 1}));
@@ -124,6 +126,8 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT
 	for (int i = 0; i < 4; ++i)
 		i == 0 ? (b = add_root(*m)) : (b = add_bone(*m, b));
 
+	add_bone(*m, add_root(*m)); // extra disconnected tree
+
 	auto anims_rt = create_placeholder_skeleton_anim_rt(m);
 	auto anims_dq = create_placeholder_skeleton_anim_dq(m);
 
@@ -139,8 +143,9 @@ std::shared_ptr<Attribute<Vec3>> create_placeholder_bone_colors(Mesh& m)
 {
 	using S = Vec3::Scalar;
 	auto res = cgogn::get_or_add_attribute<Vec3, Bone>(m, "bone_colors");
-	for (int i = 0; i < 4; ++i)
-		(*res)[m.bone_traverser_[i]] = {static_cast<S>(i < 2), static_cast<S>(i > 0), static_cast<S>(i > 2)};
+	for (int i = 0; i < 6; ++i)
+		(*res)[m.bone_traverser_[i]]
+				= {static_cast<S>(i < 2 || i > 4), static_cast<S>(i > 0 && i < 4), static_cast<S>(i > 2)};
 	return res;
 }
 

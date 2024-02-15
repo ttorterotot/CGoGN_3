@@ -35,8 +35,8 @@ using Mesh = cgogn::AnimationSkeleton;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
-using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
-using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
+using Joint = typename cgogn::mesh_traits<Mesh>::Vertex;
+using Bone = typename cgogn::mesh_traits<Mesh>::Edge;
 
 using Vec3 = cgogn::geometry::Vec3;
 using Quaternion = cgogn::geometry::Quaternion;
@@ -54,8 +54,8 @@ auto setup_transform_attributes_and_get_bb(
 		const Attribute<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
 		Attribute<Vec3>& positions)
 {
-	auto rt_l = cgogn::add_attribute<TransformT, Edge>(*m, asc.local_transform_attribute_name());
-	auto rt_w = cgogn::add_attribute<TransformT, Edge>(*m, asc.world_transform_attribute_name());
+	auto rt_l = cgogn::add_attribute<TransformT, Bone>(*m, asc.local_transform_attribute_name());
+	auto rt_w = cgogn::add_attribute<TransformT, Bone>(*m, asc.world_transform_attribute_name());
 	return ASCT::Embedding::compute_animation_bb(*m, anims, *rt_l, *rt_w, positions);
 }
 
@@ -65,30 +65,30 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, RT>;
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT");
+			= cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT");
 	(*anim_attr)[m->bone_traverser_[0]] = KA{{0.0, RT{Vec3{0, 0, 0}}}, {1.0, RT{Vec3{1, 0, 0}}}};
 	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
 	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
 	Mesh::Attribute<KA>& anim_empty
-			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_empty");
+			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_empty");
 	for (int i = 0; i < 4; ++i)
 		anim_empty[m->bone_traverser_[i]] = KA();
 
 	Mesh::Attribute<KA>& anim_partial
-			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_partial");
+			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_partial");
 	for (int i = 0; i < 4; i += 2) // some keyframes missing
 		anim_partial[m->bone_traverser_[i]] = KA{{16.0, RT{Vec3{1, 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_single
-			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_single");
+			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_single");
 	for (int i = 0; i < 4; ++i)
 		anim_single[m->bone_traverser_[i]]
 				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i), 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_unsorted
-			= *cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_RT_unsorted");
+			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_unsorted");
 	for (int i = 0; i < 4; ++i)
 		anim_unsorted[m->bone_traverser_[i]] = KA{{1.0, Vec3{1, 0, 0}}, {0.0, Vec3{0, 0, 0}}};
 
@@ -101,7 +101,7 @@ auto create_placeholder_skeleton_anim_dq(Mesh* m)
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, DQ>;
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-			= cgogn::add_attribute<KA, Edge>(*m, "placeholder_animation_DQ");
+			= cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_DQ");
 
 	for (int i = 0; i < 4; ++i)
 	{
@@ -118,7 +118,7 @@ auto create_placeholder_skeleton_anim_dq(Mesh* m)
 auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT& asc_rt, const ASC_DQ& asc_dq)
 {
 	Mesh* m = mp.add_mesh("Placeholder");
-	std::shared_ptr<Attribute<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Vertex>(*m, "position");
+	std::shared_ptr<Attribute<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Joint>(*m, "position");
 
 	Mesh::Bone b;
 	for (int i = 0; i < 4; ++i)
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
 
 	auto [m, joint_position, bb] = create_placeholder_skeleton(mp, asc_rt, asc_dq);
 
-	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Vertex>(*m, "radius");
+	std::shared_ptr<Attribute<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Joint>(*m, "radius");
 	mp.set_mesh_bb_override(*m, bb);
 	asr.set_joint_position(*v1, *m, joint_position);
 	asr.set_joint_radius(*v1, *m, joint_radius);

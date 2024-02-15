@@ -87,7 +87,7 @@ auto create_placeholder_skeleton_anim_rt(Mesh* m)
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_single");
 	for (int i = 0; i < 6; ++i)
 		anim_single[m->bone_traverser_[i]]
-				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i), 0, 0}}}};
+				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i < 4 ? i : 4 - i), 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_unsorted
 			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_unsorted");

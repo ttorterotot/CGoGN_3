@@ -375,7 +375,7 @@ CMap2::Edge cut_face(CMap2& m, CMap2::Vertex v1, CMap2::Vertex v2, bool set_indi
 	return e;
 }
 
-void set_volume_indices(CMap2& m, CMap2::Volume vol)
+static void set_volume_indices(CMap2& m, CMap2::Volume vol)
 {
 	if (is_indexed<CMap2::Vertex>(m))
 	{

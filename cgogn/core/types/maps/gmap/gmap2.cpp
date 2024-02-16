@@ -416,7 +416,7 @@ GMap2::Edge cut_face(GMap2& m, GMap2::Vertex v1, GMap2::Vertex v2, bool set_indi
 	return Edge{e1};
 }
 
-void set_volume_indices(GMap2& m, GMap2::Volume vol)
+static void set_volume_indices(GMap2& m, GMap2::Volume vol)
 {
 	if (is_indexed<GMap2::Vertex>(m))
 	{

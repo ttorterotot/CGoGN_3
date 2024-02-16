@@ -36,12 +36,9 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 	const char* vertex_shader_source = R"(
 		#version 330
 		in vec3 vertex_position;
-		in vec3 clipping_position;
-		out vec3 clip_pos_v;
 		void main()
 		{
 			gl_Position =  vec4(vertex_position, 1.0);
-			clip_pos_v = clipping_position;
 		}
 	)";
 
@@ -54,16 +51,13 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 		uniform mat4 model_view_matrix;
 		uniform float base_radius;
 
-		in vec3 clip_pos_v[];
 		out float Nz;
-		out vec4 posi_clip;
 
 		#define M_PI 3.1415926535897932384626433832795
 
-		void emit_vertex(in vec3 P, in float n, in vec4 pc)
+		void emit_vertex(in vec3 P, in float n)
 		{
 			Nz = n;
-			posi_clip = pc;
 			gl_Position = projection_matrix * model_view_matrix * vec4(P, 1.0);
 			EmitVertex();
 		}
@@ -71,10 +65,9 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 		void emit_triangle(in vec3 A, in vec3 B, in vec3 C)
 		{
 			float n = normalize(cross(B - A, C - A)).z;
-			vec4 pc = vec4(0.0);
-			emit_vertex(A, n, pc);
-			emit_vertex(B, n, pc);
-			emit_vertex(C, n, pc);
+			emit_vertex(A, n);
+			emit_vertex(B, n);
+			emit_vertex(C, n);
 			EndPrimitive();
 		}
 
@@ -119,7 +112,6 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 		uniform float lighted;
 
 		in float Nz;
-		in vec4 posi_clip;
 
 		out vec3 frag_out;
 
@@ -130,8 +122,7 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 		}
 	)";
 
-	load3_bind(vertex_shader_source, fragment_shader_source, geometry_shader_source, "vertex_position",
-			"clipping_position");
+	load3_bind(vertex_shader_source, fragment_shader_source, geometry_shader_source, "vertex_position");
 	get_uniforms("color", "base_radius", "lighted");
 }
 
@@ -178,14 +169,12 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 
 		out vec3 color;
 		out float Nz;
-		out vec4 posi_clip;
 
 		#define M_PI 3.1415926535897932384626433832795
 
-		void emit_vertex(in vec3 P, in float n, in vec4 pc, in vec3 c)
+		void emit_vertex(in vec3 P, in float n, in vec3 c)
 		{
 			Nz = n;
-			posi_clip = pc;
 			color = c;
 			gl_Position = projection_matrix * model_view_matrix * vec4(P, 1.0);
 			EmitVertex();
@@ -194,11 +183,10 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 		void emit_triangle(in vec3 A, in vec3 B, in vec3 C)
 		{
 			float n = normalize(cross(B - A, C - A)).z;
-			vec4 pc = vec4(0.0);
 			vec3 c = color_b[0];
-			emit_vertex(A, n, pc, c);
-			emit_vertex(B, n, pc, c);
-			emit_vertex(C, n, pc, c);
+			emit_vertex(A, n, c);
+			emit_vertex(B, n, c);
+			emit_vertex(C, n, c);
 			EndPrimitive();
 		}
 
@@ -243,7 +231,6 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 
 		in vec3 color;
 		in float Nz;
-		in vec4 posi_clip;
 
 		out vec3 frag_out;
 

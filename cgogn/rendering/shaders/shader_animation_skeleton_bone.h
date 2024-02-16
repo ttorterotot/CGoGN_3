@@ -43,14 +43,11 @@ public:
 	GLColor color_;
 	float32 radius_;
 	float32 lighted_;
-	GLVec4 plane_clip_;
-	GLVec4 plane_clip2_;
 
 	using ShaderType = ShaderAnimationSkeletonBone;
 
 	ShaderParamAnimationSkeletonBone(ShaderType* sh)
-		: ShaderParam(sh, true), color_(1, 1, 0, 1), radius_(1.0f), lighted_(0.0f),
-		        plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
+		: ShaderParam(sh, true), color_(1, 1, 0, 1), radius_(1.0f), lighted_(0.0f)
 	{
 	}
 
@@ -86,14 +83,11 @@ class CGOGN_RENDERING_EXPORT ShaderParamAnimationSkeletonBoneColor : public Shad
 public:
 	float32 radius_;
 	float32 lighted_;
-	GLVec4 plane_clip_;
-	GLVec4 plane_clip2_;
 
 	using ShaderType = ShaderAnimationSkeletonBoneColor;
 
 	ShaderParamAnimationSkeletonBoneColor(ShaderType* sh)
-		: ShaderParam(sh, true), radius_(1.0f), lighted_(0.0f),
-		        plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
+		: ShaderParam(sh, true), radius_(1.0f), lighted_(0.0f)
 	{
 	}
 

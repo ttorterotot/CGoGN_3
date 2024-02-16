@@ -416,6 +416,53 @@ GMap2::Edge cut_face(GMap2& m, GMap2::Vertex v1, GMap2::Vertex v2, bool set_indi
 	return Edge{e1};
 }
 
+void set_volume_indices(GMap2& m, GMap2::Volume vol)
+{
+	if (is_indexed<GMap2::Vertex>(m))
+	{
+		foreach_incident_vertex(
+			m, vol,
+			[&](GMap2::Vertex v) -> bool {
+				set_index(m, v, new_index<GMap2::Vertex>(m));
+				return true;
+			},
+			MapBase::TraversalPolicy::DART_MARKING);
+	}
+	if (is_indexed<GMap2::HalfEdge>(m))
+	{
+		foreach_incident_edge(
+			m, vol,
+			[&](GMap2::Edge e) -> bool {
+				set_index(m, GMap2::HalfEdge(e.dart_), new_index<GMap2::HalfEdge>(m));
+				set_index(m, GMap2::HalfEdge(phi2(m, e.dart_)), new_index<GMap2::HalfEdge>(m));
+				return true;
+			},
+			MapBase::TraversalPolicy::DART_MARKING);
+	}
+	if (is_indexed<GMap2::Edge>(m))
+	{
+		foreach_incident_edge(
+			m, vol,
+			[&](GMap2::Edge e) -> bool {
+				set_index(m, e, new_index<GMap2::Edge>(m));
+				return true;
+			},
+			MapBase::TraversalPolicy::DART_MARKING);
+	}
+	if (is_indexed<GMap2::Face>(m))
+	{
+		foreach_incident_face(
+			m, vol,
+			[&](GMap2::Face f) -> bool {
+				set_index(m, f, new_index<GMap2::Face>(m));
+				return true;
+			},
+			MapBase::TraversalPolicy::DART_MARKING);
+	}
+	if (is_indexed<GMap2::Volume>(m))
+		set_index(m, vol, new_index<GMap2::Volume>(m));
+}
+
 GMap2::Volume add_pyramid(GMap2& m, uint32 size, bool set_indices)
 {
 	GMap1::Face first = add_face(static_cast<GMap1&>(m), 3u, false); // First triangle
@@ -436,51 +483,7 @@ GMap2::Volume add_pyramid(GMap2& m, uint32 size, bool set_indices)
 	GMap2::Volume vol(base.dart_);
 
 	if (set_indices)
-	{
-		if (is_indexed<GMap2::Vertex>(m))
-		{
-			foreach_incident_vertex(
-				m, vol,
-				[&](GMap2::Vertex v) -> bool {
-					set_index(m, v, new_index<GMap2::Vertex>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::HalfEdge>(m))
-		{
-			foreach_incident_edge(
-				m, vol,
-				[&](GMap2::Edge e) -> bool {
-					set_index(m, GMap2::HalfEdge(e.dart_), new_index<GMap2::HalfEdge>(m));
-					set_index(m, GMap2::HalfEdge(phi2(m, e.dart_)), new_index<GMap2::HalfEdge>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Edge>(m))
-		{
-			foreach_incident_edge(
-				m, vol,
-				[&](GMap2::Edge e) -> bool {
-					set_index(m, e, new_index<GMap2::Edge>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Face>(m))
-		{
-			foreach_incident_face(
-				m, vol,
-				[&](GMap2::Face f) -> bool {
-					set_index(m, f, new_index<GMap2::Face>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Volume>(m))
-			set_index(m, vol, new_index<GMap2::Volume>(m));
-	}
+		set_volume_indices(m, vol);
 
 	return vol;
 }
@@ -502,51 +505,7 @@ GMap2::Volume add_prism(GMap2& m, uint32 size, bool set_indices)
 	GMap2::Volume vol(base.dart_);
 
 	if (set_indices)
-	{
-		if (is_indexed<GMap2::Vertex>(m))
-		{
-			foreach_incident_vertex(
-				m, vol,
-				[&](GMap2::Vertex v) -> bool {
-					set_index(m, v, new_index<GMap2::Vertex>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::HalfEdge>(m))
-		{
-			foreach_incident_edge(
-				m, vol,
-				[&](GMap2::Edge e) -> bool {
-					set_index(m, GMap2::HalfEdge(e.dart_), new_index<GMap2::HalfEdge>(m));
-					set_index(m, GMap2::HalfEdge(phi2(m, e.dart_)), new_index<GMap2::HalfEdge>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Edge>(m))
-		{
-			foreach_incident_edge(
-				m, vol,
-				[&](GMap2::Edge e) -> bool {
-					set_index(m, e, new_index<GMap2::Edge>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Face>(m))
-		{
-			foreach_incident_face(
-				m, vol,
-				[&](GMap2::Face f) -> bool {
-					set_index(m, f, new_index<GMap2::Face>(m));
-					return true;
-				},
-				MapBase::TraversalPolicy::DART_MARKING);
-		}
-		if (is_indexed<GMap2::Volume>(m))
-			set_index(m, vol, new_index<GMap2::Volume>(m));
-	}
+		set_volume_indices(m, vol);
 
 	return vol;
 }

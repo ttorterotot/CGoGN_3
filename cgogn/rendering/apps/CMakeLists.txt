@@ -63,7 +63,7 @@ target_link_libraries(simple_incidence_graph_viewer
 	${APPLE_LINK}
 )
 
-add_executable(simple_animation_skeleton_viewer simple_animation_skeleton_viewer.cpp)
+add_executable(simple_animation_skeleton_viewer animation/simple_animation_skeleton_viewer.cpp)
 target_link_libraries(simple_animation_skeleton_viewer
 	cgogn::core
 	cgogn::ui

@@ -74,6 +74,17 @@ target_link_libraries(simple_animation_skeleton_viewer
 	${APPLE_LINK}
 )
 
+add_executable(simple_skinning_viewer animation/simple_skinning_viewer.cpp)
+target_link_libraries(simple_skinning_viewer
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+	${APPLE_LINK}
+)
+
 
 add_executable(simple_surface_viewer simple_surface_viewer.cpp)
 target_link_libraries(simple_surface_viewer

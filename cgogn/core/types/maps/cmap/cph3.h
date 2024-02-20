@@ -197,7 +197,7 @@ Dart phi3(const CPH3& m, Dart d);
 template <typename MRMAP, typename CELL>
 inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convertible_v<MRMAP&, CPH3&>, uint32>
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 
 	if constexpr (orbit == CPH3::CMAP::Edge::ORBIT)
 		c.dart_ = m.edge_youngest_dart(c.dart_);

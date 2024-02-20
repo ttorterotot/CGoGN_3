@@ -335,7 +335,7 @@ auto foreach_dart_of_orbit(const MESH& m, CELL c, const FUNC& f)
 	static_assert(is_func_parameter_same<FUNC, Dart>::value, "Given function should take a Dart as parameter");
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
 
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 
 	if constexpr (orbit == DART)
 	{

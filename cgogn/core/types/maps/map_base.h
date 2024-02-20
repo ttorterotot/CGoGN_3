@@ -245,7 +245,7 @@ uint32 new_index(const MapBase& m)
 template <typename CELL>
 void set_index(MapBase& m, Dart d, uint32 index)
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 
 	const uint32 old = (*m.cells_indices_[orbit])[d.index_];
@@ -262,7 +262,7 @@ void set_index(MapBase& m, Dart d, uint32 index)
 template <typename CELL, typename MESH>
 auto copy_index(MESH& m, Dart dest, Dart src) -> std::enable_if_t<std::is_convertible_v<MESH&, MapBase&>>
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	set_index<CELL>(m, dest, index_of(m, CELL(src)));
 }
@@ -271,7 +271,7 @@ auto copy_index(MESH& m, Dart dest, Dart src) -> std::enable_if_t<std::is_conver
 template <typename CELL>
 bool is_indexed(const MapBase& m)
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	return m.cells_indices_[orbit] != nullptr;
 }
@@ -287,7 +287,7 @@ inline bool is_indexed(const MapBase& m, Orbit orbit)
 template <typename CELL>
 uint32 index_of(const MapBase& m, CELL c)
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	cgogn_message_assert(is_indexed<CELL>(m), "Trying to access the cell index of an unindexed cell type");
 	return (*m.cells_indices_[orbit])[c.dart_.index_];
@@ -297,7 +297,7 @@ uint32 index_of(const MapBase& m, CELL c)
 template <typename CELL>
 CELL of_index(const MapBase& m, uint32 i)
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	cgogn_message_assert(is_indexed<CELL>(m), "Trying to access the cell index of an unindexed cell type");
 	for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
@@ -316,7 +316,7 @@ CELL of_index(const MapBase& m, uint32 i)
 template <typename CELL>
 void init_cells_indexing(MapBase& m)
 {
-	static const Orbit orbit = CELL::ORBIT;
+	constexpr const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	if (!is_indexed<CELL>(m))
 	{

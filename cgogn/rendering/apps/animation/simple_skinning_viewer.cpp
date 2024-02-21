@@ -51,6 +51,8 @@ using Joint = typename cgogn::mesh_traits<Skeleton>::Vertex;
 using Bone = typename cgogn::mesh_traits<Skeleton>::Edge;
 
 using Vec3 = cgogn::geometry::Vec3;
+using Vec4 = cgogn::geometry::Vec4;
+using Vec4i = cgogn::geometry::Vec4i;
 using Quaternion = cgogn::geometry::Quaternion;
 using Scalar = cgogn::geometry::Scalar;
 using RigidTransformation = cgogn::geometry::RigidTransformation<Quaternion, Vec3>;
@@ -140,14 +142,20 @@ std::shared_ptr<AttributeS<Vec3>> create_placeholder_bone_colors(Skeleton& sk)
 	return res;
 }
 
-auto create_placeholder_weights(Surface* m, const AttributeS<Vec3>& positions)
+auto create_placeholder_weights(Surface& m, const AttributeS<Vec3>& positions)
 {
-	auto weights = cgogn::get_or_add_attribute<Vec3, Vertex>(*m, "weight");
+	auto weight_indices = cgogn::get_or_add_attribute<Vec4i, Vertex>(m, "weight_index");
+	auto weight_values = cgogn::get_or_add_attribute<Vec4, Vertex>(m, "weight_value");
 
-	for (size_t i = 0; i < positions.size(); ++i)
-		(*weights)[i] = {1.0 - positions[i].x(), positions[i].x(), 0.0};
+	cgogn::parallel_foreach_cell(m, [&](Vertex v)
+	{
+		const auto i = cgogn::index_of(m, v);
+		(*weight_indices)[i] = {0, 1, -1, -1};
+		(*weight_values)[i] = {1.0 - positions[i].x(), positions[i].x(), 0.0, 0.0};
+		return true;
+	});
 
-	return weights;
+	return std::make_pair(weight_indices, weight_values);
 }
 
 int main(int argc, char** argv)
@@ -193,7 +201,7 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<AttributeS<Vec3>> vertex_position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 
-	auto weight = create_placeholder_weights(m, *vertex_position);
+	auto [weight_index, weight_value] = create_placeholder_weights(*m, *vertex_position);
 	auto [sk, joint_position, bb] = create_placeholder_skeleton(mp_as, asc_rt, asc_dq);
 	auto bone_color = create_placeholder_bone_colors(*sk);
 

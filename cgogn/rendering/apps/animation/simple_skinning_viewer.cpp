@@ -113,11 +113,11 @@ auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
 
 	Vec3 t = {1.0, 0.0, 0.0};
 
-	Quaternion r{Eigen::AngleAxisd{180.0, t}};
+	Quaternion r{Eigen::AngleAxisd{M_PI, t}};
 	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}};
 	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
 
-	Quaternion r_{Eigen::AngleAxisd{90.0, Vec3{0.0, 0.0, 1.0}}};
+	Quaternion r_{Eigen::AngleAxisd{M_PI_2, Vec3{0.0, 0.0, 1.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_RT_bend");
 
@@ -137,11 +137,11 @@ auto create_placeholder_skeleton_anim_dq(Skeleton* sk)
 
 	Vec3 t = {1.0, 0.0, 0.0};
 
-	Quaternion r{Eigen::AngleAxisd{180.0, t}};
+	Quaternion r{Eigen::AngleAxisd{M_PI, t}};
 	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
 	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r)}};
 
-	Quaternion r_{Eigen::AngleAxisd{90.0, Vec3{0.0, 0.0, 1.0}}};
+	Quaternion r_{Eigen::AngleAxisd{M_PI_2, Vec3{0.0, 0.0, 1.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_DQ_bend");
 

@@ -88,7 +88,7 @@ auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
 
 	Vec3 t = {1.0, 0.0, 0.0};
 	Quaternion r{Eigen::AngleAxisd{180.0, t}};
-	(*anim_attr)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}, {1.0, RT{r}}};
+	(*anim_attr)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}, {1.0, RT{}}};
 	(*anim_attr)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
 
 	return anim_attr;
@@ -104,7 +104,7 @@ auto create_placeholder_skeleton_anim_dq(Skeleton* sk)
 
 	Vec3 t = {1.0, 0.0, 0.0};
 	Quaternion r{Eigen::AngleAxisd{180.0, t}};
-	(*anim_attr)[sk->bone_traverser_[0]] = KA{{0.0, DQ{}}, {1.0, DQ::from_rotation(r)}};
+	(*anim_attr)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
 	(*anim_attr)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r)}};
 
 	return anim_attr;

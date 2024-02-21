@@ -76,21 +76,21 @@ auto get_transform_attributes(Skeleton& sk, const ASCT& asc)
 
 template <typename TransformT, typename ASCT>
 auto setup_transform_attributes_and_get_bb(
-		Skeleton* sk,
+		Skeleton& sk,
 		const ASCT& asc,
 		const AttributeS<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
 		AttributeS<Vec3>& positions)
 {
-	auto [l, w] = get_transform_attributes<TransformT>(*sk, asc);
-	auto res = ASCT::Embedding::compute_animation_bb(*sk, anims, *l, *w, positions);
+	auto [l, w] = get_transform_attributes<TransformT>(sk, asc);
+	auto res = ASCT::Embedding::compute_animation_bb(sk, anims, *l, *w, positions);
 	// Reset to starting position to not mess up binding later
-	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, *sk, anims, *l, *w, positions);
+	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, sk, anims, *l, *w, positions);
 	return res;
 }
 
 template <typename TransformT, typename ASCT>
 auto setup_transform_attributes_and_get_bb(
-		Skeleton* sk,
+		Skeleton& sk,
 		const ASCT& asc,
 		const std::initializer_list<std::shared_ptr<AttributeS<
 				cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>>>& anims,
@@ -103,50 +103,50 @@ auto setup_transform_attributes_and_get_bb(
 	return std::make_pair<Vec3, Vec3>(a.first.cwiseMin(b.first), a.second.cwiseMax(b.second));
 }
 
-auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
+auto create_placeholder_skeleton_anim_rt(Skeleton& sk)
 {
 	using RT = RigidTransformation;
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, RT>;
 
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_twist
-			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_RT_twist");
+			= cgogn::add_attribute<KA, Bone>(sk, "placeholder_animation_RT_twist");
 
 	Vec3 t = {1.0, 0.0, 0.0};
 
 	Quaternion r{Eigen::AngleAxisd{M_PI, t}};
-	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}};
-	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
+	(*anim_attr_twist)[sk.bone_traverser_[0]] = KA{{0.0, RT{}}};
+	(*anim_attr_twist)[sk.bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
 
 	Quaternion r_{Eigen::AngleAxisd{M_PI_2, Vec3{0.0, 0.0, 1.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
-			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_RT_bend");
+			= cgogn::add_attribute<KA, Bone>(sk, "placeholder_animation_RT_bend");
 
-	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}};
-	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r_, t}}};
+	(*anim_attr_bend)[sk.bone_traverser_[0]] = KA{{0.0, RT{}}};
+	(*anim_attr_bend)[sk.bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r_, t}}};
 
 	return std::make_pair(anim_attr_twist, anim_attr_bend);
 }
 
-auto create_placeholder_skeleton_anim_dq(Skeleton* sk)
+auto create_placeholder_skeleton_anim_dq(Skeleton& sk)
 {
 	using DQ = DualQuaternion;
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, DQ>;
 
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_twist
-			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_DQ_twist");
+			= cgogn::add_attribute<KA, Bone>(sk, "placeholder_animation_DQ_twist");
 
 	Vec3 t = {1.0, 0.0, 0.0};
 
 	Quaternion r{Eigen::AngleAxisd{M_PI, t}};
-	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
-	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r)}};
+	(*anim_attr_twist)[sk.bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
+	(*anim_attr_twist)[sk.bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r)}};
 
 	Quaternion r_{Eigen::AngleAxisd{M_PI_2, Vec3{0.0, 0.0, 1.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
-			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_DQ_bend");
+			= cgogn::add_attribute<KA, Bone>(sk, "placeholder_animation_DQ_bend");
 
-	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
-	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r_)}};
+	(*anim_attr_bend)[sk.bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
+	(*anim_attr_bend)[sk.bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r_)}};
 
 	return std::make_pair(anim_attr_twist, anim_attr_bend);
 }
@@ -158,11 +158,11 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 
 	add_bone(*sk, add_root(*sk));
 
-	auto [anims_rt_t, anims_rt_b] = create_placeholder_skeleton_anim_rt(sk);
-	auto [anims_dq_t, anims_dq_b] = create_placeholder_skeleton_anim_dq(sk);
+	auto [anims_rt_t, anims_rt_b] = create_placeholder_skeleton_anim_rt(*sk);
+	auto [anims_dq_t, anims_dq_b] = create_placeholder_skeleton_anim_dq(*sk);
 
-	auto bb_rt = setup_transform_attributes_and_get_bb(sk, asc_rt, {anims_rt_t, anims_rt_b}, *positions);
-	auto bb_dq = setup_transform_attributes_and_get_bb(sk, asc_dq, {anims_dq_t, anims_dq_b}, *positions);
+	auto bb_rt = setup_transform_attributes_and_get_bb(*sk, asc_rt, {anims_rt_t, anims_rt_b}, *positions);
+	auto bb_dq = setup_transform_attributes_and_get_bb(*sk, asc_dq, {anims_dq_t, anims_dq_b}, *positions);
 
 	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
 

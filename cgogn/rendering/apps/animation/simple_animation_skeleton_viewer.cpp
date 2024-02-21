@@ -57,65 +57,65 @@ auto get_transform_attributes(Mesh& m, const ASCT& asc)
 
 template <typename TransformT, typename ASCT>
 auto setup_transform_attributes_and_get_bb(
-		Mesh* m,
+		Mesh& m,
 		const ASCT& asc,
 		const Attribute<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
 		Attribute<Vec3>& positions)
 {
-	auto [l, w] = get_transform_attributes<TransformT>(*m, asc);
-	auto res = ASCT::Embedding::compute_animation_bb(*m, anims, *l, *w, positions);
+	auto [l, w] = get_transform_attributes<TransformT>(m, asc);
+	auto res = ASCT::Embedding::compute_animation_bb(m, anims, *l, *w, positions);
 	// Reset to starting position
-	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, *m, anims, *l, *w, positions);
+	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, m, anims, *l, *w, positions);
 	return res;
 }
 
-auto create_placeholder_skeleton_anim_rt(Mesh* m)
+auto create_placeholder_skeleton_anim_rt(Mesh& m)
 {
 	using RT = RigidTransformation;
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, RT>;
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-			= cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT");
-	(*anim_attr)[m->bone_traverser_[0]] = KA{{0.0, RT{Vec3{0, 0, 0}}}, {1.0, RT{Vec3{1, 0, 0}}}};
-	(*anim_attr)[m->bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
-	(*anim_attr)[m->bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
-	(*anim_attr)[m->bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
-	(*anim_attr)[m->bone_traverser_[4]] = KA{{0.0, RT{Vec3{-1, 0, 0}}}};
-	(*anim_attr)[m->bone_traverser_[5]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
+			= cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_RT");
+	(*anim_attr)[m.bone_traverser_[0]] = KA{{0.0, RT{Vec3{0, 0, 0}}}, {1.0, RT{Vec3{1, 0, 0}}}};
+	(*anim_attr)[m.bone_traverser_[1]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
+	(*anim_attr)[m.bone_traverser_[2]] = KA{{0.0, RT{Vec3{0, 0, 1}}}};
+	(*anim_attr)[m.bone_traverser_[3]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
+	(*anim_attr)[m.bone_traverser_[4]] = KA{{0.0, RT{Vec3{-1, 0, 0}}}};
+	(*anim_attr)[m.bone_traverser_[5]] = KA{{0.0, RT{Vec3{0, 1, 0}}}};
 
 	Mesh::Attribute<KA>& anim_empty
-			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_empty");
+			= *cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_RT_empty");
 	for (int i = 0; i < 6; ++i)
-		anim_empty[m->bone_traverser_[i]] = KA();
+		anim_empty[m.bone_traverser_[i]] = KA();
 
 	Mesh::Attribute<KA>& anim_partial
-			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_partial");
+			= *cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_RT_partial");
 	for (int i = 0; i < 6; i += 2) // some keyframes missing
-		anim_partial[m->bone_traverser_[i]] = KA{{16.0, RT{Vec3{1, 0, 0}}}};
+		anim_partial[m.bone_traverser_[i]] = KA{{16.0, RT{Vec3{1, 0, 0}}}};
 
 	Mesh::Attribute<KA>& anim_single
-			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_single");
+			= *cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_RT_single");
 	for (int i = 0; i < 6; ++i)
-		anim_single[m->bone_traverser_[i]]
+		anim_single[m.bone_traverser_[i]]
 				= KA{{-64.0, RT{Vec3{static_cast<Vec3::Scalar>(i < 4 ? i : 4 - i), 0, 0}}}};
 
 	// 4 will overlap with 0 and 5 with 1, so two invisible bones
 	// (this doesn't concern what this animation demonstrates)
 	Mesh::Attribute<KA>& anim_unsorted
-			= *cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_RT_unsorted");
+			= *cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_RT_unsorted");
 	for (int i = 0; i < 6; ++i)
-		anim_unsorted[m->bone_traverser_[i]] = KA{{1.0, Vec3{1, 0, 0}}, {0.0, Vec3{0, 0, 0}}};
+		anim_unsorted[m.bone_traverser_[i]] = KA{{1.0, Vec3{1, 0, 0}}, {0.0, Vec3{0, 0, 0}}};
 
 	return anim_attr;
 }
 
-auto create_placeholder_skeleton_anim_dq(Mesh* m)
+auto create_placeholder_skeleton_anim_dq(Mesh& m)
 {
 	using DQ = DualQuaternion;
 	using KA = cgogn::geometry::KeyframedAnimation<std::vector, double, DQ>;
 
 	std::shared_ptr<Mesh::Attribute<KA>> anim_attr
-			= cgogn::add_attribute<KA, Bone>(*m, "placeholder_animation_DQ");
+			= cgogn::add_attribute<KA, Bone>(m, "placeholder_animation_DQ");
 
 	for (int i = 0; i < 6; ++i)
 	{
@@ -124,7 +124,7 @@ auto create_placeholder_skeleton_anim_dq(Mesh* m)
 		anim.emplace_back(0.0, DQ::from_translation({x, 0.25, 1}));
 		anim.emplace_back(1.0, DQ::from_tr({x, 0.25, 1},
 			Quaternion{Eigen::AngleAxisd(0.25 * M_PI, Vec3::UnitZ())}));
-		(*anim_attr)[m->bone_traverser_[i]] = std::move(anim);
+		(*anim_attr)[m.bone_traverser_[i]] = std::move(anim);
 	}
 
 	return anim_attr;
@@ -141,11 +141,11 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT
 
 	add_bone(*m, add_root(*m)); // extra disconnected tree
 
-	auto anims_rt = create_placeholder_skeleton_anim_rt(m);
-	auto anims_dq = create_placeholder_skeleton_anim_dq(m);
+	auto anims_rt = create_placeholder_skeleton_anim_rt(*m);
+	auto anims_dq = create_placeholder_skeleton_anim_dq(*m);
 
-	auto bb_rt = setup_transform_attributes_and_get_bb(m, asc_rt, *anims_rt, *positions);
-	auto bb_dq = setup_transform_attributes_and_get_bb(m, asc_dq, *anims_dq, *positions);
+	auto bb_rt = setup_transform_attributes_and_get_bb(*m, asc_rt, *anims_rt, *positions);
+	auto bb_dq = setup_transform_attributes_and_get_bb(*m, asc_dq, *anims_dq, *positions);
 
 	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
 

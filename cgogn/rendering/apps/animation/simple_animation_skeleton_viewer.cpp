@@ -48,15 +48,25 @@ using ASC_RT = cgogn::ui::AnimationSkeletonController<std::vector, double, Rigid
 using ASC_DQ = cgogn::ui::AnimationSkeletonController<std::vector, double, DualQuaternion>;
 
 template <typename TransformT, typename ASCT>
+auto get_transform_attributes(Mesh& m, const ASCT& asc)
+{
+	auto l = cgogn::get_or_add_attribute<TransformT, Bone>(m, asc.local_transform_attribute_name());
+	auto w = cgogn::get_or_add_attribute<TransformT, Bone>(m, asc.world_transform_attribute_name());
+	return std::make_pair(l, w);
+}
+
+template <typename TransformT, typename ASCT>
 auto setup_transform_attributes_and_get_bb(
 		Mesh* m,
 		const ASCT& asc,
 		const Attribute<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
 		Attribute<Vec3>& positions)
 {
-	auto rt_l = cgogn::add_attribute<TransformT, Bone>(*m, asc.local_transform_attribute_name());
-	auto rt_w = cgogn::add_attribute<TransformT, Bone>(*m, asc.world_transform_attribute_name());
-	return ASCT::Embedding::compute_animation_bb(*m, anims, *rt_l, *rt_w, positions);
+	auto [l, w] = get_transform_attributes<TransformT>(*m, asc);
+	auto res = ASCT::Embedding::compute_animation_bb(*m, anims, *l, *w, positions);
+	// Reset to starting position
+	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, *m, anims, *l, *w, positions);
+	return res;
 }
 
 auto create_placeholder_skeleton_anim_rt(Mesh* m)
@@ -134,8 +144,8 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT
 	auto anims_rt = create_placeholder_skeleton_anim_rt(m);
 	auto anims_dq = create_placeholder_skeleton_anim_dq(m);
 
-	auto bb_dq = setup_transform_attributes_and_get_bb(m, asc_dq, *anims_dq, *positions);
 	auto bb_rt = setup_transform_attributes_and_get_bb(m, asc_rt, *anims_rt, *positions);
+	auto bb_dq = setup_transform_attributes_and_get_bb(m, asc_dq, *anims_dq, *positions);
 
 	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
 

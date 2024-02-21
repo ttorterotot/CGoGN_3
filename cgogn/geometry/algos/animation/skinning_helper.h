@@ -134,15 +134,6 @@ public:
 
 		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
 
-		// Ensure interpolation doesn't create singularities because equivalent quaternions are opposites
-		DualQuaternion first_offset = offsets[as.bone_traverser_[0]];
-		for (size_t i = 1; i < as.nb_bones(); ++i)
-		{
-			const auto& bone = as.bone_traverser_[i];
-			if (first_offset.dot(offsets[bone]) < 0.0)
-				offsets[bone] *= -1.0;
-		}
-
 		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
 		{
 			const auto i = cgogn::index_of(m, v);

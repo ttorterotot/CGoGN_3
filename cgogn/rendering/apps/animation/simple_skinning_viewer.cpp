@@ -114,7 +114,7 @@ auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
 	Vec3 t = {0.5, 0.0, 0.0};
 
 	Quaternion r{Eigen::AngleAxisd{90.0, t.normalized()}};
-	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}, {1.0, RT{}}};
+	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}};
 	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
 	(*anim_attr_twist)[sk->bone_traverser_[2]] = (*anim_attr_twist)[sk->bone_traverser_[1]];
 

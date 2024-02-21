@@ -111,18 +111,20 @@ auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_twist
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_RT_twist");
 
-	Vec3 t = {1.0, 0.0, 0.0};
+	Vec3 t = {0.5, 0.0, 0.0};
 
-	Quaternion r{Eigen::AngleAxisd{180.0, t}};
+	Quaternion r{Eigen::AngleAxisd{90.0, t.normalized()}};
 	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}, {1.0, RT{}}};
 	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r, t}}};
+	(*anim_attr_twist)[sk->bone_traverser_[2]] = (*anim_attr_twist)[sk->bone_traverser_[1]];
 
 	Quaternion r_{Eigen::AngleAxisd{90.0, Vec3{0.0, 1.0, 0.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_RT_bend");
 
-	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}, {1.0, RT{r_}}};
-	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}};
+	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, RT{}}};
+	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, RT{t}}, {1.0, RT{r_, t}}};
+	(*anim_attr_bend)[sk->bone_traverser_[2]] = KA{{0.0, RT{t}}};
 
 	return std::make_pair(anim_attr_twist, anim_attr_bend);
 }
@@ -135,18 +137,20 @@ auto create_placeholder_skeleton_anim_dq(Skeleton* sk)
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_twist
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_DQ_twist");
 
-	Vec3 t = {1.0, 0.0, 0.0};
+	Vec3 t = {0.5, 0.0, 0.0};
 
-	Quaternion r{Eigen::AngleAxisd{180.0, t}};
+	Quaternion r{Eigen::AngleAxisd{90.0, t.normalized()}};
 	(*anim_attr_twist)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
 	(*anim_attr_twist)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r)}};
+	(*anim_attr_twist)[sk->bone_traverser_[2]] = (*anim_attr_twist)[sk->bone_traverser_[1]];
 
 	Quaternion r_{Eigen::AngleAxisd{90.0, Vec3{0.0, 1.0, 0.0}}};
 	std::shared_ptr<Skeleton::Attribute<KA>> anim_attr_bend
 			= cgogn::add_attribute<KA, Bone>(*sk, "placeholder_animation_DQ_bend");
 
-	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}, {1.0, DQ::from_rotation(r_)}};
-	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}};
+	(*anim_attr_bend)[sk->bone_traverser_[0]] = KA{{0.0, DQ::identity()}};
+	(*anim_attr_bend)[sk->bone_traverser_[1]] = KA{{0.0, DQ::from_translation(t)}, {1.0, DQ::from_tr(t, r_)}};
+	(*anim_attr_bend)[sk->bone_traverser_[2]] = KA{{0.0, DQ::from_translation(t)}};
 
 	return std::make_pair(anim_attr_twist, anim_attr_bend);
 }
@@ -156,7 +160,7 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 	Skeleton* sk = mp_as.add_mesh("Placeholder skeleton");
 	std::shared_ptr<AttributeS<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Joint>(*sk, "position");
 
-	add_bone(*sk, add_root(*sk));
+	add_bone(*sk, add_bone(*sk, add_root(*sk)));
 
 	auto [anims_rt_t, anims_rt_b] = create_placeholder_skeleton_anim_rt(sk);
 	auto [anims_dq_t, anims_dq_b] = create_placeholder_skeleton_anim_dq(sk);
@@ -192,8 +196,10 @@ auto create_placeholder_weights(Surface& m, const AttributeS<Vec3>& positions)
 	cgogn::parallel_foreach_cell(m, [&](Vertex v)
 	{
 		const auto i = cgogn::index_of(m, v);
-		(*weight_indices)[i] = {0, 1, -1, -1};
-		(*weight_values)[i] = {1.0 - positions[i].x(), positions[i].x(), 0.0, 0.0};
+		const auto x = positions[i].x();
+		const auto d = x * 2.0 - 1.0;
+		(*weight_indices)[i] = {0, 1, 2, -1};
+		(*weight_values)[i] = {std::max(-d, 0.0), 1.0 - std::abs(d), std::max(d, 0.0), 0.0};
 		return true;
 	});
 

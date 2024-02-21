@@ -110,6 +110,17 @@ public:
 		return to_transform(rotation_affects_translation).matrix();
 	}
 
+	void invert()
+	{
+		*this = inverse();
+	}
+
+	[[nodiscard]]
+	inline RigidTransformation inverse()
+	{
+		return RigidTransformation{to_transform().inverse()};
+	}
+
 private:
 	R r_; // rotation
 	T t_; // translation

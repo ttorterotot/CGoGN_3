@@ -188,6 +188,39 @@ TEST_F(DualQuaternionTest, conjugate_conjugated)
 	EXPECT_TRUE(q.conjugated().isApprox(q_));
 }
 
+// Test if DualQuaternion::inverse is indeed the inverse: q q^-1 == q^-1 q == identity
+// (non-normalized case)
+TEST_F(DualQuaternionTest, inverse)
+{
+	Quaternion r{1.0, 2.0, 4.0, 8.0};
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q * q.inverse(false))); // q q^-1 == identity
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q.inverse(false) * q)); // q^-1 q == identity
+}
+
+// Test if DualQuaternion::inverse is indeed the inverse: q q^-1 == q^-1 q == identity
+// (normalized case)
+TEST_F(DualQuaternionTest, inverse_normalized)
+{
+	Quaternion r{1.0, 2.0, 4.0, 8.0};
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t).normalized();
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q * q.inverse(true))); // q q^-1 == identity
+	EXPECT_TRUE(DualQuaternion::identity().isApprox(q.inverse(true) * q)); // q^-1 q == identity
+}
+
+// Test if DualQuaternion::invert is indeed the in-place equivalent of DualQuaternion::inverse
+TEST_F(DualQuaternionTest, invert_inverse)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t);
+	DualQuaternion q_ = q;
+	q_.invert();
+	EXPECT_TRUE(q.inverse().isApprox(q_));
+}
+
 // Test if DualQuaternion::identity's transform is indeed a no-op
 TEST_F(DualQuaternionTest, transform_identity)
 {

@@ -285,4 +285,35 @@ TEST_F(RigidTransformationTest, matrix_from_qv3)
 			.isApprox((T{rotation} * T{translation}).matrix())));
 }
 
+// Test if RigidTransformation(Rotation2D, Vector2)::inverse is indeed the inverse: t t^-1 == t^-1 t == identity
+TEST_F(RigidTransformationTest, inverse2)
+{
+	Eigen::Rotation2Dd rotation{0.25};
+	Eigen::Vector2d translation{0.5, -1.0};
+	geometry::RigidTransformation rt{rotation, translation};
+	EXPECT_TRUE((rt * rt.inverse()).to_transform().isApprox(Eigen::Isometry2d::Identity())); // t t^-1 == identity
+	EXPECT_TRUE((rt.inverse() * rt).to_transform().isApprox(Eigen::Isometry2d::Identity())); // t^-1 t == identity
+}
+
+// Test if RigidTransformation(Quaternion, Vector3)::inverse is indeed the inverse: t t^-1 == t^-1 t == identity
+TEST_F(RigidTransformationTest, inverse3)
+{
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()}};
+	Eigen::Vector3d translation{0.5, -1.0, 2.0};
+	geometry::RigidTransformation rt{rotation, translation};
+	EXPECT_TRUE((rt * rt.inverse()).to_transform().isApprox(Eigen::Isometry3d::Identity())); // t t^-1 == identity
+	EXPECT_TRUE((rt.inverse() * rt).to_transform().isApprox(Eigen::Isometry3d::Identity())); // t^-1 t == identity
+}
+
+// Test if RigidTransformation::invert is indeed the in-place equivalent of RigidTransformation::inverse
+TEST_F(RigidTransformationTest, invert_inverse)
+{
+	Eigen::Quaterniond rotation{Eigen::AngleAxisd{30.0, Eigen::Vector3d{1.0, 2.0, 4.0}.normalized()}};
+	Eigen::Vector3d translation{0.5, -1.0, 2.0};
+	geometry::RigidTransformation rt{rotation, translation};
+	geometry::RigidTransformation rt_ = rt;
+	rt_.invert();
+	EXPECT_TRUE(rt.inverse().to_transform().isApprox(rt_.to_transform()));
+}
+
 } // namespace cgogn

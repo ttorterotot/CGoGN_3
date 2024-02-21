@@ -186,6 +186,22 @@ public:
 		return DualQuaternion(r_.conjugate(), d_.conjugate() * -1.0);
 	}
 
+	inline void invert(bool assume_normalized = false)
+	{
+		Scalar ism = assume_normalized ? 1.0 : 1.0 / squaredMagnitude();
+
+		r_ = r_.conjugate() * ism;
+		d_ = d_.conjugate() * ism;
+	}
+
+	[[nodiscard]]
+	inline DualQuaternion inverse(bool assume_normalized = false) const
+	{
+		DualQuaternion res = *this;
+		res.invert(assume_normalized);
+		return res;
+	}
+
 	inline bool isApprox(const DualQuaternion& other,
 		const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
 	{

@@ -67,15 +67,22 @@ using namespace cgogn::numerics;
 #define DEFAULT_MESH_PATH CGOGN_STR(CGOGN_DATA_PATH) "/meshes/"
 
 template <typename TransformT, typename ASCT>
+auto get_transform_attributes(Skeleton& sk, const ASCT& asc)
+{
+	auto l = cgogn::get_or_add_attribute<TransformT, Bone>(sk, asc.local_transform_attribute_name());
+	auto w = cgogn::get_or_add_attribute<TransformT, Bone>(sk, asc.world_transform_attribute_name());
+	return std::make_pair(l, w);
+}
+
+template <typename TransformT, typename ASCT>
 auto setup_transform_attributes_and_get_bb(
 		Skeleton* sk,
 		const ASCT& asc,
 		const AttributeS<cgogn::geometry::KeyframedAnimation<std::vector, double, TransformT>>& anims,
 		AttributeS<Vec3>& positions)
 {
-	auto rt_l = cgogn::add_attribute<TransformT, Bone>(*sk, asc.local_transform_attribute_name());
-	auto rt_w = cgogn::add_attribute<TransformT, Bone>(*sk, asc.world_transform_attribute_name());
-	return ASCT::Embedding::compute_animation_bb(*sk, anims, *rt_l, *rt_w, positions);
+	auto [l, w] = get_transform_attributes<TransformT>(*sk, asc);
+	return ASCT::Embedding::compute_animation_bb(*sk, anims, *l, *w, positions);
 }
 
 auto create_placeholder_skeleton_anim_rt(Skeleton* sk)
@@ -120,8 +127,8 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 	auto anims_rt = create_placeholder_skeleton_anim_rt(sk);
 	auto anims_dq = create_placeholder_skeleton_anim_dq(sk);
 
-	auto bb_dq = setup_transform_attributes_and_get_bb(sk, asc_dq, *anims_dq, *positions);
 	auto bb_rt = setup_transform_attributes_and_get_bb(sk, asc_rt, *anims_rt, *positions);
+	auto bb_dq = setup_transform_attributes_and_get_bb(sk, asc_dq, *anims_dq, *positions);
 
 	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
 
@@ -129,6 +136,10 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 	Vec3 d = bb.second - bb.first;
 	bb.first -= 0.5 * d;
 	bb.second += 0.5 * d;
+
+	// Reset to start of RT anim
+	auto [rt_l, rt_w] = get_transform_attributes<RigidTransformation>(*sk, asc_rt);
+	ASC_RT::Embedding::compute_everything(ASC_RT::TimePoint::Start, *sk, *anims_rt, *rt_l, *rt_w, *positions);
 
 	return std::make_tuple(sk, positions, bb);
 }
@@ -207,6 +218,11 @@ int main(int argc, char** argv)
 	auto [weight_index, weight_value] = create_placeholder_weights(*m, *vertex_position);
 	auto [sk, joint_position, bb] = create_placeholder_skeleton(mp_as, asc_rt, asc_dq);
 	auto bone_color = create_placeholder_bone_colors(*sk);
+
+	skc_rt.set_skeleton(sk);
+	skc_rt.set_mesh(m);
+	skc_dq.set_skeleton(sk);
+	skc_dq.set_mesh(m);
 
 	std::shared_ptr<AttributeS<Scalar>> joint_radius = cgogn::get_attribute<Scalar, Joint>(*sk, "radius");
 	mp_as.set_mesh_bb_override(*sk, bb);

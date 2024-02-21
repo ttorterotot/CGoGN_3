@@ -153,6 +153,16 @@ TEST_F(DualQuaternionTest, normalize_normalized)
 	EXPECT_TRUE(q.normalized().isApprox(q_));
 }
 
+// Test if DualQuaternion::isNormalized is correct
+TEST_F(DualQuaternionTest, isNormalized)
+{
+	Quaternion r = Quaternion::FromTwoVectors(Vec3{1.0, 2.0, 4.0}, Vec3{-1.0, -0.5, -0.25});
+	Vec3 t{1.0, 2.0, 4.0};
+	DualQuaternion q = DualQuaternion::from_rt(r, t) * 2.0;
+	EXPECT_FALSE(q.isNormalized()); // scaled not normalized
+	EXPECT_TRUE(q.normalized().isNormalized());
+}
+
 // Test if DualQuaternion::conjugated is indeed the conjugate: q q* == q* q != identity
 // We check it's not the identity because we don't expect it to be the case for this value of q
 // and it would imply q q* == q* q by itself (informally, if q q* != q* q == identity,

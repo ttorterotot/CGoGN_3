@@ -167,6 +167,13 @@ public:
 		return res;
 	}
 
+	[[nodiscard]]
+	inline bool isNormalized(
+			const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
+	{
+		return std::abs(squaredMagnitude() - 1.0) <= prec;
+	}
+
 	inline void conjugate()
 	{
 		r_ = r_.conjugate();

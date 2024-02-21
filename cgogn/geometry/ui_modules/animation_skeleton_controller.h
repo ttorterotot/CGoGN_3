@@ -166,6 +166,17 @@ public:
 		play_mode_ = play_mode;
 	}
 
+	/// @brief Changes the linked skeleton, and resets attribute selection for it.
+	/// @param sk the new skeleton to link to
+	void set_skeleton(MESH* sk)
+	{
+		selected_skeleton_= sk;
+		selected_animation_.reset();
+		selected_joint_position_ = cgogn::get_attribute<Vec3, Joint>(*sk, "position"); // nullptr (equiv. to reset) if not found
+		selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(*sk, local_transform_attribute_name_);
+		selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(*sk, world_transform_attribute_name_);
+	}
+
 	/// @return the attribute name for local transforms
 	[[nodiscard]]
 	const std::string& local_transform_attribute_name() const
@@ -190,13 +201,7 @@ protected:
 
 	void left_panel() override
 	{
-		imgui_mesh_selector(mesh_provider_, selected_skeleton_, "Skeleton", [&](MESH& m) {
-			selected_skeleton_= &m;
-			selected_animation_.reset();
-			selected_joint_position_ = cgogn::get_attribute<Vec3, Joint>(m, "position"); // nullptr (equiv. to reset) if not found
-			selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, local_transform_attribute_name_);
-			selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(m, world_transform_attribute_name_);
-		});
+		imgui_mesh_selector(mesh_provider_, selected_skeleton_, "Skeleton", [&](MESH& m) { set_skeleton(&m); });
 
 		if (selected_skeleton_)
 		{

@@ -142,8 +142,12 @@ public:
 			for (int j = 0; j < 4; ++j)
 			{
 				auto wi = weight_indices[i][j];
-				if (wi >= 0.0)
-					t += weight_values[i][j] * offsets[wi];
+				if (wi < 0.0)
+					continue;
+				DualQuaternion o = offsets[wi];
+				if (t.dot(o) < 0.0)
+					o *= -1.0;
+				t += weight_values[i][j] * o;
 			}
 
 			t.normalize();

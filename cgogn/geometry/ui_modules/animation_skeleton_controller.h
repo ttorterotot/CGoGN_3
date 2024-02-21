@@ -331,6 +331,9 @@ private:
 		Embedding::compute_all_transforms(time_, *selected_skeleton_, *selected_animation_,
 				*selected_bone_local_transform_, *selected_bone_world_transform_);
 
+		signal_transform_attribute_changed_no_update(selected_skeleton_, selected_bone_local_transform_.get());
+		signal_transform_attribute_changed_no_update(selected_skeleton_, selected_bone_world_transform_.get());
+
 		// It's fine if no position attribute is selected, this should be called again as soon as one is
 		if (selected_joint_position_)
 			update_joint_positions_and_signal(mesh_provider_, *selected_skeleton_,
@@ -349,6 +352,13 @@ private:
 
 		if (mesh_provider)
 			mesh_provider->emit_attribute_changed(as, positions);
+	}
+
+	static void signal_transform_attribute_changed_no_update(const MESH* m,
+			Attribute<TransformT>* attribute)
+	{
+		boost::synapse::emit<MeshProvider<MESH>::attribute_changed>(m, attribute);
+		boost::synapse::emit<MeshProvider<MESH>::attribute_changed_t<TransformT>>(m, attribute);
 	}
 
 	static std::string get_demangled_transform_name()

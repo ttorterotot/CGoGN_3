@@ -82,7 +82,10 @@ auto setup_transform_attributes_and_get_bb(
 		AttributeS<Vec3>& positions)
 {
 	auto [l, w] = get_transform_attributes<TransformT>(*sk, asc);
-	return ASCT::Embedding::compute_animation_bb(*sk, anims, *l, *w, positions);
+	auto res = ASCT::Embedding::compute_animation_bb(*sk, anims, *l, *w, positions);
+	// Reset to starting position to not mess up binding later
+	ASCT::Embedding::compute_everything(ASCT::TimePoint::Start, *sk, anims, *l, *w, positions);
+	return res;
 }
 
 template <typename TransformT, typename ASCT>
@@ -167,10 +170,6 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 	Vec3 d = bb.second - bb.first;
 	bb.first -= 0.5 * d;
 	bb.second += 0.5 * d;
-
-	// Reset to start of RT anim
-	auto [rt_l, rt_w] = get_transform_attributes<RigidTransformation>(*sk, asc_rt);
-	ASC_RT::Embedding::compute_everything(ASC_RT::TimePoint::Start, *sk, *anims_rt_t, *rt_l, *rt_w, *positions);
 
 	return std::make_tuple(sk, positions, bb);
 }

@@ -33,6 +33,7 @@
 
 #include <cgogn/geometry/ui_modules/animation_skeleton_controller.h>
 #include <cgogn/rendering/ui_modules/animation_skeleton_render.h>
+#include <cgogn/geometry/ui_modules/skinning_controller.h>
 #include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
@@ -180,6 +181,8 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<Skeleton> mp_as(app);
 	ASC_RT asc_rt(app);
 	ASC_DQ asc_dq(app);
+	cgogn::ui::SkinningController<Surface, RigidTransformation> skc_rt(app);
+	cgogn::ui::SkinningController<Surface, DualQuaternion> skc_dq(app);
 	cgogn::ui::AnimationSkeletonRender asr(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::SurfaceDifferentialProperties<Surface> sdp(app);

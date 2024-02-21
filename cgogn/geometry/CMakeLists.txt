@@ -51,6 +51,7 @@ set(src_list
         "${CMAKE_CURRENT_LIST_DIR}/algos/selection.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/invertion.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/animation/animation_skeleton_embedding_helper.h"
+		"${CMAKE_CURRENT_LIST_DIR}/algos/animation/skinning_helper.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/registration.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/surface_differential_properties.h"
@@ -58,6 +59,7 @@ set(src_list
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/surface_selection.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/volume_selection.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/animation_skeleton_controller.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/skinning_controller.h"
 )
 target_sources(${PROJECT_NAME} PRIVATE ${src_list})
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR} FILES ${src_list})

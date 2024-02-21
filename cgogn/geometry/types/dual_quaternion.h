@@ -70,6 +70,12 @@ public:
 	}
 
 	[[nodiscard]]
+	static inline DualQuaternion zero()
+	{
+		return DualQuaternion{{0, 0, 0, 0}, {0, 0, 0}};
+	}
+
+	[[nodiscard]]
 	static inline DualQuaternion identity()
 	{
 		return DualQuaternion{{1, 0, 0, 0}, {0, 0, 0}};

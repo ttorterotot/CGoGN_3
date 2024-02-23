@@ -418,7 +418,7 @@ public:
 			f(*m, name);
 	}
 
-	inline uint32 number_of_meshes()
+	inline uint32 number_of_meshes() const
 	{
 		return uint32(meshes_.size());
 	}
@@ -433,7 +433,7 @@ public:
 			return "";
 	}
 
-	std::string mesh_filename(const MESH& m)
+	std::string mesh_filename(const MESH& m) const
 	{
 		if (mesh_filename_.count(&m) > 0)
 			return mesh_filename_[&m];

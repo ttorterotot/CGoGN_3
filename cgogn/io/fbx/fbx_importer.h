@@ -56,6 +56,8 @@ protected:
 	{
 	}
 
+	/// @brief Opens and parses an FBX file
+	/// @param path the file path to open
 	void read(const std::string& path);
 
 private:
@@ -82,6 +84,13 @@ private:
 public:
 	FbxImporter() = delete;
 
+	/// @brief Opens and parses an FBX file, filling the maps with objects inside
+	/// @param path the file path to open
+	/// @param surfaces a map to fill with surfaces described in the file
+	/// @param skeletons a map to fill with animation skeletons described in the file
+	/// @param load_surfaces whether or not to actually read surfaces
+	/// @param load_skeletons whether or not to actually read skeletons
+	/// @param normalized whether or not to normalize the positions for each surface (can offset it from bones)
 	static void load(const std::string& path,
 			Map<std::string, Surface*>& surfaces,
 			Map<std::string, Skeleton*>& skeletons,

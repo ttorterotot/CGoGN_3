@@ -42,6 +42,7 @@ void FbxImporterBase::read(const std::string& path)
 	read_root(is);
 }
 
+// Reads an FBX input from the beginning (node level)
 void FbxImporterBase::read_root(std::istream& is)
 {
 	std::string node_key;
@@ -70,16 +71,19 @@ void FbxImporterBase::read_root(std::istream& is)
 	}
 }
 
+// Reads an Objects node from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_node(std::istream& is)
 {
 	skip_node(is); // TODO
 }
 
+// Reads a Connections node from past the declaring colon through its closing brace
 void FbxImporterBase::read_connections_node(std::istream& is)
 {
 	skip_node(is); // TODO
 }
 
+// Ignores everything until after the next node's yet-unopened braces close
 void FbxImporterBase::skip_node(std::istream& is)
 {
 	char c;

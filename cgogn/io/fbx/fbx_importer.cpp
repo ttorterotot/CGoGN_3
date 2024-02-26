@@ -37,7 +37,7 @@ void FbxImporterBase::read(const std::string& path)
 	Scoped_C_Locale loc;
 
 	std::ifstream is(path.c_str(), std::ios::in);
-	std::istream::sentry se(is, true); // clean fp
+	std::istream::sentry se(is, true); // clean input stream
 
 	read_root(is);
 }

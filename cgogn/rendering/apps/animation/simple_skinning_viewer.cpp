@@ -37,6 +37,7 @@
 #include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
+#include <cgogn/io/ui_modules/fbx_io.h>
 
 using Surface = cgogn::CMap2;
 using Skeleton = cgogn::AnimationSkeleton;
@@ -218,8 +219,11 @@ int main(int argc, char** argv)
 	app.set_window_title("Simple graph viewer");
 	app.set_window_size(1000, 800);
 
-	cgogn::ui::MeshProvider<Surface> mp(app);
-	cgogn::ui::MeshProvider<Skeleton> mp_as(app);
+	auto sp_mp = std::make_shared<cgogn::ui::MeshProvider<Surface>>(app);
+	auto sp_mp_as = std::make_shared<cgogn::ui::MeshProvider<Skeleton>>(app);
+	auto& mp = *sp_mp;
+	auto& mp_as = *sp_mp_as;
+	cgogn::ui::FbxIO<Surface> fbx_io(app, sp_mp, sp_mp_as);
 	ASC_RT asc_rt(app);
 	ASC_DQ asc_dq(app);
 	cgogn::ui::SkinningController<Surface, RigidTransformation> skc_rt(app);

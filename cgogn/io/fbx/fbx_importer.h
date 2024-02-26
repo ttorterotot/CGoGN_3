@@ -57,6 +57,8 @@ protected:
 	}
 
 	void read(const std::string& path);
+
+private:
 	void read_root(std::istream& is);
 	void read_objects_node(std::istream& is);
 	void read_connections_node(std::istream& is);

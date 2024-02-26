@@ -57,10 +57,10 @@ protected:
 	}
 
 	void read(const std::string& path);
-	void read_root(std::ifstream& is);
-	void read_objects_node(std::ifstream& is);
-	void read_connections_node(std::ifstream& is);
-	void skip_node(std::ifstream& is);
+	void read_root(std::istream& is);
+	void read_objects_node(std::istream& is);
+	void read_connections_node(std::istream& is);
+	void skip_node(std::istream& is);
 
 private:
 	bool load_surfaces_;

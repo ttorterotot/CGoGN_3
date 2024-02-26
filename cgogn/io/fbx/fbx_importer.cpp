@@ -42,7 +42,7 @@ void FbxImporterBase::read(const std::string& path)
 	read_root(is);
 }
 
-void FbxImporterBase::read_root(std::ifstream& is)
+void FbxImporterBase::read_root(std::istream& is)
 {
 	std::string node_key;
 	char c;
@@ -70,17 +70,17 @@ void FbxImporterBase::read_root(std::ifstream& is)
 	}
 }
 
-void FbxImporterBase::read_objects_node(std::ifstream& is)
+void FbxImporterBase::read_objects_node(std::istream& is)
 {
 	skip_node(is); // TODO
 }
 
-void FbxImporterBase::read_connections_node(std::ifstream& is)
+void FbxImporterBase::read_connections_node(std::istream& is)
 {
 	skip_node(is); // TODO
 }
 
-void FbxImporterBase::skip_node(std::ifstream& is)
+void FbxImporterBase::skip_node(std::istream& is)
 {
 	char c;
 	for (int depth = 0; is.get(c);)

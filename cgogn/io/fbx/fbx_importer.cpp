@@ -63,6 +63,8 @@ void FbxImporterBase::read_root(std::istream& is)
 				read_connections_node(is);
 			else
 				skip_node(is);
+
+			node_key.clear();
 		}
 		else if (c == ';' && node_key.empty()) // semicolon on start of line is comment
 			is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

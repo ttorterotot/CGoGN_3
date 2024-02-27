@@ -113,6 +113,18 @@ public:
 	inline Vec3 point() const { return (d_ * r_.conjugate()).vec(); }
 
 	[[nodiscard]]
+	inline Eigen::Isometry3d to_transform() const
+	{
+		return Eigen::Translation3d{translation()} * rotation();
+	}
+
+	[[nodiscard]]
+	inline Mat4 to_transform_matrix() const
+	{
+		return to_transform().matrix();
+	}
+
+	[[nodiscard]]
 	inline DualQuaternion transform(const DualQuaternion& p) const
 	{
 		return *this * p * conjugated();

@@ -56,13 +56,13 @@ public:
 	}
 };
 
-DECLARE_SHADER_CLASS(AnimationSkeletonBoneColor, true, CGOGN_STR(AnimationSkeletonBoneColor))
+DECLARE_SHADER_CLASS(AnimationSkeletonBoneColorNormal, true, CGOGN_STR(AnimationSkeletonBoneColorNormal))
 
-class CGOGN_RENDERING_EXPORT ShaderParamAnimationSkeletonBoneColor : public ShaderParam
+class CGOGN_RENDERING_EXPORT ShaderParamAnimationSkeletonBoneColorNormal : public ShaderParam
 {
 	void set_uniforms() override;
 
-	std::array<VBO*, 2> vbos_;
+	std::array<VBO*, 3> vbos_;
 	inline void set_texture_buffer_vbo(uint32 i, VBO* vbo) override
 	{
 		vbos_[i] = vbo;
@@ -74,24 +74,26 @@ class CGOGN_RENDERING_EXPORT ShaderParamAnimationSkeletonBoneColor : public Shad
 	{
 		JOINT_POSITION = 0,
 		BONE_COLOR = 1,
+		BONE_NORMAL = 2,
 	};
 
 	// Follow 10 and 11, see MeshRender::draw
 	static constexpr const int JOINT_POSITION_BIND_ID = 12;
 	static constexpr const int BONE_COLOR_BIND_ID = 13;
+	static constexpr const int BONE_NORMAL_BIND_ID = 14;
 
 public:
 	float32 radius_;
 	float32 lighted_;
 
-	using ShaderType = ShaderAnimationSkeletonBoneColor;
+	using ShaderType = ShaderAnimationSkeletonBoneColorNormal;
 
-	ShaderParamAnimationSkeletonBoneColor(ShaderType* sh)
+	ShaderParamAnimationSkeletonBoneColorNormal(ShaderType* sh)
 		: ShaderParam(sh, true), radius_(1.0f), lighted_(0.0f)
 	{
 	}
 
-	inline ~ShaderParamAnimationSkeletonBoneColor() override
+	inline ~ShaderParamAnimationSkeletonBoneColorNormal() override
 	{
 	}
 };

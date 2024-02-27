@@ -173,7 +173,7 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	ASC_RT asc_rt(app);
 	ASC_DQ asc_dq(app);
-	cgogn::ui::AnimationSkeletonRender asr(app);
+	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 
 	app.init_modules();
 

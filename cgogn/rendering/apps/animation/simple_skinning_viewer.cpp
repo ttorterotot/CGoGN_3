@@ -224,7 +224,7 @@ int main(int argc, char** argv)
 	ASC_DQ asc_dq(app);
 	cgogn::ui::SkinningController<Surface, RigidTransformation> skc_rt(app);
 	cgogn::ui::SkinningController<Surface, DualQuaternion> skc_dq(app);
-	cgogn::ui::AnimationSkeletonRender asr(app);
+	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::SurfaceDifferentialProperties<Surface> sdp(app);
 

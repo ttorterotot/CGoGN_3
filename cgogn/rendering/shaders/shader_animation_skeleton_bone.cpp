@@ -131,9 +131,9 @@ void ShaderParamAnimationSkeletonBone::set_uniforms()
 	shader_->set_uniforms_values(color_, radius_, lighted_);
 }
 
-ShaderAnimationSkeletonBoneColor* ShaderAnimationSkeletonBoneColor::instance_ = nullptr;
+ShaderAnimationSkeletonBoneColorNormal* ShaderAnimationSkeletonBoneColorNormal::instance_ = nullptr;
 
-ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
+ShaderAnimationSkeletonBoneColorNormal::ShaderAnimationSkeletonBoneColorNormal()
 {
 	const char* vertex_shader_source = R"(
 		#version 330
@@ -141,8 +141,10 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 		uniform usamplerBuffer bone_ind;
 		uniform samplerBuffer joint_position;
 		uniform samplerBuffer bone_color;
+		uniform samplerBuffer bone_normal;
 
 		out vec3 color_b;
+		out vec3 normal_b;
 
 		void main()
 		{
@@ -151,6 +153,7 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 
 			int ind_b = int(texelFetch(bone_ind, int(gl_InstanceID)).r);
 			color_b = texelFetch(bone_color, ind_b).rgb;
+			normal_b = texelFetch(bone_normal, ind_b).rgb;
 
 			gl_Position = vec4(position_in, 1.0);
 		}
@@ -166,6 +169,7 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 		uniform float base_radius;
 
 		in vec3 color_b[];
+		in vec3 normal_b[];
 
 		out vec3 color;
 		out float Nz;
@@ -205,11 +209,7 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 
 			X = normalize(X);
 
-			vec3 Y = cross(X, vec3(1.0, 0.0, 0.0));
-
-			if (dot(Y, Y) < 1.0)
-				Y = cross(X, vec3(0.0, 1.0, 0.0));
-
+			vec3 Y = cross(X, normalize(normal_b[0]));
 			vec3 Z = cross(X, Y);
 
 			float c = cos(2 * M_PI / 3) * base_radius;
@@ -242,25 +242,29 @@ ShaderAnimationSkeletonBoneColor::ShaderAnimationSkeletonBoneColor()
 	)";
 
 	load3_bind(vertex_shader_source, fragment_shader_source, geometry_shader_source);
-	get_uniforms("joint_ind", "bone_ind", "joint_position", "bone_color", "base_radius", "lighted");
+	get_uniforms("joint_ind", "bone_ind", "joint_position", "bone_color", "bone_normal",
+			"base_radius", "lighted");
 }
 
-void ShaderParamAnimationSkeletonBoneColor::set_uniforms()
+void ShaderParamAnimationSkeletonBoneColorNormal::set_uniforms()
 {
 	// See MeshRender::draw for 10 and 11
-	shader_->set_uniforms_values(10, 11, JOINT_POSITION_BIND_ID, BONE_COLOR_BIND_ID, radius_, lighted_);
+	shader_->set_uniforms_values(10, 11, JOINT_POSITION_BIND_ID, BONE_COLOR_BIND_ID, BONE_NORMAL_BIND_ID,
+			radius_, lighted_);
 }
 
-void ShaderParamAnimationSkeletonBoneColor::bind_texture_buffers()
+void ShaderParamAnimationSkeletonBoneColorNormal::bind_texture_buffers()
 {
 	vbos_[JOINT_POSITION]->bind_texture_buffer(JOINT_POSITION_BIND_ID);
 	vbos_[BONE_COLOR]->bind_texture_buffer(BONE_COLOR_BIND_ID);
+	vbos_[BONE_NORMAL]->bind_texture_buffer(BONE_NORMAL_BIND_ID);
 }
 
-void ShaderParamAnimationSkeletonBoneColor::release_texture_buffers()
+void ShaderParamAnimationSkeletonBoneColorNormal::release_texture_buffers()
 {
 	vbos_[JOINT_POSITION]->release_texture_buffer(JOINT_POSITION_BIND_ID);
 	vbos_[BONE_COLOR]->release_texture_buffer(BONE_COLOR_BIND_ID);
+	vbos_[BONE_NORMAL]->release_texture_buffer(BONE_NORMAL_BIND_ID);
 }
 
 } // namespace rendering

@@ -51,6 +51,7 @@ namespace ui
 using geometry::Vec3;
 using geometry::Scalar;
 
+template <typename ...SupportedTransforms>
 class AnimationSkeletonRender : public ViewModule
 {
 	enum AttributePerCell
@@ -69,6 +70,8 @@ class AnimationSkeletonRender : public ViewModule
 	template <typename T>
 	using Attribute = AnimationSkeleton::Attribute<T>;
 
+	using AttributeGen = AnimationSkeleton::AttributeGen;
+
 	using Joint = AnimationSkeleton::Joint;
 	using Bone = AnimationSkeleton::Bone;
 
@@ -77,7 +80,7 @@ class AnimationSkeletonRender : public ViewModule
 		Parameters()
 			: joint_position_(nullptr), joint_position_vbo_(nullptr), joint_radius_(nullptr),
 			  joint_radius_vbo_(nullptr), joint_color_(nullptr), joint_color_vbo_(nullptr), bone_color_vbo_(nullptr),
-			  render_joints_(true), render_bones_(true),
+			  render_joints_(true), render_bones_(true), bone_normal_vbo_(std::make_unique<rendering::VBO>()),
 			  color_per_cell_(GLOBAL), bone_color_per_cell_(GLOBAL), color_type_(VECTOR), joint_scale_factor_(1.0)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
@@ -95,9 +98,9 @@ class AnimationSkeletonRender : public ViewModule
 			param_animation_skeleton_bone_->radius_ = 0.25f;
 			param_animation_skeleton_bone_->lighted_ = 0.75f;
 
-			param_animation_skeleton_bone_color_ = rendering::ShaderAnimationSkeletonBoneColor::generate_param();
-			param_animation_skeleton_bone_color_->radius_ = 0.25f;
-			param_animation_skeleton_bone_color_->lighted_ = 0.75f;
+			param_animation_skeleton_bone_color_normal_ = rendering::ShaderAnimationSkeletonBoneColorNormal::generate_param();
+			param_animation_skeleton_bone_color_normal_->radius_ = 0.25f;
+			param_animation_skeleton_bone_color_normal_->lighted_ = 0.75f;
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);
@@ -111,12 +114,16 @@ class AnimationSkeletonRender : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> bone_color_;
 		rendering::VBO* bone_color_vbo_;
 
+		// This is computed depending on the transform type on attribute selection so we handle it inside of this class
+		std::shared_ptr<AttributeGen> bone_transform_;
+		std::unique_ptr<rendering::VBO> bone_normal_vbo_;
+
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
 		std::unique_ptr<rendering::ShaderPointSpriteSize::Param> param_point_sprite_size_;
 		std::unique_ptr<rendering::ShaderPointSpriteColor::Param> param_point_sprite_color_;
 		std::unique_ptr<rendering::ShaderPointSpriteColorSize::Param> param_point_sprite_color_size_;
 		std::unique_ptr<rendering::ShaderAnimationSkeletonBone::Param> param_animation_skeleton_bone_;
-		std::unique_ptr<rendering::ShaderAnimationSkeletonBoneColor::Param> param_animation_skeleton_bone_color_;
+		std::unique_ptr<rendering::ShaderAnimationSkeletonBoneColorNormal::Param> param_animation_skeleton_bone_color_normal_;
 
 		bool render_joints_;
 		bool render_bones_;
@@ -127,6 +134,14 @@ class AnimationSkeletonRender : public ViewModule
 
 		float32 joint_scale_factor_;
 		float32 joint_base_size_;
+	};
+
+public:
+	enum class TransformAttributeSetMode
+	{
+		None,
+		SetAndUpdateParametersIfPointersDiffer,
+		UpdateVboParameterOnlyAndUnconditionally,
 	};
 
 public:
@@ -141,6 +156,59 @@ public:
 	}
 
 private:
+	bool attribute_is_or_set_transform_tmpl(const std::shared_ptr<AttributeGen>& attribute,
+			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
+	{
+		return false;
+	}
+
+	template <typename T, typename ...Args>
+	bool attribute_is_or_set_transform_tmpl(const std::shared_ptr<AttributeGen>& attribute,
+			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
+	{
+		if (set_mode == TransformAttributeSetMode::UpdateVboParameterOnlyAndUnconditionally)
+		{
+			if (!attribute_unsafe)
+				return false;
+			cgogn_assert(v);
+			if (auto p = dynamic_cast<const Attribute<T>*>(attribute_unsafe))
+			{
+				cgogn_assert(v && m);
+				update_bone_normal_vbo(*v, *m, *p);
+				v->request_update();
+				return true;
+			}
+		}
+		else if (auto p = std::dynamic_pointer_cast<Attribute<T>>(attribute))
+		{
+			switch (set_mode)
+			{
+			case TransformAttributeSetMode::None:
+				break;
+			case TransformAttributeSetMode::SetAndUpdateParametersIfPointersDiffer:
+				cgogn_assert(v && m);
+				set_bone_transform(*v, *m, p, attribute);
+				break;
+			default:
+				cgogn_assert_not_reached("Missing set mode case");
+			}
+			return true;
+		}
+		if constexpr (sizeof...(Args) > 0)
+			return attribute_is_or_set_transform_tmpl<Args...>(attribute, attribute_unsafe, v, m, set_mode);
+		return false;
+	}
+
+	// `attribute_unsafe` assumed to be present if `set_mode` is update-only.
+	// `v` and `m` assumed to be present if `set_mode` isn't none.
+	bool attribute_is_or_set_transform(const std::shared_ptr<AttributeGen>& attribute,
+			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
+	{
+		if constexpr (sizeof...(SupportedTransforms) > 0)
+			return attribute_is_or_set_transform_tmpl<SupportedTransforms...>(attribute, attribute_unsafe, v, m, set_mode);
+		return false;
+	}
+
 	void init_mesh(MESH* m)
 	{
 		for (View* v : linked_views_)
@@ -178,10 +246,40 @@ private:
 						}
 						v->request_update();
 					}));
+			mesh_connections_[m].push_back(
+				boost::synapse::connect<typename MeshProvider<MESH>::attribute_changed>(
+					m, [this, v, m](AttributeGen* attribute) {
+						Parameters& p = parameters_[v][m];
+						if (attribute && attribute == p.bone_transform_.get())
+						{
+							attribute_is_or_set_transform(nullptr, attribute, v, m,
+									TransformAttributeSetMode::UpdateVboParameterOnlyAndUnconditionally);
+							v->request_update();
+						}
+					}));
 		}
 	}
 
+	template <typename TransformT>
+	void update_bone_normal_vbo(View& v, const MESH& m, const Attribute<TransformT>& bone_transform)
+	{
+		Parameters& p = parameters_[&v][&m];
+		MeshData<MESH>& md = mesh_provider_->mesh_data(m);
+		std::vector<geometry::Vec3> normals;
+		for (const auto& transform : bone_transform)
+		{
+			geometry::Mat4 m = transform.to_transform_matrix();
+			normals.push_back(m.block<3, 1>(0, 1) / m(3, 3));
+		}
+		rendering::update_vbo(normals, p.bone_normal_vbo_.get());
+	}
+
 public:
+	bool attribute_is_transform(const std::shared_ptr<AttributeGen>& attribute)
+	{
+		return attribute_is_or_set_transform(attribute, nullptr, nullptr, nullptr, TransformAttributeSetMode::None);
+	}
+
 	void set_joint_position(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& joint_position)
 	{
 		Parameters& p = parameters_[&v][&m];
@@ -205,7 +303,8 @@ public:
 		p.param_point_sprite_color_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_});
 		p.param_point_sprite_color_size_->set_vbos({p.joint_position_vbo_, p.joint_color_vbo_, p.joint_radius_vbo_});
 		p.param_animation_skeleton_bone_->set_vbos({p.joint_position_vbo_});
-		p.param_animation_skeleton_bone_color_->set_vbos({p.joint_position_vbo_, p.bone_color_vbo_});
+		p.param_animation_skeleton_bone_color_normal_->set_vbos(
+				{p.joint_position_vbo_, p.bone_color_vbo_, p.bone_normal_vbo_.get()});
 
 		v.request_update();
 	}
@@ -252,6 +351,61 @@ public:
 		v.request_update();
 	}
 
+	/// @brief Sets the bone transform attribute attribute for a certain type of transform
+	/// @param v the view to update
+	/// @param m the mesh that holds the attribute
+	/// @param bone_transform the shared pointer to set as the current bone transform attribute
+	///                       (also used to determine `bone_transform_gen` if it's null)
+	/// @param bone_transform_gen the generic pointer to actually set the attribute parameter to
+	///                       (inferred from `bone_transform` if null)
+	template <typename TransformT>
+	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<Attribute<TransformT>>& bone_transform,
+			std::shared_ptr<AttributeGen> bone_transform_gen = nullptr)
+	{
+		cgogn_assert(bone_transform || !bone_transform_gen); // passing null bt but non-null btg breaks logic
+
+		if (bone_transform && !bone_transform_gen)
+		{
+			bone_transform_gen = std::dynamic_pointer_cast<AttributeGen>(bone_transform);
+			cgogn_assert(bone_transform_gen); // conversion back to AttributeGen expected to work
+		}
+
+		Parameters& p = parameters_[&v][&m];
+		if (p.bone_transform_ == bone_transform_gen)
+			return;
+
+		p.bone_transform_ = bone_transform_gen;
+
+		if (bone_transform)
+			update_bone_normal_vbo(v, m, *bone_transform);
+
+		p.param_animation_skeleton_bone_color_normal_->set_vbos(
+				{p.joint_position_vbo_, p.bone_color_vbo_, bone_transform ? p.bone_normal_vbo_.get() : nullptr});
+
+		v.request_update();
+	}
+
+	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<AttributeGen>& attribute)
+	{
+		if (attribute)
+		{
+			std::ignore = attribute_is_or_set_transform(attribute, nullptr, &v, &m,
+					TransformAttributeSetMode::SetAndUpdateParametersIfPointersDiffer);
+			return;
+		}
+
+		Parameters& p = parameters_[&v][&m];
+		if (!p.bone_transform_)
+			return;
+
+		p.bone_transform_ = attribute;
+
+		p.param_animation_skeleton_bone_color_normal_->set_vbos(
+				{p.joint_position_vbo_, p.bone_color_vbo_, nullptr});
+
+		v.request_update();
+	}
+
 	void set_bone_color(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& bone_color)
 	{
 		Parameters& p = parameters_[&v][&m];
@@ -267,7 +421,8 @@ public:
 		else
 			p.bone_color_vbo_ = nullptr;
 
-		p.param_animation_skeleton_bone_color_->set_vbos({p.joint_position_vbo_, p.bone_color_vbo_});
+		p.param_animation_skeleton_bone_color_normal_->set_vbos(
+				{p.joint_position_vbo_, p.bone_color_vbo_, p.bone_normal_vbo_.get()});
 
 		v.request_update();
 	}
@@ -304,11 +459,11 @@ protected:
 					}
 					break;
 				case PER_BONE:
-					if (p.param_animation_skeleton_bone_color_->attributes_initialized())
+					if (p.param_animation_skeleton_bone_color_normal_->attributes_initialized())
 					{
-						p.param_animation_skeleton_bone_color_->bind(proj_matrix, view_matrix);
+						p.param_animation_skeleton_bone_color_normal_->bind(proj_matrix, view_matrix);
 						md.draw(rendering::LINES_TB);
-						p.param_animation_skeleton_bone_color_->release();
+						p.param_animation_skeleton_bone_color_normal_->release();
 					}
 					break;
 				}
@@ -438,7 +593,7 @@ protected:
 			need_update |= ImGui::Checkbox("Bones", &p.render_bones_);
 			if (p.render_bones_)
 			{
-				ImGui::TextUnformatted("Colors");
+				ImGui::TextUnformatted("Colors and roll");
 				ImGui::BeginGroup();
 				if (ImGui::RadioButton("Global##colorBones", p.bone_color_per_cell_ == GLOBAL))
 				{
@@ -461,22 +616,26 @@ protected:
 					break;
 				case PER_BONE:
 					imgui_combo_attribute<Bone, Vec3>(
-						*selected_mesh_, p.bone_color_, "Attribute##vectorbonecolor",
+						*selected_mesh_, p.bone_color_, "Color##vectorbonecolor",
 						[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 							set_bone_color(*selected_view_, *selected_mesh_, attribute);
 						});
+					imgui_combo_any_attribute<Bone>(
+						*selected_mesh_, std::dynamic_pointer_cast<AttributeGen>(p.bone_transform_), "World transform##vectorbonetransform",
+						[&](const std::shared_ptr<AttributeGen>& attribute) { return attribute_is_transform(attribute); },
+						[&](const std::shared_ptr<AttributeGen>& attribute) { set_bone_transform(*selected_view_, *selected_mesh_, attribute); });
 					break;
 				}
 
 				if (ImGui::SliderFloat("Thickness##bones", &p.param_animation_skeleton_bone_->radius_, 0.0f, 2.0f))
 				{
-					p.param_animation_skeleton_bone_color_->radius_= p.param_animation_skeleton_bone_->radius_;
+					p.param_animation_skeleton_bone_color_normal_->radius_= p.param_animation_skeleton_bone_->radius_;
 					need_update = true;
 				}
 
 				if (ImGui::SliderFloat("Lighting##bones", &p.param_animation_skeleton_bone_->lighted_, 0.0f, 1.0f))
 				{
-					p.param_animation_skeleton_bone_color_->lighted_ = p.param_animation_skeleton_bone_->lighted_;
+					p.param_animation_skeleton_bone_color_normal_->lighted_ = p.param_animation_skeleton_bone_->lighted_;
 					need_update = true;
 				}
 			}

@@ -64,19 +64,18 @@ protected:
 		// Shared fields to save memory for non-overlapping usages
 		// (usage of unions for this purpose is not ISO C++)
 
-		std::array<std::optional<double>, 3> f0_;
-		std::array<std::optional<double>, 3> f1_;
+		std::array<std::optional<double>, 3> aod3_0_, aod3_1_;
 
 	public:
 
 		// Model
 
-		inline constexpr std::array<std::optional<double>, 3>& pre_rotation(){ return f0_; }
-		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return f1_; };
+		inline constexpr std::array<std::optional<double>, 3>& pre_rotation(){ return aod3_0_; }
+		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return aod3_1_; }
 
 		// AnimationCurveNode
 
-		inline constexpr std::array<std::optional<double>, 3>& d(){ return f0_; }
+		inline constexpr std::array<std::optional<double>, 3>& d(){ return aod3_0_; }
 	};
 
 	struct Model

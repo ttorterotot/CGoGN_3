@@ -88,6 +88,13 @@ protected:
 		Properties properties;
 	};
 
+	struct Geometry
+	{
+		ObjectId id;
+		std::string name;
+		SurfaceImportData data;
+	};
+
 protected:
 
 	inline FbxImporterBase(bool load_surfaces, bool load_skeletons)
@@ -104,6 +111,8 @@ private:
 	void read_objects_node(std::istream& is);
 	void read_objects_model_subnode(std::istream& is);
 	void read_objects_geometry_subnode(std::istream& is);
+	void read_objects_geometry_vertices_subnode(std::istream& is, SurfaceImportData& d);
+	void read_objects_geometry_polygon_vertex_index_subnode(std::istream& is, SurfaceImportData& d);
 	void read_connections_node(std::istream& is);
 	void read_fbx_header_extension_node(std::istream& is);
 	void read_definitions_node(std::istream& is);
@@ -119,6 +128,7 @@ private:
 
 protected:
 	std::vector<Model> models_;
+	std::vector<Geometry> geometries_;
 
 private:
 	static inline const std::unordered_map<std::string,

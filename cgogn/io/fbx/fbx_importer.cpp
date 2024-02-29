@@ -211,7 +211,211 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 // Reads a Geometry subnode (inside an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_geometry_subnode(std::istream& is)
 {
-	skip_node(is); // TODO
+	Geometry geometry{};
+	std::string type;
+	std::string subnode_key;
+	char c;
+
+	subnode_key.reserve(32);
+
+	enum Stage { START, NAME, NAME_TO_TYPE, TYPE, END };
+	int stage = START;
+
+	is >> geometry.id;
+
+	while (stage < END && is.get(c))
+	{
+		switch (stage)
+		{
+		case START:
+		case NAME_TO_TYPE:
+			if (c == '"')
+				++stage;
+			break;
+		case NAME:
+			if (c == '"') // TODO handle escape sequences
+				++stage;
+			else
+				geometry.name += c;
+			break;
+		case TYPE:
+			if (c == '"') // TODO handle escape sequences
+				++stage;
+			else
+				type += c;
+			break;
+		}
+	}
+
+	if (type != "Mesh"s)
+		std::cout << "Warning: expected geometry of type Mesh for geometry " << geometry.name
+				<< " but got " << type << std::endl;
+
+	for (int depth = 0; stage == END && is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			geometries_.push_back(std::move(geometry));
+			return;
+		case ':':
+			if (subnode_key == "Vertices"s)
+				read_objects_geometry_vertices_subnode(is, geometry.data);
+			else if (subnode_key == "PolygonVertexIndex"s)
+				read_objects_geometry_polygon_vertex_index_subnode(is, geometry.data);
+			else if (subnode_key == "GeometryVersion"s)
+				read_integer_and_warn_if_not_expected(is, "geometry version", 124);
+			else
+				skip_value(is);
+			subnode_key.clear();
+			break;
+		case ';':
+			if (subnode_key.empty())
+				skip_through_character(is, '\n');
+			break;
+		default:
+			if (!std::isspace(c))
+				subnode_key += c;
+		}
+	}
+
+	std::cout << "Warning: invalid syntax for geometry " << geometry.name << std::endl;
+}
+
+// Reads a Vertices subnode (inside a Geometry subnode in an Objects node)
+// from past the declaring colon through its closing brace
+void FbxImporterBase::read_objects_geometry_vertices_subnode(std::istream& is, SurfaceImportData& d)
+{
+	Vec3 v = Vec3::Zero();
+	int coef = 0;
+	bool in_array = false;
+	char c, c_ = '\0';
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0); // no subnode
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			cgogn_assert(d.nb_vertices_ == d.vertex_position_.size());
+			return;
+		case ':':
+			cgogn_assert(c_ == 'a' && depth == 1);
+			in_array = true;
+			c = '\0';
+			// Intentional fallthrough
+		case ',':
+			cgogn_assert(in_array);
+			is >> v[coef];
+			if (++coef == 3)
+			{
+				d.vertex_position_.push_back(v);
+				v = Vec3::Zero();
+				coef = 0;
+			}
+			break;
+		case ';':
+			cgogn_assert(c_ == '\0');
+			skip_through_character(is, '\n');
+			break;
+		case '\n':
+			if (depth == 1)
+				c = '\0'; // allow comment on new line inside braces
+			break;
+		default:
+			if (depth == 0)
+			{
+				if (c == '*')
+				{
+					is >> d.nb_vertices_;
+					d.nb_vertices_ /= 3; // number in the file is number of coefficients
+					d.vertex_position_.reserve(d.nb_vertices_);
+				}
+			}
+			else if (!in_array && !std::isspace(c))
+				c_ = c;
+		}
+	}
+
+	std::cout << "Warning: invalid syntax for Vertices subnode" << std::endl;
+}
+
+// Reads a PolygonVertexIndex subnode (inside a Geometry subnode in an Objects node)
+// from past the declaring colon through its closing brace
+void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::istream& is, SurfaceImportData& d)
+{
+	int nb_vertices = 0;
+	bool in_array = false;
+	char c, c_ = '\0';
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0); // no subnode
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			return;
+		case ':':
+			cgogn_assert(c_ == 'a' && depth == 1);
+			in_array = true;
+			c = '\0';
+			// Intentional fallthrough
+		case ',':
+			cgogn_assert(in_array);
+			{
+				int32 id;
+				is >> id;
+				if (id < 0)
+				{
+					id = -1 - id;
+					++d.nb_faces_;
+					d.faces_nb_vertices_.push_back(nb_vertices + 1);
+					nb_vertices = 0;
+				}
+				else
+					++nb_vertices;
+				d.faces_vertex_indices_.push_back(id);
+			}
+			break;
+		case ';':
+			cgogn_assert(c_ == '\0');
+			skip_through_character(is, '\n');
+			break;
+		case '\n':
+			if (depth == 1)
+				c = '\0'; // allow comment on new line inside braces
+			break;
+		default:
+			if (depth == 0)
+			{
+				if (c == '*')
+				{
+					uint32 nb_id;
+					is >> nb_id;
+					d.faces_vertex_indices_.reserve(nb_id);
+				}
+			}
+			else if (!in_array && !std::isspace(c))
+				c_ = c;
+		}
+	}
+
+	std::cout << "Warning: invalid syntax for PolygonVertexIndex subnode" << std::endl;
 }
 
 // Reads a Connections node from past the declaring colon through its closing brace

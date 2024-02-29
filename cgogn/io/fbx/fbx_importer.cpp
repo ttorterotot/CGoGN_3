@@ -255,6 +255,8 @@ void FbxImporterBase::read_fbx_header_extension_node(std::istream& is)
 				subnode_key += c;
 		}
 	}
+
+	std::cout << "Warning: invalid syntax for FBXHeaderExtension node" << std::endl;
 }
 
 // Reads a Definitions node from past the declaring colon through its closing brace
@@ -294,6 +296,8 @@ void FbxImporterBase::read_properties_70_subnode(std::istream& is, Properties& p
 				c_ = c;
 		}
 	}
+
+	std::cout << "Warning: invalid syntax for Properties70 subnode" << std::endl;
 }
 
 // Reads a property through the end of its line

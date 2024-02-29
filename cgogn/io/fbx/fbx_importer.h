@@ -65,6 +65,8 @@ private:
 	void read_objects_node(std::istream& is);
 	void read_connections_node(std::istream& is);
 	void skip_node(std::istream& is);
+	void skip_value(std::istream& is);
+	std::istream& skip_through_character(std::istream& is, char c);
 
 private:
 	bool load_surfaces_;

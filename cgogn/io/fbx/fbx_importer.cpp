@@ -67,7 +67,7 @@ void FbxImporterBase::read_root(std::istream& is)
 			node_key.clear();
 		}
 		else if (c == ';' && node_key.empty()) // semicolon on start of line is comment
-			is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			skip_through_character(is, '\n');
 		else // read key
 			node_key += c;
 	}
@@ -101,6 +101,29 @@ void FbxImporterBase::skip_node(std::istream& is)
 		if (depth == 0) // back out
 			return;
 	}
+}
+
+// Ignores everything until after a line break or the end of the next node
+void FbxImporterBase::skip_value(std::istream& is)
+{
+	char c;
+	while (is.get(c))
+	{
+		if (c == '\n') // primitive
+			return;
+
+		if (c == '{') // node
+		{
+			is.unget();
+			skip_node(is);
+		}
+	}
+}
+
+// Ignores everything through a given character
+std::istream& FbxImporterBase::skip_through_character(std::istream& is, char c)
+{
+	return is.ignore(std::numeric_limits<std::streamsize>::max(), c);
 }
 
 } // namespace io

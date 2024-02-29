@@ -64,14 +64,16 @@ protected:
 		// Shared fields to save memory for non-overlapping usages
 		// (usage of unions for this purpose is not ISO C++)
 
-		std::array<std::optional<double>, 3> aod3_0_, aod3_1_;
+		std::array<std::optional<double>, 3> aod3_0_, aod3_1_, aod3_2_, aod3_3_;
 
 	public:
 
 		// Model
 
 		inline constexpr std::array<std::optional<double>, 3>& pre_rotation(){ return aod3_0_; }
-		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return aod3_1_; }
+		inline constexpr std::array<std::optional<double>, 3>& post_rotation(){ return aod3_1_; }
+		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return aod3_2_; }
+		inline constexpr std::array<std::optional<double>, 3>& lcl_rotation(){ return aod3_3_; }
 
 		// AnimationCurveNode
 
@@ -122,7 +124,9 @@ private:
 	static inline const std::unordered_map<std::string,
 			std::function<std::pair<std::optional<double>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
 		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
+		std::make_pair("PostRotation", [](Properties& p){ return std_array_g(p.post_rotation()); }),
 		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
+		std::make_pair("Lcl Rotation", [](Properties& p){ return std_array_g(p.lcl_rotation()); }),
 		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),
 		std::make_pair("d|Y", [](Properties& p){ return std::make_pair(p.d().data() + 1, 1); }),
 		std::make_pair("d|Z", [](Properties& p){ return std::make_pair(p.d().data() + 2, 1); }),

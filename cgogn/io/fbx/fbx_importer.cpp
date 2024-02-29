@@ -421,7 +421,90 @@ void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::is
 // Reads a Connections node from past the declaring colon through its closing brace
 void FbxImporterBase::read_connections_node(std::istream& is)
 {
-	skip_node(is); // TODO
+	int commas = -1; // -1 is flag for not having read a colon
+	ObjectId ids[2];
+	std::string property_name;
+	bool expect_property = false;
+	bool in_quotes = false;
+	char c, c_;
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0 && commas == -1); // no subnode
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0 && commas == -1);
+			return;
+		case '"':
+			in_quotes = !in_quotes;
+			if (!in_quotes)
+			{
+				if (!property_name.empty())
+				{
+					connections_op_.emplace_back(ids[0], ids[1], property_name);
+					property_name.clear();
+					expect_property = false;
+					commas = -1;
+				}
+			}
+			break;
+		case ',':
+			switch (commas)
+			{
+			case 0:
+			case 1:
+				is >> ids[commas];
+				++commas;
+				if (!expect_property && commas == 2)
+				{
+					connections_oo_.emplace_back(ids[0], ids[1]);
+					commas = -1;
+				}
+				break;
+			case 2:
+				cgogn_assert(expect_property);
+				++commas;
+				break;
+			default:
+				cgogn_assert_not_reached("Previous commas not in [0, 2] like expected");
+			}
+			break;
+		case ';':
+			cgogn_assert(!in_quotes);
+			skip_through_character(is, '\n');
+			break;
+		case 'P':
+			if (commas == 0) // assume "OP"
+			{
+				cgogn_assert(in_quotes && c_ == 'O');
+				expect_property = true;
+				break;
+			}
+			// Intentional fallthrough
+		default:
+			if (in_quotes && expect_property)
+			{
+				cgogn_assert(commas == 3);
+				property_name += c;
+			}
+			else if (!in_quotes && c == ':')
+			{
+				cgogn_assert(commas == -1 && c_ == 'C');
+				commas = 0;
+			}
+#ifdef CGOGN_DEBUG
+			else
+				c_ = c;
+#endif
+		}
+	}
+
+	std::cout << "Warning: invalid syntax for Connections node" << std::endl;
 }
 
 // Reads a FBXHeaderExtension node from past the declaring colon through its closing brace

@@ -129,6 +129,8 @@ private:
 protected:
 	std::vector<Model> models_;
 	std::vector<Geometry> geometries_;
+	std::vector<std::pair<ObjectId, ObjectId>> connections_oo_;
+	std::vector<std::tuple<ObjectId, ObjectId, std::string>> connections_op_;
 
 private:
 	static inline const std::unordered_map<std::string,

@@ -26,6 +26,7 @@
 
 #include <string>
 #include <fstream>
+#include <optional>
 #include <unordered_map>
 
 #include <cgogn/io/cgogn_io_export.h>
@@ -63,19 +64,19 @@ protected:
 		// Shared fields to save memory for non-overlapping usages
 		// (usage of unions for this purpose is not ISO C++)
 
-		std::array<double, 3> f0_;
-		std::array<double, 3> f1_;
+		std::array<std::optional<double>, 3> f0_;
+		std::array<std::optional<double>, 3> f1_;
 
 	public:
 
 		// Model
 
-		inline constexpr std::array<double, 3>& pre_rotation(){ return f0_; };
-		inline constexpr std::array<double, 3>& lcl_translation(){ return f1_; };
+		inline constexpr std::array<std::optional<double>, 3>& pre_rotation(){ return f0_; }
+		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return f1_; };
 
 		// AnimationCurveNode
 
-		inline constexpr std::array<double, 3>& d(){ return f0_; }
+		inline constexpr std::array<std::optional<double>, 3>& d(){ return f0_; }
 	};
 
 	struct Model
@@ -120,7 +121,7 @@ protected:
 
 private:
 	static inline const std::unordered_map<std::string,
-			std::function<std::pair<double*, size_t>(Properties&)>> PROPERTY_INFO_ = {
+			std::function<std::pair<std::optional<double>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
 		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
 		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
 		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),

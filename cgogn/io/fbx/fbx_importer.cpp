@@ -335,7 +335,11 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 	{
 		const auto& [ptr, size] = pi->second(p);
 		for (int i = 0; i < size && !is.fail() && skip_through_character(is, ','); ++i)
-			is >> ptr[i];
+		{
+			std::remove_reference_t<decltype(ptr[i].value())> value;
+			is >> value;
+			ptr[i].emplace(std::move(value));
+		}
 	}
 
 	skip_through_character(is, '\n');

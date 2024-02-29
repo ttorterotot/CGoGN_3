@@ -48,6 +48,43 @@ class FbxImporterBase
 {
 protected:
 	using Skeleton = AnimationSkeleton;
+	using ObjectId = uint32;
+
+	enum class ModelType
+	{
+		None,
+		Mesh,
+		LimbNode,
+	};
+
+	class Properties
+	{
+	private:
+		// Shared fields to save memory for non-overlapping usages
+		// (usage of unions for this purpose is not ISO C++)
+
+		std::array<double, 3> f0_;
+		std::array<double, 3> f1_;
+
+	public:
+
+		// Model
+
+		inline constexpr std::array<double, 3>& pre_rotation(){ return f0_; };
+		inline constexpr std::array<double, 3>& lcl_translation(){ return f1_; };
+
+		// AnimationCurveNode
+
+		inline constexpr std::array<double, 3>& d(){ return f0_; }
+	};
+
+	struct Model
+	{
+		ObjectId id;
+		ModelType type;
+		std::string name;
+		Properties properties;
+	};
 
 protected:
 
@@ -63,12 +100,34 @@ protected:
 private:
 	void read_root(std::istream& is);
 	void read_objects_node(std::istream& is);
+	void read_objects_model_subnode(std::istream& is);
+	void read_objects_geometry_subnode(std::istream& is);
 	void read_connections_node(std::istream& is);
+	void read_fbx_header_extension_node(std::istream& is);
+	void read_definitions_node(std::istream& is);
+	void read_properties_70_subnode(std::istream& is, Properties& p);
+	void read_property(std::istream& is, Properties& p);
+	void read_integer_and_warn_if_not_expected(std::istream& is, const std::string& nature, int expected_version);
 	void skip_node(std::istream& is);
 	void skip_value(std::istream& is);
 	std::istream& skip_through_character(std::istream& is, char c);
 
+	template <typename T, size_t Size>
+	constexpr static std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
+
+protected:
+	std::vector<Model> models_;
+
 private:
+	static inline const std::unordered_map<std::string,
+			std::function<std::pair<double*, size_t>(Properties&)>> PROPERTY_INFO_ = {
+		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
+		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
+		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),
+		std::make_pair("d|Y", [](Properties& p){ return std::make_pair(p.d().data() + 1, 1); }),
+		std::make_pair("d|Z", [](Properties& p){ return std::make_pair(p.d().data() + 2, 1); }),
+	};
+
 	bool load_surfaces_;
 	bool load_skeletons_;
 };

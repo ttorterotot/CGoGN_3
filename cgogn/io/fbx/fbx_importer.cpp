@@ -184,6 +184,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		case '}':
 			--depth;
 			cgogn_assert(depth == 0);
+			models_.push_back(std::move(model));
 			return;
 		case ':':
 			if (subnode_key == "Version"s)
@@ -204,7 +205,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		}
 	}
 
-	models_.push_back(std::move(model));
+	std::cout << "Warning: invalid syntax for model " << model.name << std::endl;
 }
 
 // Reads a Geometry subnode (inside an Objects node) from past the declaring colon through its closing brace

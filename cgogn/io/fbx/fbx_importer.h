@@ -206,6 +206,11 @@ private:
 		}
 	}
 
+	void load_skeletons(Map<std::string, Skeleton*>& skeletons)
+	{
+		// TODO
+	}
+
 public:
 	FbxImporter() = delete;
 
@@ -226,6 +231,9 @@ public:
 
 		if (load_surfaces)
 			importer.load_surfaces(surfaces, normalized);
+
+		if (load_skeletons)
+			importer.load_skeletons(skeletons);
 	}
 };
 

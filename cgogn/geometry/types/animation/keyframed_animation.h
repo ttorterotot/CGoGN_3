@@ -36,24 +36,24 @@ namespace cgogn
 namespace geometry
 {
 
-template <typename TimeT, typename TransformT>
+template <typename TimeT, typename ValueT>
 struct AnimationKeyframe
 {
 	using Time = TimeT;
-	using Transform = TransformT;
+	using Value = ValueT;
 
 	TimeT time_;
-	TransformT transform_;
+	ValueT value_;
 
-	AnimationKeyframe(TimeT time, TransformT transform)
-		: time_(time), transform_(transform) {}
+	AnimationKeyframe(TimeT time, ValueT value)
+		: time_(time), value_(value) {}
 };
 
-template <template <typename> typename ContainerT, typename TimeT, typename TransformT>
-class KeyframedAnimation : public ContainerT<AnimationKeyframe<TimeT, TransformT>>
+template <template <typename> typename ContainerT, typename TimeT, typename ValueT>
+class KeyframedAnimation : public ContainerT<AnimationKeyframe<TimeT, ValueT>>
 {
 public:
-	using Keyframe = AnimationKeyframe<TimeT, TransformT>;
+	using Keyframe = AnimationKeyframe<TimeT, ValueT>;
 	static_assert(!std::is_integral_v<TimeT>, "Time type should not be integral");
 
 private:
@@ -191,24 +191,24 @@ public:
 		return std::minmax_element(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(), CompareKeyframes);
 	}
 
-	/// @brief Interpolates a transform between both neighboring keyframes.
+	/// @brief Interpolates a value between both neighboring keyframes.
 	/// Requires keyframes to be sorted, see sort().
-	/// Converts transforms to interpolate - using `to_interpolation_space` -
+	/// Converts values to interpolate - using `to_interpolation_space` -
 	/// then either returns the result - constant extrapolation - outside keyframes,
-	/// or interpolates between both neighboring transforms - using `interpolate` - between keyframes.
+	/// or interpolates between both neighboring values - using `interpolate` - between keyframes.
 	/// The possible conversion of the return value from interpolation space is left to the caller.
 	/// @param time the time value to interpolate for
 	/// @param to_interpolation_space a mapping function from storage to interpolation space in the form
-	///                               `(const TransformT&) -> InterpolatedT`
+	///                               `(const ValueT&) -> InterpolatedT`
 	/// @param interpolate an interpolation function in the form
 	///                    `(const InterpolatedT&, const InterpolatedT&, const TimeT&) -> InterpolatedT`
 	/// @param default_value the return value if the animation is empty
-	/// @return the interpolated transform as `InterpolatedT`
-	template <typename InterpolatedT = TransformT,
+	/// @return the interpolated value as `InterpolatedT`
+	template <typename InterpolatedT = ValueT,
 			typename T = decltype(identity_c<const InterpolatedT&>),
 			typename U = decltype(default_lerp<InterpolatedT, TimeT>)>
 	[[nodiscard]]
-	inline InterpolatedT get_transform(TimeT time,
+	inline InterpolatedT get_value(TimeT time,
 			T to_interpolation_space = identity_c<InterpolatedT>,
 			U interpolate = default_lerp<InterpolatedT, TimeT>,
 			InterpolatedT default_value = InterpolatedT{}) const
@@ -221,17 +221,17 @@ public:
 				[&time](const Keyframe& k){ return k.time_ > time; });
 
 		if (it == ContainerT<Keyframe>::cbegin())
-			return to_interpolation_space((*this)[0].transform_);
+			return to_interpolation_space((*this)[0].value_);
 
 		if (it == ContainerT<Keyframe>::cend())
-			return to_interpolation_space((*this)[ContainerT<Keyframe>::size() - 1].transform_);
+			return to_interpolation_space((*this)[ContainerT<Keyframe>::size() - 1].value_);
 
 		const Keyframe& before = *(it - 1);
 		const Keyframe& after = *it;
 
 		return interpolate(
-				to_interpolation_space(before.transform_),
-				to_interpolation_space(after.transform_),
+				to_interpolation_space(before.value_),
+				to_interpolation_space(after.value_),
 				(time - before.time_) / (after.time_ - before.time_));
 	}
 };

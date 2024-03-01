@@ -48,27 +48,27 @@ TEST_F(KeyframedAnimationTest, single_key_int)
 {
 	geometry::KeyframedAnimation<std::vector, double, int> anim;
 	anim.emplace_back(-2.0, 3);
-	EXPECT_TRUE(anim.get_transform(-5.0) == 3);
-	EXPECT_TRUE(anim.get_transform(0.0) == 3);
-	EXPECT_TRUE(anim.get_transform(8.0) == 3);
+	EXPECT_TRUE(anim.get_value(-5.0) == 3);
+	EXPECT_TRUE(anim.get_value(0.0) == 3);
+	EXPECT_TRUE(anim.get_value(8.0) == 3);
 }
 
 TEST_F(KeyframedAnimationTest, single_key_float)
 {
 	geometry::KeyframedAnimation<std::vector, double, float> anim;
 	anim.emplace_back(-2.0, 3.0f);
-	EXPECT_TRUE(approx(anim.get_transform(-5.0), 3.0f));
-	EXPECT_TRUE(approx(anim.get_transform(0.0), 3.0f));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), 3.0f));
+	EXPECT_TRUE(approx(anim.get_value(-5.0), 3.0f));
+	EXPECT_TRUE(approx(anim.get_value(0.0), 3.0f));
+	EXPECT_TRUE(approx(anim.get_value(8.0), 3.0f));
 }
 
 TEST_F(KeyframedAnimationTest, single_key_double)
 {
 	geometry::KeyframedAnimation<std::vector, double, double> anim;
 	anim.emplace_back(-2.0, 3.0);
-	EXPECT_TRUE(approx(anim.get_transform(-5.0), 3.0));
-	EXPECT_TRUE(approx(anim.get_transform(0.0), 3.0));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), 3.0));
+	EXPECT_TRUE(approx(anim.get_value(-5.0), 3.0));
+	EXPECT_TRUE(approx(anim.get_value(0.0), 3.0));
+	EXPECT_TRUE(approx(anim.get_value(8.0), 3.0));
 }
 
 // Test if keyframe extrapolation works as expected around three keys (constant value)
@@ -80,14 +80,14 @@ TEST_F(KeyframedAnimationTest, three_keys_int)
 	anim.emplace_back(-2.0, 3);
 	anim.emplace_back(0.0, -1);
 	anim.emplace_back(4.0, 0);
-	EXPECT_TRUE(anim.get_transform(-5.0) == 3);
+	EXPECT_TRUE(anim.get_value(-5.0) == 3);
 	// Interpolation in floating point space is required to avoid integer arithmetic
-	EXPECT_TRUE(approx(anim.get_transform<double>(-2.0), 3.0));
-	EXPECT_TRUE(approx(anim.get_transform<double>(-1.0), 1.0));
-	EXPECT_TRUE(approx(anim.get_transform<double>(0.0), -1.0));
-	EXPECT_TRUE(approx(anim.get_transform<double>(1.0), -0.75));
-	EXPECT_TRUE(approx(anim.get_transform<double>(4.0), 0.0));
-	EXPECT_TRUE(approx(anim.get_transform<double>(8.0), 0.0));
+	EXPECT_TRUE(approx(anim.get_value<double>(-2.0), 3.0));
+	EXPECT_TRUE(approx(anim.get_value<double>(-1.0), 1.0));
+	EXPECT_TRUE(approx(anim.get_value<double>(0.0), -1.0));
+	EXPECT_TRUE(approx(anim.get_value<double>(1.0), -0.75));
+	EXPECT_TRUE(approx(anim.get_value<double>(4.0), 0.0));
+	EXPECT_TRUE(approx(anim.get_value<double>(8.0), 0.0));
 }
 
 TEST_F(KeyframedAnimationTest, three_keys_float)
@@ -96,13 +96,13 @@ TEST_F(KeyframedAnimationTest, three_keys_float)
 	anim.emplace_back(-2.0, 3.0f);
 	anim.emplace_back(0.0, -1.0f);
 	anim.emplace_back(4.0, 0.0f);
-	EXPECT_TRUE(anim.get_transform(-5.0) == 3);
-	EXPECT_TRUE(approx(anim.get_transform(-2.0), 3.0f));
-	EXPECT_TRUE(approx(anim.get_transform(-1.0), 1.0f));
-	EXPECT_TRUE(approx(anim.get_transform(0.0), -1.0f));
-	EXPECT_TRUE(approx(anim.get_transform(1.0), -0.75f));
-	EXPECT_TRUE(approx(anim.get_transform(4.0), 0.0f));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), 0.0f));
+	EXPECT_TRUE(anim.get_value(-5.0) == 3);
+	EXPECT_TRUE(approx(anim.get_value(-2.0), 3.0f));
+	EXPECT_TRUE(approx(anim.get_value(-1.0), 1.0f));
+	EXPECT_TRUE(approx(anim.get_value(0.0), -1.0f));
+	EXPECT_TRUE(approx(anim.get_value(1.0), -0.75f));
+	EXPECT_TRUE(approx(anim.get_value(4.0), 0.0f));
+	EXPECT_TRUE(approx(anim.get_value(8.0), 0.0f));
 }
 
 TEST_F(KeyframedAnimationTest, three_keys_double)
@@ -111,13 +111,13 @@ TEST_F(KeyframedAnimationTest, three_keys_double)
 	anim.emplace_back(-2.0, 3.0);
 	anim.emplace_back(0.0, -1.0);
 	anim.emplace_back(4.0, 0.0);
-	EXPECT_TRUE(anim.get_transform(-5.0) == 3);
-	EXPECT_TRUE(approx(anim.get_transform(-2.0), 3.0));
-	EXPECT_TRUE(approx(anim.get_transform(-1.0), 1.0));
-	EXPECT_TRUE(approx(anim.get_transform(0.0), -1.0));
-	EXPECT_TRUE(approx(anim.get_transform(1.0), -0.75));
-	EXPECT_TRUE(approx(anim.get_transform(4.0), 0.0));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), 0.0));
+	EXPECT_TRUE(anim.get_value(-5.0) == 3);
+	EXPECT_TRUE(approx(anim.get_value(-2.0), 3.0));
+	EXPECT_TRUE(approx(anim.get_value(-1.0), 1.0));
+	EXPECT_TRUE(approx(anim.get_value(0.0), -1.0));
+	EXPECT_TRUE(approx(anim.get_value(1.0), -0.75));
+	EXPECT_TRUE(approx(anim.get_value(4.0), 0.0));
+	EXPECT_TRUE(approx(anim.get_value(8.0), 0.0));
 }
 
 TEST_F(KeyframedAnimationTest, three_keys_vector2f)
@@ -127,13 +127,13 @@ TEST_F(KeyframedAnimationTest, three_keys_vector2f)
 	anim.emplace_back(-2.0, V{3.0, -1.0});
 	anim.emplace_back(0.0, V{-1.0, -0.5});
 	anim.emplace_back(4.0, V{0.0, 3.5});
-	EXPECT_TRUE(anim.get_transform(-5.0).isApprox(V{3.0, -1.0}));
-	EXPECT_TRUE(anim.get_transform(-2.0).isApprox(V{3.0, -1.0}));
-	EXPECT_TRUE(anim.get_transform(-1.0).isApprox(V{1.0, -0.75}));
-	EXPECT_TRUE(anim.get_transform(0.0).isApprox(V{-1.0, -0.5}));
-	EXPECT_TRUE(anim.get_transform(1.0).isApprox(V{-0.75, 0.5}));
-	EXPECT_TRUE(anim.get_transform(4.0).isApprox(V{0.0, 3.5}));
-	EXPECT_TRUE(anim.get_transform(8.0).isApprox(V{0.0, 3.5}));
+	EXPECT_TRUE(anim.get_value(-5.0).isApprox(V{3.0, -1.0}));
+	EXPECT_TRUE(anim.get_value(-2.0).isApprox(V{3.0, -1.0}));
+	EXPECT_TRUE(anim.get_value(-1.0).isApprox(V{1.0, -0.75}));
+	EXPECT_TRUE(anim.get_value(0.0).isApprox(V{-1.0, -0.5}));
+	EXPECT_TRUE(anim.get_value(1.0).isApprox(V{-0.75, 0.5}));
+	EXPECT_TRUE(anim.get_value(4.0).isApprox(V{0.0, 3.5}));
+	EXPECT_TRUE(anim.get_value(8.0).isApprox(V{0.0, 3.5}));
 }
 
 TEST_F(KeyframedAnimationTest, three_keys_vector3d)
@@ -143,13 +143,13 @@ TEST_F(KeyframedAnimationTest, three_keys_vector3d)
 	anim.emplace_back(-2.0, V{3.0, 0.0, -1.0});
 	anim.emplace_back(0.0, V{-1.0, 0.0, -0.5});
 	anim.emplace_back(4.0, V{0.0, 0.0, 3.5});
-	EXPECT_TRUE(anim.get_transform(-5.0).isApprox(V{3.0, 0.0, -1.0}));
-	EXPECT_TRUE(anim.get_transform(-2.0).isApprox(V{3.0, 0.0, -1.0}));
-	EXPECT_TRUE(anim.get_transform(-1.0).isApprox(V{1.0, 0.0, -0.75}));
-	EXPECT_TRUE(anim.get_transform(0.0).isApprox(V{-1.0, 0.0, -0.5}));
-	EXPECT_TRUE(anim.get_transform(1.0).isApprox(V{-0.75, 0.0, 0.5}));
-	EXPECT_TRUE(anim.get_transform(4.0).isApprox(V{0.0, 0.0, 3.5}));
-	EXPECT_TRUE(anim.get_transform(8.0).isApprox(V{0.0, 0.0, 3.5}));
+	EXPECT_TRUE(anim.get_value(-5.0).isApprox(V{3.0, 0.0, -1.0}));
+	EXPECT_TRUE(anim.get_value(-2.0).isApprox(V{3.0, 0.0, -1.0}));
+	EXPECT_TRUE(anim.get_value(-1.0).isApprox(V{1.0, 0.0, -0.75}));
+	EXPECT_TRUE(anim.get_value(0.0).isApprox(V{-1.0, 0.0, -0.5}));
+	EXPECT_TRUE(anim.get_value(1.0).isApprox(V{-0.75, 0.0, 0.5}));
+	EXPECT_TRUE(anim.get_value(4.0).isApprox(V{0.0, 0.0, 3.5}));
+	EXPECT_TRUE(anim.get_value(8.0).isApprox(V{0.0, 0.0, 3.5}));
 }
 
 TEST_F(KeyframedAnimationTest, two_keys_rigid_transformation_2D)
@@ -158,7 +158,7 @@ TEST_F(KeyframedAnimationTest, two_keys_rigid_transformation_2D)
 	geometry::KeyframedAnimation<std::vector, double, RT> anim;
 	const auto& test_for = [&anim](double time, bool rot_aff_tra, Eigen::Isometry2d expected)
 	{
-		return anim.get_transform(time, identity_c, RT::interpolate)
+		return anim.get_value(time, identity_c, RT::interpolate)
 				.to_transform(rot_aff_tra).isApprox(expected);
 	};
 	Eigen::Rotation2Dd r0{-0.25}, r1{0.75}, rh{0.25};
@@ -189,7 +189,7 @@ TEST_F(KeyframedAnimationTest, two_keys_rigid_transformation_3D)
 	geometry::KeyframedAnimation<std::vector, double, RT> anim;
 	const auto& test_for = [&anim](double time, bool rot_aff_tra, Eigen::Isometry3d expected)
 	{
-		return anim.get_transform(time, identity_c, RT::interpolate)
+		return anim.get_value(time, identity_c, RT::interpolate)
 				.to_transform(rot_aff_tra).isApprox(expected);
 	};
 	auto r0 = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d{1, 0, 0}, Eigen::Vector3d{0, 1, 0});
@@ -222,7 +222,7 @@ TEST_F(KeyframedAnimationTest, two_keys_dq)
 	KeyframedAnimation<std::vector, double, DualQuaternion> anim;
 	const auto& test_for = [&anim](double time, DualQuaternion expected)
 	{
-		return anim.get_transform(time).isApprox(expected);
+		return anim.get_value(time).isApprox(expected);
 	};
 	auto r0 = Quaternion::FromTwoVectors(Vec3{1, 0, 0}, Vec3{0, 1, 0});
 	auto r1 = Quaternion::FromTwoVectors(Vec3{0, 0, -1}, Vec3{-1, 0, 0});
@@ -235,7 +235,7 @@ TEST_F(KeyframedAnimationTest, two_keys_dq)
 	anim.emplace_back(0.0, dq1);
 	EXPECT_TRUE(test_for(-5.0, dq0));
 	EXPECT_TRUE(test_for(-2.0, dq0));
-	EXPECT_TRUE(anim.get_transform(-1.0).rotation().normalized().isApprox(rh)); // (*)
+	EXPECT_TRUE(anim.get_value(-1.0).rotation().normalized().isApprox(rh)); // (*)
 	EXPECT_TRUE(test_for(0.0, dq1));
 	EXPECT_TRUE(test_for(1.0, dq1));
 	anim.clear();
@@ -246,7 +246,7 @@ TEST_F(KeyframedAnimationTest, two_keys_dq)
 	anim.emplace_back(0.0, dq1);
 	EXPECT_TRUE(test_for(-5.0, dq0));
 	EXPECT_TRUE(test_for(-2.0, dq0));
-	EXPECT_TRUE(anim.get_transform(-1.0).rotation().normalized().isApprox(rh)); // (*)
+	EXPECT_TRUE(anim.get_value(-1.0).rotation().normalized().isApprox(rh)); // (*)
 	EXPECT_TRUE(test_for(0.0, dq1));
 	EXPECT_TRUE(test_for(1.0, dq1));
 	// (*) by the nature of dual quaternions, the dual part is interpolated non-linearly,
@@ -259,9 +259,9 @@ TEST_F(KeyframedAnimationTest, sort)
 	anim.emplace_back(2.0, 1.0);
 	anim.emplace_back(-4.0, 0.0);
 	anim.sort(false);
-	EXPECT_TRUE(approx(anim.get_transform(-8.0), 0.0));
-	EXPECT_TRUE(approx(anim.get_transform(0.5), 0.75));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), 1.0));
+	EXPECT_TRUE(approx(anim.get_value(-8.0), 0.0));
+	EXPECT_TRUE(approx(anim.get_value(0.5), 0.75));
+	EXPECT_TRUE(approx(anim.get_value(8.0), 1.0));
 }
 
 TEST_F(KeyframedAnimationTest, sort_stable)
@@ -272,9 +272,9 @@ TEST_F(KeyframedAnimationTest, sort_stable)
 	anim.emplace_back(-4.0, 4.0); // expected to affect extrapolation
 	anim.emplace_back(-4.0, 0.0); // expected to affect interpolation
 	anim.sort(true);
-	EXPECT_TRUE(approx(anim.get_transform(-8.0), 4.0));
-	EXPECT_TRUE(approx(anim.get_transform(0.5), 0.75));
-	EXPECT_TRUE(approx(anim.get_transform(8.0), -4.0));
+	EXPECT_TRUE(approx(anim.get_value(-8.0), 4.0));
+	EXPECT_TRUE(approx(anim.get_value(0.5), 0.75));
+	EXPECT_TRUE(approx(anim.get_value(8.0), -4.0));
 }
 
 } // namespace cgogn

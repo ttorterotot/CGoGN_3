@@ -278,7 +278,7 @@ public:
 					geometry::RigidTransformation<R, T>>& anim,
 			TimeT time)
 	{
-		return anim.get_transform(time, identity_c, geometry::RigidTransformation<R, T>::interpolate);
+		return anim.get_value(time, identity_c, geometry::RigidTransformation<R, T>::interpolate);
 	}
 
 	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
@@ -286,10 +286,10 @@ public:
 			TimeT time, bool shortest_path = true)
 	{
 		if (!shortest_path)
-			return anim.get_transform(time).normalized();
+			return anim.get_value(time).normalized();
 
 		using DQ = geometry::DualQuaternion;
-		return anim.get_transform(time, identity_c,
+		return anim.get_value(time, identity_c,
 				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); })
 						.normalized();
 	}

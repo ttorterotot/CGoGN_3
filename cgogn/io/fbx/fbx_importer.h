@@ -32,6 +32,7 @@
 #include <cgogn/io/cgogn_io_export.h>
 
 #include <cgogn/core/types/animation/animation_skeleton.h>
+#include <cgogn/geometry/functions/bounding_box.h>
 #include <cgogn/io/surface/surface_import.h>
 
 namespace cgogn
@@ -158,6 +159,53 @@ public:
 private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
+private:
+	void load_surfaces(Map<std::string, Surface*>& surfaces, bool normalized)
+	{
+		using Vertex = typename mesh_traits<Surface>::Vertex;
+
+		for (const Model& m : models_)
+		{
+			if (m.type != ModelType::Mesh)
+				continue;
+
+			Surface* surface = new Surface{};
+			std::string name = m.name;
+			decltype(surfaces.try_emplace(m.name, surface).first) it;
+			bool inserted = false;
+
+			while (std::tie(it, inserted) = surfaces.try_emplace(name, surface), !inserted)
+				name += '_'; // disambiguate however we can
+
+			for (const auto& c : connections_oo_)
+			{
+				ObjectId other_id;
+				if (c.first == m.id)
+					other_id = c.second;
+				else if (c.second == m.id)
+					other_id = c.first;
+				else
+					continue;
+
+				const auto other_it = std::find_if(
+						geometries_.begin(), geometries_.end(),
+						[&](const Geometry& g){ return g.id == other_id; });
+
+				if (other_it == geometries_.end())
+					continue;
+
+				import_surface_data(*surface, other_it->data);
+
+				if (normalized)
+					if (auto attr = get_attribute<Vec3, Vertex>(*surface,
+							other_it->data.vertex_position_attribute_name_))
+						geometry::rescale(*attr, 1);
+			}
+
+			// TODO connections_op_
+		}
+	}
+
 public:
 	FbxImporter() = delete;
 
@@ -175,6 +223,9 @@ public:
 	{
 		FbxImporter importer{load_surfaces, load_skeletons};
 		importer.read(path);
+
+		if (load_surfaces)
+			importer.load_surfaces(surfaces, normalized);
 	}
 };
 

@@ -301,13 +301,121 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 // Reads an AnimationCurve subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 {
-	skip_node(is); // TODO
+	uint32 key_id, nb_keys = -1;
+	AnimationCurve curve{};
+	std::string subnode_key;
+	char c;
+
+	const auto on_size = [&](uint32 size){
+		cgogn_assert(nb_keys == -1 || nb_keys == size);
+		nb_keys = size;
+		curve.animation.reserve(nb_keys);
+	};
+
+	const auto get_keyframe = [&](const uint32& i) -> geometry::AnimationKeyframe<AnimTimeT, AnimScalar>& {
+		if (curve.animation.size() <= i)
+			curve.animation.resize(i + 1, {0.0, 0.0});
+		return curve.animation[i];
+	};
+
+	read_object_attributes(is, curve.id);
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			animation_curves_.push_back(std::move(curve));
+			return;
+		case ':':
+			key_id = 0;
+			if (subnode_key == "KeyTime"s)
+			{
+				if (read_array(is, on_size,
+				[&]{
+					uint64 time;
+					is >> time;
+					get_keyframe(key_id++).time_ = time * ANIM_TIME_RATIO;
+					return 1;
+				}))
+				{ cgogn_assert(key_id == nb_keys); }
+				else
+					std::cout << "Warning: invalid key times syntax" << std::endl;
+			}
+			else if (subnode_key == "KeyValueFloat"s)
+			{
+				if (read_array(is, on_size,
+				[&]{
+					FbxImporterBase::AnimScalar value;
+					is >> value;
+					get_keyframe(key_id++).value_ = value;
+					return 1;
+				}))
+				{ cgogn_assert(key_id == nb_keys); }
+				else
+					std::cout << "Warning: invalid key values syntax" << std::endl;
+			}
+			else
+				skip_value(is);
+			subnode_key.clear();
+			break;
+		case ';':
+			if (subnode_key.empty())
+				skip_through_character(is, '\n');
+			break;
+		default:
+			if (!std::isspace(c))
+				subnode_key += c;
+		}
+	}
+
+	std::cout << "Warning: invalid animation curve syntax" << std::endl;
 }
 
 // Reads an AnimationCurveNode subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_animation_curve_node_subnode(std::istream& is)
 {
-	skip_node(is); // TODO
+	AnimationCurveNode node{};
+	std::string subnode_key;
+	char c;
+
+	read_object_attributes(is, node.id);
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			animation_curve_nodes_.push_back(std::move(node));
+			return;
+		case ':':
+			if (subnode_key == "Properties70"s)
+				read_properties_70_subnode(is, node.properties);
+			else
+				skip_value(is);
+			subnode_key.clear();
+			break;
+		case ';':
+			if (subnode_key.empty())
+				skip_through_character(is, '\n');
+			break;
+		default:
+			if (!std::isspace(c))
+				subnode_key += c;
+		}
+	}
+
+	std::cout << "Warning: invalid animation curve node syntax" << std::endl;
 }
 
 void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,

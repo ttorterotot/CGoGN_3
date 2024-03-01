@@ -102,13 +102,18 @@ protected:
 
 	struct AnimationCurve
 	{
+		ObjectId id;
 		AnimationT animation;
 	};
 
 	struct AnimationCurveNode
 	{
+		ObjectId id;
 		Properties properties;
 	};
+
+private:
+	constexpr const static AnimTimeT ANIM_TIME_RATIO = 1e-9; // time is in ns
 
 protected:
 
@@ -151,6 +156,8 @@ private:
 protected:
 	std::vector<Model> models_;
 	std::vector<Geometry> geometries_;
+	std::vector<AnimationCurve> animation_curves_;
+	std::vector<AnimationCurveNode> animation_curve_nodes_;
 	std::vector<std::pair<ObjectId, ObjectId>> connections_oo_;
 	std::vector<std::tuple<ObjectId, ObjectId, std::string>> connections_op_;
 

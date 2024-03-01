@@ -48,7 +48,7 @@ void FbxImporterBase::read_root(std::istream& is)
 	std::string node_key;
 	char c;
 
-	node_key.reserve(64);
+	node_key.reserve(32);
 
 	while (is.get(c))
 	{
@@ -123,8 +123,6 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 	std::string type;
 	std::string subnode_key;
 	char c;
-
-	subnode_key.reserve(32);
 
 	enum Stage { START, NAME, NAME_TO_TYPE, TYPE, END };
 	int stage = START;

@@ -131,6 +131,8 @@ private:
 	void read_objects_deformer_subnode(std::istream& is);
 	void read_objects_animation_curve_subnode(std::istream& is);
 	void read_objects_animation_curve_node_subnode(std::istream& is);
+	void read_object_attributes(std::istream& is, ObjectId& id,
+			std::string* name = nullptr, std::string* type = nullptr);
 	void read_connections_node(std::istream& is);
 	void read_fbx_header_extension_node(std::istream& is);
 	void read_definitions_node(std::istream& is);

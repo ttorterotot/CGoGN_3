@@ -130,34 +130,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 	std::string subnode_key;
 	char c;
 
-	enum Stage { START, NAME, NAME_TO_TYPE, TYPE, END };
-	int stage = START;
-
-	is >> model.id;
-
-	while (stage < END && is.get(c))
-	{
-		switch (stage)
-		{
-		case START:
-		case NAME_TO_TYPE:
-			if (c == '"')
-				++stage;
-			break;
-		case NAME:
-			if (c == '"') // TODO handle escape sequences
-				++stage;
-			else
-				model.name += c;
-			break;
-		case TYPE:
-			if (c == '"') // TODO handle escape sequences
-				++stage;
-			else
-				type += c;
-			break;
-		}
-	}
+	read_object_attributes(is, model.id, &model.name, &type);
 
 	if (type == "Mesh"s)
 	{
@@ -178,7 +151,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		model.type = ModelType::LimbNode;
 	}
 
-	for (int depth = 0; stage == END && is.get(c);)
+	for (int depth = 0; is.get(c);)
 	{
 		switch (c)
 		{
@@ -222,40 +195,13 @@ void FbxImporterBase::read_objects_geometry_subnode(std::istream& is)
 
 	subnode_key.reserve(32);
 
-	enum Stage { START, NAME, NAME_TO_TYPE, TYPE, END };
-	int stage = START;
-
-	is >> geometry.id;
-
-	while (stage < END && is.get(c))
-	{
-		switch (stage)
-		{
-		case START:
-		case NAME_TO_TYPE:
-			if (c == '"')
-				++stage;
-			break;
-		case NAME:
-			if (c == '"') // TODO handle escape sequences
-				++stage;
-			else
-				geometry.name += c;
-			break;
-		case TYPE:
-			if (c == '"') // TODO handle escape sequences
-				++stage;
-			else
-				type += c;
-			break;
-		}
-	}
+	read_object_attributes(is, geometry.id, &geometry.name, &type);
 
 	if (type != "Mesh"s)
 		std::cout << "Warning: expected geometry of type Mesh for geometry " << geometry.name
 				<< " but got " << type << std::endl;
 
-	for (int depth = 0; stage == END && is.get(c);)
+	for (int depth = 0; is.get(c);)
 	{
 		switch (c)
 		{
@@ -438,6 +384,41 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 void FbxImporterBase::read_objects_animation_curve_node_subnode(std::istream& is)
 {
 	skip_node(is); // TODO
+}
+
+void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,
+		std::string* name, std::string* type)
+{
+	enum Stage { START, NAME, MIDDLE, TYPE, END };
+	int stage = START;
+	char c;
+
+	is >> id;
+
+	while (stage < END && is.get(c))
+	{
+		switch (stage)
+		{
+		case START:
+		case MIDDLE:
+			if (c == '"')
+				++stage;
+			break;
+		case NAME:
+			if (c == '"') // TODO handle escape sequences
+				++stage;
+			else if (name)
+				*name += c;
+			break;
+		case TYPE:
+			if (c == '"') // TODO handle escape sequences
+				++stage;
+			else if (type)
+				*type += c;
+			break;
+		}
+	}
+
 }
 
 // Reads a Connections node from past the declaring colon through its closing brace

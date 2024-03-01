@@ -101,8 +101,14 @@ void FbxImporterBase::read_objects_node(std::istream& is)
 				read_objects_model_subnode(is);
 			else if (subnode_key == "Geometry"s)
 				read_objects_geometry_subnode(is);
+			else if (subnode_key == "Deformer"s)
+				read_objects_deformer_subnode(is);
+			else if (subnode_key == "AnimationCurve"s)
+				read_objects_animation_curve_subnode(is);
+			else if (subnode_key == "AnimationCurveNode"s)
+				read_objects_animation_curve_node_subnode(is);
 			else
-				skip_value(is); // TODO
+				skip_value(is);
 			subnode_key.clear();
 			break;
 		case ';':
@@ -414,6 +420,24 @@ void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::is
 	}
 
 	std::cout << "Warning: invalid syntax for PolygonVertexIndex subnode" << std::endl;
+}
+
+// Reads a Deformer subnode (in an Objects node) from past the declaring colon through its closing brace
+void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
+{
+	skip_node(is); // TODO
+}
+
+// Reads an AnimationCurve subnode (in an Objects node) from past the declaring colon through its closing brace
+void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
+{
+	skip_node(is); // TODO
+}
+
+// Reads an AnimationCurveNode subnode (in an Objects node) from past the declaring colon through its closing brace
+void FbxImporterBase::read_objects_animation_curve_node_subnode(std::istream& is)
+{
+	skip_node(is); // TODO
 }
 
 // Reads a Connections node from past the declaring colon through its closing brace

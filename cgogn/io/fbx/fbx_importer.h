@@ -32,6 +32,7 @@
 #include <cgogn/io/cgogn_io_export.h>
 
 #include <cgogn/core/types/animation/animation_skeleton.h>
+#include <cgogn/geometry/types/animation/keyframed_animation.h>
 #include <cgogn/geometry/functions/bounding_box.h>
 #include <cgogn/io/surface/surface_import.h>
 
@@ -51,6 +52,9 @@ class FbxImporterBase
 protected:
 	using Skeleton = AnimationSkeleton;
 	using ObjectId = uint32;
+	using AnimTimeT = double;
+	using AnimScalar = Vec3::Scalar;
+	using AnimationT = geometry::KeyframedAnimation<std::vector, AnimTimeT, AnimScalar>;
 
 	enum class ModelType
 	{
@@ -96,6 +100,16 @@ protected:
 		SurfaceImportData data;
 	};
 
+	struct AnimationCurve
+	{
+		AnimationT animation;
+	};
+
+	struct AnimationCurveNode
+	{
+		Properties properties;
+	};
+
 protected:
 
 	inline FbxImporterBase(bool load_surfaces, bool load_skeletons)
@@ -114,6 +128,9 @@ private:
 	void read_objects_geometry_subnode(std::istream& is);
 	void read_objects_geometry_vertices_subnode(std::istream& is, SurfaceImportData& d);
 	void read_objects_geometry_polygon_vertex_index_subnode(std::istream& is, SurfaceImportData& d);
+	void read_objects_deformer_subnode(std::istream& is);
+	void read_objects_animation_curve_subnode(std::istream& is);
+	void read_objects_animation_curve_node_subnode(std::istream& is);
 	void read_connections_node(std::istream& is);
 	void read_fbx_header_extension_node(std::istream& is);
 	void read_definitions_node(std::istream& is);

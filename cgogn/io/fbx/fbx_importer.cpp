@@ -243,61 +243,27 @@ void FbxImporterBase::read_objects_geometry_vertices_subnode(std::istream& is, S
 {
 	Vec3 v = Vec3::Zero();
 	int coef = 0;
-	bool in_array = false;
-	char c, c_ = '\0';
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			cgogn_assert(d.nb_vertices_ == d.vertex_position_.size());
-			return;
-		case ':':
-			cgogn_assert(c_ == 'a' && depth == 1);
-			in_array = true;
-			c = '\0';
-			// Intentional fallthrough
-		case ',':
-			cgogn_assert(in_array);
-			is >> v[coef];
-			if (++coef == 3)
-			{
-				d.vertex_position_.push_back(v);
-				v = Vec3::Zero();
-				coef = 0;
-			}
-			break;
-		case ';':
-			cgogn_assert(c_ == '\0');
-			skip_through_character(is, '\n');
-			break;
-		case '\n':
-			if (depth == 1)
-				c = '\0'; // allow comment on new line inside braces
-			break;
-		default:
-			if (depth == 0)
-			{
-				if (c == '*')
+	if (read_array(is,
+			[&](uint32 size){
+				d.nb_vertices_ = size / 3; // number in the file is number of coefficients
+				d.vertex_position_.reserve(d.nb_vertices_);
+			},
+			[&]{
+				is >> v[coef];
+				if (++coef == 3)
 				{
-					is >> d.nb_vertices_;
-					d.nb_vertices_ /= 3; // number in the file is number of coefficients
-					d.vertex_position_.reserve(d.nb_vertices_);
+					d.vertex_position_.push_back(v);
+					v = Vec3::Zero();
+					coef = 0;
 				}
-			}
-			else if (!in_array && !std::isspace(c))
-				c_ = c;
-		}
+				return 1;
+			}))
+	{
+		cgogn_assert(d.nb_vertices_ == d.vertex_position_.size());
 	}
-
-	std::cout << "Warning: invalid syntax for Vertices subnode" << std::endl;
+	else
+		std::cout << "Warning: invalid syntax for Vertices subnode" << std::endl;
 }
 
 // Reads a PolygonVertexIndex subnode (inside a Geometry subnode in an Objects node)
@@ -305,29 +271,10 @@ void FbxImporterBase::read_objects_geometry_vertices_subnode(std::istream& is, S
 void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::istream& is, SurfaceImportData& d)
 {
 	int nb_vertices = 0;
-	bool in_array = false;
-	char c, c_ = '\0';
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			return;
-		case ':':
-			cgogn_assert(c_ == 'a' && depth == 1);
-			in_array = true;
-			c = '\0';
-			// Intentional fallthrough
-		case ',':
-			cgogn_assert(in_array);
-			{
+	if (!read_array(is,
+			[&](uint32 size){ d.faces_vertex_indices_.reserve(size); },
+			[&]{
 				int32 id;
 				is >> id;
 				if (id < 0)
@@ -340,32 +287,9 @@ void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::is
 				else
 					++nb_vertices;
 				d.faces_vertex_indices_.push_back(id);
-			}
-			break;
-		case ';':
-			cgogn_assert(c_ == '\0');
-			skip_through_character(is, '\n');
-			break;
-		case '\n':
-			if (depth == 1)
-				c = '\0'; // allow comment on new line inside braces
-			break;
-		default:
-			if (depth == 0)
-			{
-				if (c == '*')
-				{
-					uint32 nb_id;
-					is >> nb_id;
-					d.faces_vertex_indices_.reserve(nb_id);
-				}
-			}
-			else if (!in_array && !std::isspace(c))
-				c_ = c;
-		}
-	}
-
-	std::cout << "Warning: invalid syntax for PolygonVertexIndex subnode" << std::endl;
+				return 1;
+			}))
+		std::cout << "Warning: invalid syntax for PolygonVertexIndex subnode" << std::endl;
 }
 
 // Reads a Deformer subnode (in an Objects node) from past the declaring colon through its closing brace
@@ -638,6 +562,66 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 	}
 
 	skip_through_character(is, '\n');
+}
+
+// Reads an array subnode from past the declaring colon through its closing braces
+// `on_size` is provided with the number of scalars announced in the file
+// `read_values` should return the amount of scalars read (normally 1)
+// Returns whether the syntax was correct
+bool FbxImporterBase::read_array(std::istream& is,
+		std::function<void(uint32)> on_size, std::function<uint32()> read_values)
+{
+	bool in_array = false;
+	uint32 announced_size = -1, actual_size = 0;
+	char c, c_ = '\0';
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0); // no subnode
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			if (announced_size >= 0 && announced_size != actual_size)
+				std::cout << "Warning: expected size " << announced_size
+						<< " for array but it was actually of size " << actual_size << std::endl;
+			return true;
+		case ':':
+			cgogn_assert(c_ == 'a' && depth == 1);
+			in_array = true;
+			c = '\0';
+			// Intentional fallthrough
+		case ',':
+			cgogn_assert(in_array);
+			actual_size += read_values();
+			break;
+		case ';':
+			cgogn_assert(c_ == '\0');
+			skip_through_character(is, '\n');
+			break;
+		case '\n':
+			if (depth == 1)
+				c = '\0'; // allow comment on new line inside braces
+			break;
+		default:
+			if (depth == 0)
+			{
+				if (c == '*')
+				{
+					is >> announced_size;
+					on_size(announced_size);
+				}
+			}
+			else if (!in_array && !std::isspace(c))
+				c_ = c;
+		}
+	}
+
+	return false;
 }
 
 // Skips whitespace, reads an integer, and warns if it is not the expected value

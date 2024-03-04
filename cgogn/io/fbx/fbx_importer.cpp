@@ -90,6 +90,7 @@ void FbxImporterBase::read_objects_node(std::istream& is)
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':
@@ -156,6 +157,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':
@@ -206,6 +208,7 @@ void FbxImporterBase::read_objects_geometry_subnode(std::istream& is)
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':
@@ -325,6 +328,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':
@@ -391,6 +395,7 @@ void FbxImporterBase::read_objects_animation_curve_node_subnode(std::istream& is
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':
@@ -555,6 +560,7 @@ void FbxImporterBase::read_fbx_header_extension_node(std::istream& is)
 		switch (c)
 		{
 		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
 			++depth;
 			break;
 		case '}':

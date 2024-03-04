@@ -121,6 +121,8 @@ void FbxImporterBase::read_objects_node(std::istream& is)
 				subnode_key += c;
 		}
 	}
+
+	std::cout << "Warning: invalid syntax for Objects node" << std::endl;
 }
 
 // Reads a Model subnode (inside an Objects node) from past the declaring colon through its closing brace
@@ -455,7 +457,6 @@ void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,
 			break;
 		}
 	}
-
 }
 
 // Reads a Connections node from past the declaring colon through its closing brace

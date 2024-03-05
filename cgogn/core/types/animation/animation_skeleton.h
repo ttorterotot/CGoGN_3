@@ -24,6 +24,8 @@
 #ifndef CGOGN_CORE_TYPES_ANIMATION_SKELETON_H_
 #define CGOGN_CORE_TYPES_ANIMATION_SKELETON_H_
 
+#include <array>
+
 #include <cgogn/core/types/container/attribute_container.h>
 #include <cgogn/core/types/container/chunk_array.h>
 #include <cgogn/core/functions/mesh_info.h>

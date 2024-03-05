@@ -193,7 +193,7 @@ auto create_placeholder_weights(Surface& m, const AttributeS<Vec3>& positions)
 	cgogn::parallel_foreach_cell(m, [&](Vertex v)
 	{
 		const auto i = cgogn::index_of(m, v);
-		(*weight_indices)[i] = {0, 1, 2, -1};
+		(*weight_indices)[i] = {0, 1, -1, -1};
 		(*weight_values)[i] = {1.0 - positions[i].x(), positions[i].x(), 0.0, 0.0};
 		return true;
 	});

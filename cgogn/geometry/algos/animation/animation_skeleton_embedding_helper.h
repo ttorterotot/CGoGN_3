@@ -215,10 +215,10 @@ public:
 	/// @param world_transforms the bone world transform attribute to use as a buffer
 	/// @param positions the joint position attribute to use as a buffer
 	/// @return a pair of vectors representing the corner points of the bounding box
-	template <template <typename> typename ContainerU>
+	template <typename ContainerU>
 	[[nodiscard]]
 	static std::pair<Vec3, Vec3> compute_animation_bb(
-			const ContainerU<TimeT>& times,
+			const ContainerU& times,
 			const MESH& as,
 			const Attribute<AnimationT>& anims,
 			Attribute<TransformT>& local_transforms,

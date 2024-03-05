@@ -135,8 +135,8 @@ public:
 	/// @brief Computes the (ordered) set of keyframes' times across all animations.
 	/// @param anims the animation container to get keyframes from
 	/// @return the set of times of the animation
-	template <template <typename> typename ContainerOther>
-	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther<KeyframedAnimation>& anims)
+	template <typename ContainerOther>
+	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther& anims)
 	{
 		std::set<TimeT> res;
 
@@ -151,8 +151,8 @@ public:
 	/// @param anims the animation container to get keyframes from
 	/// @param prec the minimum distance from existing times that each new one has to be from to be added
 	/// @return the set of times of the animation
-	template <template <typename> typename ContainerOther>
-	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther<KeyframedAnimation>& anims, TimeT prec)
+	template <typename ContainerOther>
+	static std::set<TimeT> get_unique_keyframe_times(const ContainerOther& anims, TimeT prec)
 	{
 		std::set<TimeT> res{[&prec](const TimeT& a, const TimeT& b){ return a + prec < b; }};
 

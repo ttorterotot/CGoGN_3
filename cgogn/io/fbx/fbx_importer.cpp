@@ -312,7 +312,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 	char c;
 
 	const auto on_size = [&](uint32 size){
-		cgogn_assert(nb_keys == -1 || nb_keys == size);
+		cgogn_assert(nb_keys == -1 || static_cast<uint32>(nb_keys) == size);
 		nb_keys = size;
 		curve.animation.reserve(nb_keys);
 	};

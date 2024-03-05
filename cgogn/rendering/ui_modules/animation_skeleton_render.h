@@ -268,8 +268,8 @@ private:
 		std::vector<geometry::Vec3> normals;
 		for (const auto& transform : bone_transform)
 		{
-			geometry::Mat4 m = transform.to_transform_matrix();
-			normals.push_back(m.block<3, 1>(0, 1) / m(3, 3));
+			geometry::Mat4 transform_matrix = transform.to_transform_matrix();
+			normals.push_back(transform_matrix.block<3, 1>(0, 1) / transform_matrix(3, 3));
 		}
 		rendering::update_vbo(normals, p.bone_normal_vbo_.get());
 	}

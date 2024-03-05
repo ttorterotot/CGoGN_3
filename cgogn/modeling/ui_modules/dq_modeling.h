@@ -79,7 +79,7 @@ public:
 		q = DualQuaternion::lerp(DualQuaternion::identity(), q, t);
 		DualQuaternion qi{q};
 
-		for (int i = 0; i < positions.size(); i += 2)
+		for (size_t i = 0; i < positions.size(); i += 2)
 		{
 			qi.normalize();
 			positions[i] = qi.transform({0, 0, 0}); // helix (cumulative transforms)

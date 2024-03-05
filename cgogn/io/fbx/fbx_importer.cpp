@@ -306,7 +306,7 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 // Reads an AnimationCurve subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 {
-	uint32 key_id, nb_keys = -1;
+	int32 key_id, nb_keys = -1;
 	AnimationCurve curve{};
 	std::string subnode_key;
 	char c;
@@ -467,7 +467,7 @@ void FbxImporterBase::read_connections_node(std::istream& is)
 	std::string property_name;
 	bool expect_property = false;
 	bool in_quotes = false;
-	char c, c_;
+	char c, c_ = '\0';
 
 	for (int depth = 0; is.get(c);)
 	{
@@ -687,7 +687,7 @@ bool FbxImporterBase::read_array(std::istream& is,
 		std::function<void(uint32)> on_size, std::function<uint32()> read_values)
 {
 	bool in_array = false;
-	uint32 announced_size = -1, actual_size = 0;
+	int32 announced_size = -1, actual_size = 0;
 	char c, c_ = '\0';
 
 	for (int depth = 0; is.get(c);)

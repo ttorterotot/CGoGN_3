@@ -747,7 +747,7 @@ void FbxImporterBase::read_integer_and_warn_if_not_expected(std::istream& is,
 	std::string value_str = "<ERROR>";
 
 	if ((is >> value).fail())
-		value == -expected_value;
+		value = -expected_value;
 	else
 		value_str = std::to_string(value);
 

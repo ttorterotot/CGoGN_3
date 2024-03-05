@@ -58,7 +58,7 @@ protected:
 	using Bone = AnimationSkeleton::Bone;
 
 	template <typename T>
-	using AttributeSf = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
+	using AttributeSf = typename cgogn::mesh_traits<Mesh>::template Attribute<T>;
 
 	using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
 

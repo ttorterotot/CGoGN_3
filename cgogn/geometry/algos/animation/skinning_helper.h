@@ -41,7 +41,7 @@ private:
 	using Skeleton = AnimationSkeleton;
 
 	template <typename T>
-	using AttributeSf = typename cgogn::mesh_traits<Surface>::Attribute<T>;
+	using AttributeSf = typename cgogn::mesh_traits<Surface>::template Attribute<T>;
 
 	using Vertex = typename cgogn::mesh_traits<Surface>::Vertex;
 

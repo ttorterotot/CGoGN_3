@@ -429,15 +429,11 @@ private:
 			KA_DQ anim_dq; // DualQuaternion animation
 			KA_DQ anim_dq_b; // DualQuaternion bind pose
 
-			const auto& bone = m.bone;
-			const auto& anims = m.animation;
-			const auto& properties = m.properties;
-
 			// Get keyframe times
 			std::set<AnimTimeT> times;
 			{
 				std::vector<AnimationT> anim_copies;
-				for (const auto& anim : anims)
+				for (const auto& anim : m.animation)
 					if (anim)
 						anim_copies.push_back(*anim);
 				times = AnimationT::get_unique_keyframe_times(anim_copies);
@@ -446,12 +442,12 @@ private:
 			const auto& rotation_order = RotationOrder::XYZ;
 
 			const auto lcl_translation_value_d = [&](const size_t& index) {
-					return properties.lcl_translation()[index].value_or(0.0);
+					return m.properties.lcl_translation()[index].value_or(0.0);
 			};
 
-			auto pre_rotation = from_euler(properties.pre_rotation());
-			auto post_rotation = from_euler(properties.post_rotation());
-			auto lcl_rotation = from_euler(properties.lcl_rotation());
+			auto pre_rotation = from_euler(m.properties.pre_rotation());
+			auto post_rotation = from_euler(m.properties.post_rotation());
+			auto lcl_rotation = from_euler(m.properties.lcl_rotation());
 			auto total_lcl_rotation = pre_rotation * lcl_rotation * post_rotation;
 			Vec3 lcl_translation{lcl_translation_value_d(0), lcl_translation_value_d(1), lcl_translation_value_d(2)};
 
@@ -463,9 +459,10 @@ private:
 			for (const auto& time : times)
 			{
 				const auto has_component = [&](const size_t& offset){
-						return anims[offset] || anims[offset + 1] || anims[offset + 2]; };
+						return m.animation[offset] || m.animation[offset + 1] || m.animation[offset + 2]; };
 				const auto anim_value = [&](const size_t& index) -> std::optional<AnimScalar> {
-						return anims[index] ? anims[index]->get_value(time) : std::optional<AnimScalar>(); };
+						return m.animation[index] ?
+								m.animation[index]->get_value(time) : std::optional<AnimScalar>(); };
 
 				auto t = has_component(0) ?
 						Vec3{anim_value(0).value_or(0.0), anim_value(1).value_or(0.0), anim_value(2).value_or(0.0)} :
@@ -487,10 +484,10 @@ private:
 				anim_dq = anim_dq_b;
 			}
 
-			attr_anim_rt[bone] = anim_rt;
-			attr_anim_rt_b[bone] = anim_rt_b;
-			attr_anim_dq[bone] = anim_dq;
-			attr_anim_dq_b[bone] = anim_dq_b;
+			attr_anim_rt[m.bone] = anim_rt;
+			attr_anim_rt_b[m.bone] = anim_rt_b;
+			attr_anim_dq[m.bone] = anim_dq;
+			attr_anim_dq_b[m.bone] = anim_dq_b;
 		}
 
 		std::string name;

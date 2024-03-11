@@ -94,9 +94,16 @@ protected:
 		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return aod3_2_; }
 		inline constexpr std::array<std::optional<double>, 3>& lcl_rotation(){ return aod3_3_; }
 
+		inline constexpr const std::array<std::optional<double>, 3>& pre_rotation() const { return aod3_0_; }
+		inline constexpr const std::array<std::optional<double>, 3>& post_rotation() const { return aod3_1_; }
+		inline constexpr const std::array<std::optional<double>, 3>& lcl_translation() const { return aod3_2_; }
+		inline constexpr const std::array<std::optional<double>, 3>& lcl_rotation() const { return aod3_3_; }
+
 		// AnimationCurveNode
 
 		inline constexpr std::array<std::optional<double>, 3>& d(){ return aod3_0_; }
+
+		inline constexpr const std::array<std::optional<double>, 3>& d() const { return aod3_0_; }
 	};
 
 	struct Model
@@ -106,7 +113,7 @@ protected:
 		std::string name;
 		Properties properties;
 		Skeleton::Bone bone;
-		std::array<AnimationT*, 6> animation;
+		std::array<const AnimationT*, 6> animation;
 	};
 
 	struct Geometry
@@ -309,14 +316,10 @@ private:
 		Skeleton* skeleton = new Skeleton{};
 
 		for (Model& m : models_)
-		{
-			if (m.type != ModelType::LimbNode)
-				continue;
+			if (m.type == ModelType::LimbNode)
+				m.bone = add_root(*skeleton);
 
-			m.bone = add_root(*skeleton);
-		}
-
-		for (Model& m : models_)
+		for (const Model& m : models_)
 		{
 			if (m.type != ModelType::LimbNode)
 				continue;
@@ -326,10 +329,10 @@ private:
 			if (parent_id == INVALID_INDEX)
 				continue;
 
-			const auto parent_model_it = std::find_if(models_.begin(), models_.end(),
+			const auto parent_model_it = std::find_if(models_.cbegin(), models_.cend(),
 					[&](const Model& parent) { return parent.id == parent_id; });
 
-			if (parent_model_it != models_.end())
+			if (parent_model_it != models_.cend())
 			{
 				cgogn_assert(parent_model_it->type == ModelType::LimbNode);
 				attach_bone(*skeleton, m.bone, parent_model_it->bone);
@@ -366,10 +369,10 @@ private:
 				if (curve_node_id != curve_node_id_)
 					continue;
 
-				const auto curve_it = std::find_if(animation_curves_.begin(), animation_curves_.end(),
+				const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
 						[&](const AnimationCurve& curve){ return curve.id == curve_id; });
 
-				if (curve_it == animation_curves_.end())
+				if (curve_it == animation_curves_.cend())
 					continue;
 
 				// Compare node value with curve default (*)
@@ -416,7 +419,7 @@ private:
 		auto& attr_anim_dq = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ placeholder name");
 		auto& attr_anim_dq_b = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ binding placeholder name");
 
-		for (Model& m : models_)
+		for (const Model& m : models_)
 		{
 			if (m.type != ModelType::LimbNode)
 				continue;
@@ -428,7 +431,7 @@ private:
 
 			const auto& bone = m.bone;
 			const auto& anims = m.animation;
-			auto& properties = m.properties;
+			const auto& properties = m.properties;
 
 			// Get keyframe times
 			std::set<AnimTimeT> times;

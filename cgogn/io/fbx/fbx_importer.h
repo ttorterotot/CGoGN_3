@@ -114,7 +114,7 @@ protected:
 	};
 
 private:
-	constexpr const static AnimTimeT ANIM_TIME_RATIO = 1e-9; // time is in ns
+	constexpr const static AnimTimeT ANIM_TIME_RATIO = 5e-11; // 0.05ns (eyeballed)
 
 protected:
 

@@ -103,6 +103,7 @@ protected:
 	struct AnimationCurve
 	{
 		ObjectId id;
+		AnimScalar default_value;
 		AnimationT animation;
 	};
 

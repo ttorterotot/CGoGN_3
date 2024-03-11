@@ -366,6 +366,8 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 				else
 					std::cout << "Warning: invalid key values syntax" << std::endl;
 			}
+			else if (subnode_key == "Default"s)
+				is >> curve.default_value;
 			else
 				skip_value(is);
 			subnode_key.clear();

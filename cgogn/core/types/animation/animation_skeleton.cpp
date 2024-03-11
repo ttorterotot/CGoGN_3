@@ -64,7 +64,8 @@ AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, const Animatio
 
 	const bool& is_root = parent == INVALID_INDEX;
 
-	cgogn_assert(is_root || parent < as.nb_bones());
+	cgogn_assert(is_root || std::find(as.bone_traverser_.cbegin(), as.bone_traverser_.cend(), parent)
+			!= as.bone_traverser_.cend());
 
 	Joint first_joint = is_root ? add_cell<Joint>(as) : (*as.bone_joints_)[parent].second;
 	Joint second_joint = add_cell<Joint>(as);

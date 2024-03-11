@@ -182,6 +182,8 @@ AnimationSkeleton::Bone add_root(AnimationSkeleton& as, std::string&& name);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, const std::string& name);
 AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, std::string&& name);
+void attach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone, const AnimationSkeleton::Bone& new_parent);
+void detach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint);
 AnimationSkeleton::Joint get_base_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
@@ -202,6 +204,12 @@ template <typename CELL>
 CELL add_cell(AnimationSkeleton& as)
 {
 	return as.attribute_containers_[CELL::CELL_INDEX].new_index();
+}
+
+template <typename CELL>
+void remove_cell(AnimationSkeleton& as, CELL c)
+{
+	as.attribute_containers_[CELL::CELL_INDEX].release_index(c.index_);
 }
 
 /*************************************************************************/

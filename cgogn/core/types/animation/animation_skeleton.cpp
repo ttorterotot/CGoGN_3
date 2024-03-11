@@ -111,6 +111,120 @@ AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton:
 	return bone;
 }
 
+bool _internal_check_parent_candidate_not_in_descendants(AnimationSkeleton& as,
+		const AnimationSkeleton::Bone& bone, AnimationSkeleton::Bone parent_candidate)
+{
+	do
+	{
+		if (bone == parent_candidate)
+			return false;
+	} while ((parent_candidate = (*as.bone_parent_)[parent_candidate]) != INVALID_INDEX);
+
+	return true;
+}
+
+void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
+		size_t child_i, size_t parent_i)
+{
+	if (child_i > parent_i) // child is already after parent in traverser
+		return;
+
+	cgogn_assert(child_i != parent_i); // redundancy for caller's checks
+	cgogn_message_assert(0 <= child_i && parent_i < as.nb_bones(),
+			"Iterator difference assertions broken: does bone_traverser_ still provide a random access iterator?");
+
+	// Determine which elements from the child to the parent
+	// are descendants of the parent and should be shifted after it
+
+	auto parent = as.bone_traverser_[parent_i];
+	auto search_begin = as.bone_traverser_.cbegin() + child_i;
+	auto search_end = as.bone_traverser_.cbegin() + parent_i;
+
+	auto offset = parent_i - child_i;
+	std::vector<bool> is_descendant(offset + 1); // +1 so parent can be read as non-descendant in R/W loop
+	std::vector<AnimationSkeleton::Bone> descendants;
+	descendants.reserve(offset / 2 + 1); // guesstimating that half the bones are descendants
+
+	is_descendant[0] = true; // child_i should be after parent
+	descendants.push_back(as.bone_traverser_[child_i]);
+
+	for (auto i = 1; i < offset; ++i)
+	{
+		auto p = (*as.bone_parent_)[as.bone_traverser_[child_i + i]];
+
+		if (p != parent)
+		{
+			auto p_i = std::find(search_begin, search_end, p);
+			if (p_i == search_end || !is_descendant[p_i - search_begin])
+				return;
+		}
+
+		if (descendants.size() == descendants.capacity()) // guess was wrong, just double the size
+			descendants.reserve(offset);
+
+		is_descendant[i] = true;
+		descendants.push_back(std::move(as.bone_traverser_[child_i + i]));
+	}
+
+	for (auto r = 1, w = 0;; ++r, ++w)
+	{
+		cgogn_assert(w < r);
+
+		while (r <= offset && is_descendant[r])
+			++r;
+
+		if (r > offset)
+			break;
+
+		as.bone_traverser_[child_i + w] = as.bone_traverser_[child_i + r];
+	}
+
+	{
+		auto i = parent_i - descendants.size();
+		for (auto d : descendants)
+			as.bone_traverser_[++i] = d;
+	}
+}
+
+void attach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone, const AnimationSkeleton::Bone& new_parent)
+{
+	if (new_parent == INVALID_INDEX)
+	{
+		detach_bone(as, bone);
+		return;
+	}
+
+	cgogn_assert(_internal_check_parent_candidate_not_in_descendants(as, bone, new_parent));
+	cgogn_assert(std::find(as.bone_traverser_.cbegin(), as.bone_traverser_.cend(), new_parent)
+			!= as.bone_traverser_.cend());
+
+	auto& parent = (*as.bone_parent_)[bone];
+	auto& joints = (*as.bone_joints_)[bone];
+
+	if (parent == new_parent)
+		return;
+
+	parent = new_parent;
+	remove_cell(as, joints.first);
+	joints.first = (*as.bone_joints_)[new_parent].second;
+
+	const auto& cb = as.bone_traverser_.cbegin();
+	_internal_ensure_bone_traverser_order(as,
+			std::find(cb, as.bone_traverser_.cend(), bone) - cb,
+			std::find(cb, as.bone_traverser_.cend(), new_parent) - cb);
+}
+
+void detach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone)
+{
+	auto& parent = (*as.bone_parent_)[bone];
+
+	if (parent == INVALID_INDEX)
+		return;
+
+	parent = INVALID_INDEX;
+	(*as.bone_joints_)[bone].first = add_cell<AnimationSkeleton::Joint>(as);
+}
+
 AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint)
 {
 	cgogn_assert(as.nb_bones() > 0);

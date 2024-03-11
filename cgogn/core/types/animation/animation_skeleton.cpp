@@ -45,7 +45,7 @@ bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone)
 }
 
 AnimationSkeleton::Bone add_bone_from_existing_joints(
-		AnimationSkeleton& as, AnimationSkeleton::Bone parent,
+		AnimationSkeleton& as, const AnimationSkeleton::Bone& parent,
 		std::pair<AnimationSkeleton::Joint, AnimationSkeleton::Joint> joints)
 {
 	AnimationSkeleton::Bone bone = add_cell<AnimationSkeleton::Bone>(as);
@@ -58,10 +58,9 @@ AnimationSkeleton::Bone add_bone_from_existing_joints(
 	return bone;
 }
 
-AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent)
+AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent)
 {
 	using Joint = AnimationSkeleton::Joint;
-	using Bone = AnimationSkeleton::Bone;
 
 	const bool& is_root = parent == INVALID_INDEX;
 
@@ -92,19 +91,19 @@ AnimationSkeleton::Bone add_root(AnimationSkeleton& as, std::string&& name)
 	return bone;
 }
 
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent)
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent)
 {
 	return _internal_add_bone(as, parent);
 }
 
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, const std::string& name)
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, const std::string& name)
 {
 	auto bone = add_bone(as, parent);
 	(*as.bone_name_)[bone] = name;
 	return bone;
 }
 
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, std::string&& name)
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, std::string&& name)
 {
 	auto bone = add_bone(as, parent);
 	(*as.bone_name_)[bone] = std::move(name);

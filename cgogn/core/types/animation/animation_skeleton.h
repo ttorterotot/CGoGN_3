@@ -179,9 +179,9 @@ bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as, const std::string& name);
 AnimationSkeleton::Bone add_root(AnimationSkeleton& as, std::string&& name);
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent);
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, const std::string& name);
-AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, AnimationSkeleton::Bone parent, std::string&& name);
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent);
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, const std::string& name);
+AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent, std::string&& name);
 AnimationSkeleton::Bone get_parent_bone(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint);
 AnimationSkeleton::Joint get_base_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
 AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone);
@@ -189,7 +189,7 @@ AnimationSkeleton::Joint get_tip_joint(const AnimationSkeleton& as, const Animat
 /// @brief Adds a bone with joints that have already been created.
 /// Useful internally and for structure-aware functions e.g. `import_from_graph`.
 /// Does not check for topological validity, in normal circumstances use `add_root` and `add_bone` instead.
-AnimationSkeleton::Bone add_bone_from_existing_joints(AnimationSkeleton& as, AnimationSkeleton::Bone parent,
+AnimationSkeleton::Bone add_bone_from_existing_joints(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent,
 		std::pair<AnimationSkeleton::Joint, AnimationSkeleton::Joint> joints);
 
 void copy(AnimationSkeleton& dst, const AnimationSkeleton& src);

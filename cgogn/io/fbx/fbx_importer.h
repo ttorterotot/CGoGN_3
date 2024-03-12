@@ -262,58 +262,10 @@ private:
 		return res;
 	}
 
-	void load_surfaces(Map<std::string, Surface*>& surfaces, bool normalized)
+	void load_bones(Skeleton& skeleton)
 	{
-		using Vertex = typename mesh_traits<Surface>::Vertex;
-
-		for (const MeshModel& m : models_mesh_)
-		{
-			Surface* surface = new Surface{};
-			std::string name = m.name;
-			decltype(surfaces.try_emplace(m.name, surface).first) it;
-			bool inserted = false;
-
-			while (std::tie(it, inserted) = surfaces.try_emplace(name, surface), !inserted)
-				name += '_'; // disambiguate however we can
-
-			for (const auto& c : connections_oo_)
-			{
-				ObjectId other_id;
-				if (c.first == m.id)
-					other_id = c.second;
-				else if (c.second == m.id)
-					other_id = c.first;
-				else
-					continue;
-
-				const auto other_it = std::find_if(
-						geometries_.begin(), geometries_.end(),
-						[&](const Geometry& g){ return g.id == other_id; });
-
-				if (other_it == geometries_.end())
-					continue;
-
-				import_surface_data(*surface, other_it->data);
-
-				if (normalized)
-					if (auto attr = get_attribute<Vec3, Vertex>(*surface,
-							other_it->data.vertex_position_attribute_name_))
-						geometry::rescale(*attr, 1);
-			}
-
-			// TODO connections_op_
-		}
-	}
-
-	void load_skeletons(Map<std::string, Skeleton*>& skeletons)
-	{
-		if (models_limb_node_.empty())
-			return;
-
-		Skeleton* skeleton = new Skeleton{};
-
 		for (LimbNodeModel& m : models_limb_node_)
-			m.bone = add_root(*skeleton);
+			m.bone = add_root(skeleton);
 
 		for (const LimbNodeModel& m : models_limb_node_)
 		{
@@ -326,12 +278,12 @@ private:
 					[&](const Model& parent) { return parent.id == parent_id; });
 
 			if (parent_model_it != models_limb_node_.cend())
-				attach_bone(*skeleton, m.bone, parent_model_it->bone);
+				attach_bone(skeleton, m.bone, parent_model_it->bone);
 		}
+	}
 
-		// Handle bone animations
-		// TODO: handling multiple animations in the same file (layers?)
-
+	void associate_animations_to_bones()
+	{
 		for (const auto& c : connections_op_)
 		{
 			// Get bone's animation curve node and targeted property
@@ -396,18 +348,25 @@ private:
 
 			// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
 		}
+	}
 
+	void load_animations(Skeleton& skeleton)
+	{
 		using RT = geometry::RigidTransformation<geometry::Quaternion, Vec3>;
 		using KA_RT = geometry::KeyframedAnimation<std::vector, AnimTimeT, RT>;
 		using KA_DQ = geometry::KeyframedAnimation<std::vector, AnimTimeT, geometry::DualQuaternion>;
 
-		add_attribute<Vec3, Skeleton::Joint>(*skeleton, "position");
+		// TODO: handling multiple animations in the same file (layers?)
+
+		associate_animations_to_bones();
+
+		add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
 		// TODO improve names (e.g. using file name) and handle collisions
 		// (expecting segfault on second import from returned nullptr due to name already being taken)
-		auto& attr_anim_rt = *add_attribute<KA_RT, Skeleton::Bone>(*skeleton, "TODO RT placeholder name");
-		auto& attr_anim_rt_b = *add_attribute<KA_RT, Skeleton::Bone>(*skeleton, "TODO RT binding placeholder name");
-		auto& attr_anim_dq = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ placeholder name");
-		auto& attr_anim_dq_b = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ binding placeholder name");
+		auto& attr_anim_rt = *add_attribute<KA_RT, Skeleton::Bone>(skeleton, "TODO RT placeholder name");
+		auto& attr_anim_rt_b = *add_attribute<KA_RT, Skeleton::Bone>(skeleton, "TODO RT binding placeholder name");
+		auto& attr_anim_dq = *add_attribute<KA_DQ, Skeleton::Bone>(skeleton, "TODO DQ placeholder name");
+		auto& attr_anim_dq_b = *add_attribute<KA_DQ, Skeleton::Bone>(skeleton, "TODO DQ binding placeholder name");
 
 		for (const LimbNodeModel& m : models_limb_node_)
 		{
@@ -476,6 +435,60 @@ private:
 			attr_anim_dq[m.bone] = anim_dq;
 			attr_anim_dq_b[m.bone] = anim_dq_b;
 		}
+	}
+
+	void load_surfaces(Map<std::string, Surface*>& surfaces, bool normalized)
+	{
+		using Vertex = typename mesh_traits<Surface>::Vertex;
+
+		for (const MeshModel& m : models_mesh_)
+		{
+			Surface* surface = new Surface{};
+			std::string name = m.name;
+			decltype(surfaces.try_emplace(m.name, surface).first) it;
+			bool inserted = false;
+
+			while (std::tie(it, inserted) = surfaces.try_emplace(name, surface), !inserted)
+				name += '_'; // disambiguate however we can
+
+			for (const auto& c : connections_oo_)
+			{
+				ObjectId other_id;
+				if (c.first == m.id)
+					other_id = c.second;
+				else if (c.second == m.id)
+					other_id = c.first;
+				else
+					continue;
+
+				const auto other_it = std::find_if(
+						geometries_.begin(), geometries_.end(),
+						[&](const Geometry& g){ return g.id == other_id; });
+
+				if (other_it == geometries_.end())
+					continue;
+
+				import_surface_data(*surface, other_it->data);
+
+				if (normalized)
+					if (auto attr = get_attribute<Vec3, Vertex>(*surface,
+							other_it->data.vertex_position_attribute_name_))
+						geometry::rescale(*attr, 1);
+			}
+
+			// TODO connections_op_
+		}
+	}
+
+	void load_skeletons(Map<std::string, Skeleton*>& skeletons)
+	{
+		if (models_limb_node_.empty())
+			return;
+
+		Skeleton* skeleton = new Skeleton{};
+
+		load_bones(*skeleton);
+		load_animations(*skeleton);
 
 		std::string name;
 		bool inserted = false;

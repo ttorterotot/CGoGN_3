@@ -34,7 +34,7 @@ using DualQuaternion = geometry::DualQuaternion;
 class DualQuaternionTest : public ::testing::Test
 {
 public:
-	constexpr static geometry::Scalar prec = Eigen::NumTraits<geometry::Scalar>::dummy_precision();
+	static constexpr const geometry::Scalar prec = Eigen::NumTraits<geometry::Scalar>::dummy_precision();
 };
 
 // Test if DualQuaternion::identity is indeed the identity DQ

@@ -149,7 +149,7 @@ protected:
 	};
 
 private:
-	constexpr const static AnimTimeT ANIM_TIME_RATIO = 5e-11; // 0.05ns (eyeballed)
+	static constexpr const AnimTimeT ANIM_TIME_RATIO = 5e-11; // 0.05ns (eyeballed)
 
 protected:
 
@@ -219,7 +219,7 @@ private:
 	std::istream& skip_through_character(std::istream& is, char c);
 
 	template <typename T, size_t Size>
-	constexpr static std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
+	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
 
 protected:
 	std::vector<MeshModel> models_mesh_;

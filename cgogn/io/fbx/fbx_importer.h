@@ -257,6 +257,23 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	template <typename T>
+	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
+	{
+		std::string name = candidate_name;
+
+		// Ensure name uniqueness
+		for (size_t i = 0;
+				get_attribute<T, Skeleton::Bone>(skeleton, name)
+						|| get_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+				name = candidate_name + std::to_string(i++));
+
+		auto& bind_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+		auto& anim_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name);
+
+		return std::make_pair(std::ref(bind_attr), std::ref(anim_attr));
+	}
+
 	void load_bones(Skeleton& skeleton)
 	{
 		for (LimbNodeModel& m : models_limb_node_)
@@ -356,12 +373,8 @@ private:
 		associate_animations_to_bones();
 
 		add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
-		// TODO improve names (e.g. using file name) and handle collisions
-		// (expecting segfault on second import from returned nullptr due to name already being taken)
-		auto& attr_anim_rt = *add_attribute<KA_RT, Skeleton::Bone>(skeleton, "TODO RT placeholder name");
-		auto& attr_anim_rt_b = *add_attribute<KA_RT, Skeleton::Bone>(skeleton, "TODO RT binding placeholder name");
-		auto& attr_anim_dq = *add_attribute<KA_DQ, Skeleton::Bone>(skeleton, "TODO DQ placeholder name");
-		auto& attr_anim_dq_b = *add_attribute<KA_DQ, Skeleton::Bone>(skeleton, "TODO DQ binding placeholder name");
+		auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
+		auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
 
 		for (const LimbNodeModel& m : models_limb_node_)
 		{

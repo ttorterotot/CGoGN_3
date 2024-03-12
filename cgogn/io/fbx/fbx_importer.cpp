@@ -809,13 +809,13 @@ std::istream& FbxImporterBase::skip_through_character(std::istream& is, char c)
 	return is.ignore(std::numeric_limits<std::streamsize>::max(), c);
 }
 
-FbxImporterBase::ObjectId FbxImporterBase::get_parent_id(const ObjectId& child_id)
+FbxImporterBase::ObjectId FbxImporterBase::get_parent_id(const ObjectId& child_id) const
 {
 	const auto parent_connection_it =
 		std::find_if(connections_oo_.cbegin(), connections_oo_.cend(),
 				[=](const std::pair<ObjectId, ObjectId>& c) { return c.first == child_id; });
 
-	return parent_connection_it != connections_oo_.end() ? parent_connection_it->second : INVALID_INDEX;
+	return parent_connection_it != connections_oo_.cend() ? parent_connection_it->second : INVALID_INDEX;
 }
 
 } // namespace io

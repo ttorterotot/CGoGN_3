@@ -150,7 +150,7 @@ protected:
 	/// @param path the file path to open
 	void read(const std::string& path);
 
-	ObjectId get_parent_id(const ObjectId& child_id);
+	ObjectId get_parent_id(const ObjectId& child_id) const;
 
 	/// @brief Sets missing values for a property in `p` from `other_values`
 	/// @param p the property to fill (existing values take priority over those from `other_values`)

@@ -70,13 +70,6 @@ protected:
 	using AnimScalar = Vec3::Scalar;
 	using AnimationT = geometry::KeyframedAnimation<std::vector, AnimTimeT, AnimScalar>;
 
-	enum class ModelType
-	{
-		None,
-		Mesh,
-		LimbNode,
-	};
-
 	class Properties
 	{
 	private:
@@ -109,9 +102,16 @@ protected:
 	struct Model
 	{
 		ObjectId id;
-		ModelType type;
 		std::string name;
 		Properties properties;
+	};
+
+	struct MeshModel : public Model
+	{
+	};
+
+	struct LimbNodeModel : public Model
+	{
 		Skeleton::Bone bone;
 		std::array<const AnimationT*, 6> animation;
 	};
@@ -207,7 +207,8 @@ private:
 	constexpr static std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
 
 protected:
-	std::vector<Model> models_;
+	std::vector<MeshModel> models_mesh_;
+	std::vector<LimbNodeModel> models_limb_node_;
 	std::vector<Geometry> geometries_;
 	std::vector<AnimationCurve> animation_curves_;
 	std::vector<AnimationCurveNode> animation_curve_nodes_;
@@ -265,11 +266,8 @@ private:
 	{
 		using Vertex = typename mesh_traits<Surface>::Vertex;
 
-		for (const Model& m : models_)
+		for (const MeshModel& m : models_mesh_)
 		{
-			if (m.type != ModelType::Mesh)
-				continue;
-
 			Surface* surface = new Surface{};
 			std::string name = m.name;
 			decltype(surfaces.try_emplace(m.name, surface).first) it;
@@ -309,34 +307,26 @@ private:
 
 	void load_skeletons(Map<std::string, Skeleton*>& skeletons)
 	{
-		if (std::find_if(models_.cbegin(), models_.cend(),
-				[](const Model& m) { return m.type == ModelType::LimbNode; }) == models_.cend())
+		if (models_limb_node_.empty())
 			return;
 
 		Skeleton* skeleton = new Skeleton{};
 
-		for (Model& m : models_)
-			if (m.type == ModelType::LimbNode)
-				m.bone = add_root(*skeleton);
+		for (LimbNodeModel& m : models_limb_node_)
+			m.bone = add_root(*skeleton);
 
-		for (const Model& m : models_)
+		for (const LimbNodeModel& m : models_limb_node_)
 		{
-			if (m.type != ModelType::LimbNode)
-				continue;
-
 			const ObjectId& parent_id = get_parent_id(m.id);
 
 			if (parent_id == INVALID_INDEX)
 				continue;
 
-			const auto parent_model_it = std::find_if(models_.cbegin(), models_.cend(),
+			const auto parent_model_it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
 					[&](const Model& parent) { return parent.id == parent_id; });
 
-			if (parent_model_it != models_.cend())
-			{
-				cgogn_assert(parent_model_it->type == ModelType::LimbNode);
+			if (parent_model_it != models_limb_node_.cend())
 				attach_bone(*skeleton, m.bone, parent_model_it->bone);
-			}
 		}
 
 		// Handle bone animations
@@ -348,10 +338,10 @@ private:
 
 			const auto& [curve_node_id, model_id, property_name] = c;
 
-			const auto model_it = std::find_if(models_.begin(), models_.end(),
-					[&](const Model& model){ return model.id == model_id; });
+			const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
+					[&](const LimbNodeModel& model){ return model.id == model_id; });
 
-			if (model_it == models_.end())
+			if (model_it == models_limb_node_.end())
 				continue;
 
 			const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
@@ -419,11 +409,8 @@ private:
 		auto& attr_anim_dq = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ placeholder name");
 		auto& attr_anim_dq_b = *add_attribute<KA_DQ, Skeleton::Bone>(*skeleton, "TODO DQ binding placeholder name");
 
-		for (const Model& m : models_)
+		for (const LimbNodeModel& m : models_limb_node_)
 		{
-			if (m.type != ModelType::LimbNode)
-				continue;
-
 			KA_RT anim_rt; // RigidTransformation animation
 			KA_RT anim_rt_b; // RigidTransformation bind pose
 			KA_DQ anim_dq; // DualQuaternion animation

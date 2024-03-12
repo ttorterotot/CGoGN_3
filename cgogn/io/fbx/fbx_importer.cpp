@@ -21,6 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
+#include <variant>
+
 #include <cgogn/io/utils.h>
 #include <cgogn/io/fbx/fbx_importer.h>
 
@@ -128,12 +130,13 @@ void FbxImporterBase::read_objects_node(std::istream& is)
 // Reads a Model subnode (inside an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 {
-	Model model{};
+	std::variant<Model, MeshModel, LimbNodeModel> model_variant{}; // default-constructed to the Model type
+	auto* model = std::get_if<Model>(&model_variant); // necessarily non-null because we know that variant is assigned
 	std::string type;
 	std::string subnode_key;
 	char c;
 
-	read_object_attributes(is, model.id, &model.name, &type);
+	read_object_attributes(is, model->id, &model->name, &type);
 
 	if (type == "Mesh"s)
 	{
@@ -142,7 +145,8 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 			skip_node(is);
 			return;
 		}
-		model.type = ModelType::Mesh;
+		model_variant = MeshModel{*model};
+		model = std::get_if<MeshModel>(&model_variant);
 	}
 	else if (type == "LimbNode"s)
 	{
@@ -151,7 +155,8 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 			skip_node(is);
 			return;
 		}
-		model.type = ModelType::LimbNode;
+		model_variant = LimbNodeModel{*model};
+		model = std::get_if<LimbNodeModel>(&model_variant);
 	}
 
 	for (int depth = 0; is.get(c);)
@@ -165,13 +170,18 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		case '}':
 			--depth;
 			cgogn_assert(depth == 0);
-			models_.push_back(std::move(model));
+			if (auto* m = std::get_if<LimbNodeModel>(&model_variant))
+				models_limb_node_.push_back(std::move(*m));
+			else if (auto* m = std::get_if<MeshModel>(&model_variant))
+				models_mesh_.push_back(std::move(*m));
+			// Other model types are ignored because we don't have a use for them yet
+			// It would simply be a matter of having a vector of plain models to push to
 			return;
 		case ':':
 			if (subnode_key == "Version"s)
 				read_integer_and_warn_if_not_expected(is, "model version", 232);
 			else if (subnode_key == "Properties70"s)
-				read_properties_70_subnode(is, model.properties);
+				read_properties_70_subnode(is, model->properties);
 			else
 				skip_value(is);
 			subnode_key.clear();
@@ -186,7 +196,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		}
 	}
 
-	std::cout << "Warning: invalid syntax for model " << model.name << std::endl;
+	std::cout << "Warning: invalid syntax for model " << model->name << std::endl;
 }
 
 // Reads a Geometry subnode (inside an Objects node) from past the declaring colon through its closing brace

@@ -818,6 +818,62 @@ FbxImporterBase::ObjectId FbxImporterBase::get_parent_id(const ObjectId& child_i
 	return parent_connection_it != connections_oo_.cend() ? parent_connection_it->second : INVALID_INDEX;
 }
 
+geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<double>, 3>& xyz,
+		const RotationOrder& rotation_order)
+{
+	static const std::array<Vec3, 3> axes = {Vec3{1, 0, 0}, Vec3{0, 1, 0}, Vec3{0, 0, 1}};
+
+	auto res = geometry::Quaternion::Identity();
+	size_t ro = rotation_order;
+
+	for (int i = 0; i < 3; ++i)
+	{
+		size_t axis = ro % RotationOrder::Base;
+		ro /= RotationOrder::Base;
+
+		if (xyz[axis])
+			res = Eigen::AngleAxis<geometry::Quaternion::Scalar>(M_PI / 180.0 * xyz[axis].value(), axes[axis])
+					* res;
+	}
+
+	return res;
+}
+
+bool FbxImporterBase::LimbNodeModel::has_component(const size_t& offset) const
+{
+	return animation[offset] || animation[offset + 1] || animation[offset + 2];
+}
+
+bool FbxImporterBase::LimbNodeModel::has_translation() const { return has_component(0); }
+bool FbxImporterBase::LimbNodeModel::has_rotation() const { return has_component(3); }
+
+std::optional<FbxImporterBase::AnimScalar> FbxImporterBase::LimbNodeModel::get_value(
+		const size_t& index, const AnimTimeT& time) const
+{
+	return animation[index] ? animation[index]->get_value(time) : std::optional<AnimScalar>();
+}
+
+Vec3 FbxImporterBase::LimbNodeModel::get_translation_or(const AnimTimeT& time, const Vec3& default_value) const
+{
+	if (!has_translation())
+		return default_value;
+
+	return Vec3{get_value(0, time).value_or(0.0), get_value(1, time).value_or(0.0), get_value(2, time).value_or(0.0)};
+}
+
+geometry::Quaternion FbxImporterBase::LimbNodeModel::get_rotation_or(const AnimTimeT& time,
+		const geometry::Quaternion& pre_rotation, const geometry::Quaternion& post_rotation,
+		const geometry::Quaternion& default_value) const
+{
+	if (!has_rotation())
+		return default_value;
+
+	return pre_rotation
+			* FbxImporterBase::from_euler(std::array<std::optional<double>, 3>
+					{get_value(3, time), get_value(4, time), get_value(5, time)})
+			* post_rotation;
+}
+
 } // namespace io
 
 } // namespace cgogn

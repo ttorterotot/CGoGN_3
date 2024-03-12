@@ -110,10 +110,22 @@ protected:
 	{
 	};
 
-	struct LimbNodeModel : public Model
+	class LimbNodeModel : public Model
 	{
+	private:
+		bool has_component(const size_t& offset) const;
+		std::optional<AnimScalar> get_value(const size_t& index, const AnimTimeT& time) const;
+
+	public:
 		Skeleton::Bone bone;
 		std::array<const AnimationT*, 6> animation;
+
+		bool has_translation() const;
+		bool has_rotation() const;
+		Vec3 get_translation_or(const AnimTimeT& time, const Vec3& default_value) const;
+		geometry::Quaternion get_rotation_or(const AnimTimeT& time,
+				const geometry::Quaternion& pre_rotation, const geometry::Quaternion& post_rotation,
+				const geometry::Quaternion& default_value) const;
 	};
 
 	struct Geometry
@@ -151,6 +163,9 @@ protected:
 	void read(const std::string& path);
 
 	ObjectId get_parent_id(const ObjectId& child_id) const;
+
+	static geometry::Quaternion from_euler(const std::array<std::optional<double>, 3>& xyz,
+			const RotationOrder& rotation_order = RotationOrder::ZYX);
 
 	/// @brief Sets missing values for a property in `p` from `other_values`
 	/// @param p the property to fill (existing values take priority over those from `other_values`)
@@ -242,26 +257,6 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
-	template <typename ContainerOfOptionals>
-	geometry::Quaternion from_euler(const ContainerOfOptionals& xyz,
-			const RotationOrder& rotation_order = RotationOrder::ZYX)
-	{
-		auto res = geometry::Quaternion::Identity();
-		size_t ro = rotation_order;
-
-		for (int i = 0; i < 3; ++i)
-		{
-			size_t axis = ro % RotationOrder::Base;
-			ro /= RotationOrder::Base;
-
-			if (xyz[axis])
-				res = Eigen::AngleAxis<geometry::Quaternion::Scalar>(M_PI / 180.0 * xyz[axis].value(), AXES[axis])
-						* res;
-		}
-
-		return res;
-	}
-
 	void load_bones(Skeleton& skeleton)
 	{
 		for (LimbNodeModel& m : models_limb_node_)
@@ -404,21 +399,8 @@ private:
 			// each component along its own animation, instead of passing the split components beyond
 			for (const auto& time : times)
 			{
-				const auto has_component = [&](const size_t& offset){
-						return m.animation[offset] || m.animation[offset + 1] || m.animation[offset + 2]; };
-				const auto anim_value = [&](const size_t& index) -> std::optional<AnimScalar> {
-						return m.animation[index] ?
-								m.animation[index]->get_value(time) : std::optional<AnimScalar>(); };
-
-				auto t = has_component(0) ?
-						Vec3{anim_value(0).value_or(0.0), anim_value(1).value_or(0.0), anim_value(2).value_or(0.0)} :
-						lcl_translation;
-				auto r = has_component(3) ?
-						geometry::Quaternion{pre_rotation
-								* from_euler(std::array<std::optional<AnimScalar>, 3>
-										{anim_value(3), anim_value(4), anim_value(5)})
-								* post_rotation} :
-						total_lcl_rotation;
+				auto t = m.get_translation_or(time, lcl_translation);
+				auto r = m.get_rotation_or(time, pre_rotation, post_rotation, total_lcl_rotation);
 
 				anim_rt.emplace_back(time, RT{r, t});
 				anim_dq.emplace_back(time, geometry::DualQuaternion::from_tr(t, r));
@@ -520,9 +502,6 @@ public:
 		if (load_skeletons)
 			importer.load_skeletons(skeletons);
 	}
-
-private:
-	static inline const std::array<Vec3, 3> AXES = {Vec3{1, 0, 0}, Vec3{0, 1, 0}, Vec3{0, 0, 1}};
 };
 
 } // namespace io

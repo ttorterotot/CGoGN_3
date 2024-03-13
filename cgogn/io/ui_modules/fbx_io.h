@@ -110,7 +110,9 @@ private:
 	{
 		std::string name = filename + '>' + objname;
 		if (mesh_provider.has_mesh(name))
-			name += "_" + std::to_string(mesh_provider.number_of_meshes());
+			name += "_" + std::to_string(mesh_provider.number_of_meshes()); // may happen, effective disambiguation
+		while (mesh_provider.has_mesh(name))
+			name += '_'; // shouldn't happen, but disambiguate however we can
 		return name;
 	}
 

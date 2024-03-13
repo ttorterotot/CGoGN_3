@@ -839,18 +839,9 @@ geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<
 	return res;
 }
 
-void FbxImporterBase::LimbNodeModel::set_animation(const AnimationT* anim,
-		const std::string& transform_property_name, const std::string& axis_property_name)
+void FbxImporterBase::AnimationCurveNode::set_animation(const AnimationT* anim, const std::string& axis_property_name)
 {
-	size_t anim_id;
-
-	// Get transformation type offset
-	if (transform_property_name == "Lcl Translation"s)
-		anim_id = 0;
-	else if (transform_property_name == "Lcl Rotation"s)
-		anim_id = 3;
-	else
-		return;
+	size_t anim_id = 0;
 
 	// Get axis offset
 	if (axis_property_name == "d|Z"s)
@@ -861,6 +852,23 @@ void FbxImporterBase::LimbNodeModel::set_animation(const AnimationT* anim,
 		return; // not d|<axis>, ignore
 
 	animation[anim_id] = anim;
+}
+
+void FbxImporterBase::LimbNodeModel::set_animation(
+		const std::array<const AnimationT*, 3>& anim, const std::string& transform_property_name)
+{
+	size_t offset;
+
+	// Get transformation type offset
+	if (transform_property_name == "Lcl Translation"s)
+		offset = 0;
+	else if (transform_property_name == "Lcl Rotation"s)
+		offset = 3;
+	else
+		return;
+
+	for (size_t i = 0; i < 3; ++i)
+		animation[offset + i] = anim[i];
 }
 
 bool FbxImporterBase::LimbNodeModel::has_component(const size_t& offset) const

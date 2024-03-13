@@ -120,8 +120,7 @@ protected:
 		Skeleton::Bone bone;
 		std::array<const AnimationT*, 6> animation;
 
-		void set_animation(const AnimationT* anim,
-				const std::string& transform_property_name, const std::string& axis_property_name);
+		void set_animation(const std::array<const AnimationT*, 3>& anim, const std::string& transform_property_name);
 		bool has_translation() const;
 		bool has_rotation() const;
 		Vec3 get_translation_or(const AnimTimeT& time, const Vec3& default_value) const;
@@ -148,6 +147,9 @@ protected:
 	{
 		ObjectId id;
 		Properties properties;
+		std::array<const AnimationT*, 3> animation;
+
+		void set_animation(const AnimationT* anim, const std::string& axis_property_name);
 	};
 
 private:
@@ -300,6 +302,32 @@ private:
 	{
 		for (const auto& c : connections_op_)
 		{
+			// Get animation curve node's animation curves and targeted property
+
+			const auto& [curve_id, curve_node_id, axis_property_name] = c;
+
+			const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
+					[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+
+			if (curve_node_it == animation_curve_nodes_.end())
+				continue;
+
+			const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
+					[&](const AnimationCurve& curve){ return curve.id == curve_id; });
+
+			if (curve_it == animation_curves_.cend())
+				continue;
+
+			// Compare node value with curve default (*)
+			set_missing_values(curve_node_it->properties,
+					std::array<std::optional<AnimScalar>, 1>{curve_it->default_value},
+					axis_property_name, false);
+
+			curve_node_it->set_animation(&curve_it->animation, axis_property_name);
+		}
+
+		for (const auto& c : connections_op_)
+		{
 			// Get bone's animation curve node and targeted property
 
 			const auto& [curve_node_id, model_id, transform_property_name] = c;
@@ -316,34 +344,13 @@ private:
 			if (curve_node_it == animation_curve_nodes_.end())
 				continue;
 
-			for (const auto& c_ : connections_op_)
-			{
-				// Get animation curve node's animation curves and targeted property
-
-				const auto& [curve_id, curve_node_id_, axis_property_name] = c_;
-
-				if (curve_node_id != curve_node_id_)
-					continue;
-
-				const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
-						[&](const AnimationCurve& curve){ return curve.id == curve_id; });
-
-				if (curve_it == animation_curves_.cend())
-					continue;
-
-				// Compare node value with curve default (*)
-				set_missing_values(curve_node_it->properties,
-						std::array<std::optional<AnimScalar>, 1>{curve_it->default_value},
-						axis_property_name, false);
-
-				model_it->set_animation(&curve_it->animation, transform_property_name, axis_property_name);
-			}
+			model_it->set_animation(curve_node_it->animation, transform_property_name);
 
 			// Compare model value with node's (*)
 			set_missing_values(model_it->properties, curve_node_it->properties.d(), transform_property_name, true);
-
-			// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
 		}
+
+		// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
 	}
 
 	void load_animations(Skeleton& skeleton)

@@ -302,7 +302,7 @@ private:
 		{
 			// Get bone's animation curve node and targeted property
 
-			const auto& [curve_node_id, model_id, property_name] = c;
+			const auto& [curve_node_id, model_id, transform_property_name] = c;
 
 			const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
 					[&](const LimbNodeModel& model){ return model.id == model_id; });
@@ -320,7 +320,7 @@ private:
 			{
 				// Get animation curve node's animation curves and targeted property
 
-				const auto& [curve_id, curve_node_id_, property_name_] = c_;
+				const auto& [curve_id, curve_node_id_, axis_property_name] = c_;
 
 				if (curve_node_id != curve_node_id_)
 					continue;
@@ -333,13 +333,13 @@ private:
 
 				// Compare node value with curve default (*)
 				set_missing_values(curve_node_it->properties, std::array<std::optional<double>, 1>{curve_it->default_value},
-						property_name_, false);
+						axis_property_name, false);
 
-				model_it->set_animation(&curve_it->animation, property_name, property_name_);
+				model_it->set_animation(&curve_it->animation, transform_property_name, axis_property_name);
 			}
 
 			// Compare model value with node's (*)
-			set_missing_values(model_it->properties, curve_node_it->properties.d(), property_name, true);
+			set_missing_values(model_it->properties, curve_node_it->properties.d(), transform_property_name, true);
 
 			// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
 		}

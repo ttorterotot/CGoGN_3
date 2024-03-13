@@ -153,8 +153,8 @@ private:
 
 protected:
 
-	inline FbxImporterBase(bool load_surfaces, bool load_skeletons)
-			: load_surfaces_(load_surfaces), load_skeletons_(load_skeletons)
+	inline FbxImporterBase(bool load_surfaces, bool load_skeleton)
+			: load_surfaces_(load_surfaces), load_skeleton_(load_skeleton)
 	{
 	}
 
@@ -243,7 +243,7 @@ private:
 	};
 
 	bool load_surfaces_;
-	bool load_skeletons_;
+	bool load_skeleton_;
 };
 
 template <typename Surface>
@@ -475,20 +475,17 @@ private:
 		}
 	}
 
-	void load_skeletons(Map<std::string, Skeleton*>& skeletons)
+	Skeleton* load_skeleton()
 	{
 		if (models_limb_node_.empty())
-			return;
+			return nullptr;
 
 		Skeleton* skeleton = new Skeleton{};
 
 		load_bones(*skeleton);
 		load_animations(*skeleton);
 
-		std::string name;
-		bool inserted = false;
-		while (std::tie(std::ignore, inserted) = skeletons.try_emplace(name, skeleton), !inserted)
-			name += '_'; // disambiguate however we can
+		return skeleton;
 	}
 
 public:
@@ -497,23 +494,23 @@ public:
 	/// @brief Opens and parses an FBX file, filling the maps with objects inside
 	/// @param path the file path to open
 	/// @param surfaces a map to fill with surfaces described in the file
-	/// @param skeletons a map to fill with animation skeletons described in the file
+	/// @param skeletons an optional that would be set with the animation skeleton that may be described in the file
 	/// @param load_surfaces whether or not to actually read surfaces
-	/// @param load_skeletons whether or not to actually read skeletons
+	/// @param load_skeleton whether or not to actually read skeletons
 	/// @param normalized whether or not to normalize the positions for each surface (can offset it from bones)
 	static void load(const std::string& path,
 			Map<std::string, Surface*>& surfaces,
-			Map<std::string, Skeleton*>& skeletons,
-			bool load_surfaces = true, bool load_skeletons = true, bool normalized = false)
+			std::optional<Skeleton*>& skeleton,
+			bool load_surfaces = true, bool load_skeleton = true, bool normalized = false)
 	{
-		FbxImporter importer{load_surfaces, load_skeletons};
+		FbxImporter importer{load_surfaces, load_skeleton};
 		importer.read(path);
 
 		if (load_surfaces)
 			importer.load_surfaces(surfaces, normalized);
 
-		if (load_skeletons)
-			importer.load_skeletons(skeletons);
+		if (load_skeleton && !(skeleton = importer.load_skeleton()).value())
+			skeleton = {}; // convert nullptr to empty optional
 	}
 };
 

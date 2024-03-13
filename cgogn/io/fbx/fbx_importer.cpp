@@ -150,7 +150,7 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 	}
 	else if (type == "LimbNode"s)
 	{
-		if (!load_skeletons_)
+		if (!load_skeleton_)
 		{
 			skip_node(is);
 			return;

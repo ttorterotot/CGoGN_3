@@ -71,15 +71,15 @@ public:
 	{
 		std::string filename = filename_from_path(path);
 		typename io::FbxImporter<Surface>::Map<std::string, Surface*> surfaces;
-		typename io::FbxImporter<Surface>::Map<std::string, Skeleton*> skeletons;
+		std::optional<Skeleton*> skeleton;
 
-		io::FbxImporter<Surface>::load(path, surfaces, skeletons, load_surfaces, load_skeletons, normalized);
+		io::FbxImporter<Surface>::load(path, surfaces, skeleton, load_surfaces, load_skeletons, normalized);
 
 		for (const auto [objname, surface] : surfaces)
 			register_surface(surface, objname, filename);
 
-		for (const auto [objname, skeleton] : skeletons)
-			register_skeleton(skeleton, objname, filename);
+		if (skeleton)
+			register_skeleton(skeleton.value(), filename);
 	}
 
 protected:
@@ -108,7 +108,7 @@ private:
 	template <typename T>
 	inline std::string get_name(const MeshProvider<T>& mesh_provider, const std::string& objname, const std::string& filename)
 	{
-		std::string name = filename + '>' + objname;
+		std::string name = objname.empty() ? filename : filename + '>' + objname;
 		if (mesh_provider.has_mesh(name))
 			name += "_" + std::to_string(mesh_provider.number_of_meshes()); // may happen, effective disambiguation
 		while (mesh_provider.has_mesh(name))
@@ -122,9 +122,9 @@ private:
 			surface_provider_->register_mesh(surface, get_name(*surface_provider_, objname, filename));
 	}
 
-	void register_skeleton(Skeleton* skeleton, const std::string& objname, const std::string& filename)
+	void register_skeleton(Skeleton* skeleton, const std::string& filename)
 	{
-		skeleton_provider_->register_mesh(skeleton, get_name(*skeleton_provider_, objname, filename));
+		skeleton_provider_->register_mesh(skeleton, get_name(*skeleton_provider_, "", filename));
 	}
 
 private:

@@ -120,6 +120,8 @@ protected:
 		Skeleton::Bone bone;
 		std::array<const AnimationT*, 6> animation;
 
+		void set_animation(const AnimationT* anim,
+				const std::string& transform_property_name, const std::string& axis_property_name);
 		bool has_translation() const;
 		bool has_rotation() const;
 		Vec3 get_translation_or(const AnimTimeT& time, const Vec3& default_value) const;
@@ -333,26 +335,7 @@ private:
 				set_missing_values(curve_node_it->properties, std::array<std::optional<double>, 1>{curve_it->default_value},
 						property_name_, false);
 
-				// Get animation
-
-				size_t anim_id = 6; // 6 indicates ignored
-
-				// Get transformation type offset
-				if (property_name == "Lcl Translation"s)
-					anim_id = 0;
-				else if (property_name == "Lcl Rotation"s)
-					anim_id = 3;
-
-				// Get axis offset
-				if (property_name_ == "d|Z"s)
-					anim_id += 2;
-				else if (property_name_ == "d|Y"s)
-					++anim_id;
-				else if (property_name_ != "d|X"s)
-					anim_id = 6; // not d|<axis>, ignore
-
-				if (anim_id != 6)
-					model_it->animation[anim_id] = &curve_it->animation;
+				model_it->set_animation(&curve_it->animation, property_name, property_name_);
 			}
 
 			// Compare model value with node's (*)

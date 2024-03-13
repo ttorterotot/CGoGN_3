@@ -76,27 +76,27 @@ protected:
 		// Shared fields to save memory for non-overlapping usages
 		// (usage of unions for this purpose is not ISO C++)
 
-		std::array<std::optional<double>, 3> aod3_0_, aod3_1_, aod3_2_, aod3_3_;
+		std::array<std::optional<AnimScalar>, 3> aod3_0_, aod3_1_, aod3_2_, aod3_3_;
 
 	public:
 
 		// Model
 
-		inline constexpr std::array<std::optional<double>, 3>& pre_rotation(){ return aod3_0_; }
-		inline constexpr std::array<std::optional<double>, 3>& post_rotation(){ return aod3_1_; }
-		inline constexpr std::array<std::optional<double>, 3>& lcl_translation(){ return aod3_2_; }
-		inline constexpr std::array<std::optional<double>, 3>& lcl_rotation(){ return aod3_3_; }
+		inline constexpr std::array<std::optional<AnimScalar>, 3>& pre_rotation(){ return aod3_0_; }
+		inline constexpr std::array<std::optional<AnimScalar>, 3>& post_rotation(){ return aod3_1_; }
+		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_translation(){ return aod3_2_; }
+		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_rotation(){ return aod3_3_; }
 
-		inline constexpr const std::array<std::optional<double>, 3>& pre_rotation() const { return aod3_0_; }
-		inline constexpr const std::array<std::optional<double>, 3>& post_rotation() const { return aod3_1_; }
-		inline constexpr const std::array<std::optional<double>, 3>& lcl_translation() const { return aod3_2_; }
-		inline constexpr const std::array<std::optional<double>, 3>& lcl_rotation() const { return aod3_3_; }
+		inline constexpr const std::array<std::optional<AnimScalar>, 3>& pre_rotation() const { return aod3_0_; }
+		inline constexpr const std::array<std::optional<AnimScalar>, 3>& post_rotation() const { return aod3_1_; }
+		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_translation() const { return aod3_2_; }
+		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_rotation() const { return aod3_3_; }
 
 		// AnimationCurveNode
 
-		inline constexpr std::array<std::optional<double>, 3>& d(){ return aod3_0_; }
+		inline constexpr std::array<std::optional<AnimScalar>, 3>& d(){ return aod3_0_; }
 
-		inline constexpr const std::array<std::optional<double>, 3>& d() const { return aod3_0_; }
+		inline constexpr const std::array<std::optional<AnimScalar>, 3>& d() const { return aod3_0_; }
 	};
 
 	struct Model
@@ -166,7 +166,7 @@ protected:
 
 	ObjectId get_parent_id(const ObjectId& child_id) const;
 
-	static geometry::Quaternion from_euler(const std::array<std::optional<double>, 3>& xyz,
+	static geometry::Quaternion from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 			const RotationOrder& rotation_order = RotationOrder::ZYX);
 
 	/// @brief Sets missing values for a property in `p` from `other_values`
@@ -234,7 +234,7 @@ protected:
 
 private:
 	static inline const std::unordered_map<std::string,
-			std::function<std::pair<std::optional<double>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
+			std::function<std::pair<std::optional<AnimScalar>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
 		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
 		std::make_pair("PostRotation", [](Properties& p){ return std_array_g(p.post_rotation()); }),
 		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
@@ -332,7 +332,8 @@ private:
 					continue;
 
 				// Compare node value with curve default (*)
-				set_missing_values(curve_node_it->properties, std::array<std::optional<double>, 1>{curve_it->default_value},
+				set_missing_values(curve_node_it->properties,
+						std::array<std::optional<AnimScalar>, 1>{curve_it->default_value},
 						axis_property_name, false);
 
 				model_it->set_animation(&curve_it->animation, transform_property_name, axis_property_name);

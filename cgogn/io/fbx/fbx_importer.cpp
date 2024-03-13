@@ -818,7 +818,7 @@ FbxImporterBase::ObjectId FbxImporterBase::get_parent_id(const ObjectId& child_i
 	return parent_connection_it != connections_oo_.cend() ? parent_connection_it->second : INVALID_INDEX;
 }
 
-geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<double>, 3>& xyz,
+geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 		const RotationOrder& rotation_order)
 {
 	static const std::array<Vec3, 3> axes = {Vec3{1, 0, 0}, Vec3{0, 1, 0}, Vec3{0, 0, 1}};
@@ -893,7 +893,7 @@ geometry::Quaternion FbxImporterBase::LimbNodeModel::get_rotation_or(const AnimT
 		return default_value;
 
 	return pre_rotation
-			* FbxImporterBase::from_euler(std::array<std::optional<double>, 3>
+			* FbxImporterBase::from_euler(std::array<std::optional<AnimScalar>, 3>
 					{get_value(3, time), get_value(4, time), get_value(5, time)})
 			* post_rotation;
 }

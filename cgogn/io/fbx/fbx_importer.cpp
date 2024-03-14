@@ -475,7 +475,7 @@ void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,
 void FbxImporterBase::read_connections_node(std::istream& is)
 {
 	int commas = -1; // -1 is flag for not having read a colon
-	ObjectId ids[2];
+	ObjectId ids[2] = {ObjectId(-1), ObjectId(-1)};
 	std::string property_name;
 	bool expect_property = false;
 	bool in_quotes = false;

@@ -35,16 +35,10 @@
 #include <cgogn/geometry/types/animation/keyframed_animation.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
 #include <cgogn/geometry/types/dual_quaternion.h>
-#include <cgogn/geometry/functions/bounding_box.h>
 #include <cgogn/io/surface/surface_import.h>
 
 namespace cgogn
 {
-
-struct CMap2;
-struct GMap2;
-struct IncidenceGraph;
-struct TriangleSoup;
 
 namespace io
 {

@@ -818,6 +818,11 @@ FbxImporterBase::ObjectId FbxImporterBase::get_parent_id(const ObjectId& child_i
 	return parent_connection_it != connections_oo_.cend() ? parent_connection_it->second : INVALID_INDEX;
 }
 
+std::string FbxImporterBase::resolve_name(const std::string& name_with_escape_sequences)
+{
+	return name_with_escape_sequences; // ignore escape sequences for now
+}
+
 geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 		const RotationOrder& rotation_order)
 {

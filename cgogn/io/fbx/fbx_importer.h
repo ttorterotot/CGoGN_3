@@ -168,6 +168,15 @@ protected:
 
 	ObjectId get_parent_id(const ObjectId& child_id) const;
 
+	/// @brief Resolves a name string potentially containing escape sequences to the desired string.
+	/// Reverse engineering of how Maya reads files saved in Blender with names containing special characters,
+	/// and how Blender reads those files back when escape sequences are modified,
+	/// shows special characters are escaped with the format `FBXASC%03d`. For example, `"` is `FBXASC034`.
+	/// This method currently leaves the string unchanged, and is present for forwards compatibility and clarity.
+	/// @param name_with_escape_sequences the raw name read from the FBX file
+	/// @return the processed name
+	static std::string resolve_name(const std::string& name_with_escape_sequences);
+
 	static geometry::Quaternion from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 			const RotationOrder& rotation_order = RotationOrder::ZYX);
 
@@ -430,8 +439,8 @@ private:
 		for (const MeshModel& m : models_mesh_)
 		{
 			Surface* surface = new Surface{};
-			std::string name = m.name;
-			decltype(surfaces.try_emplace(m.name, surface).first) it;
+			std::string name = resolve_name(m.name);
+			decltype(surfaces.try_emplace(name, surface).first) it;
 			bool inserted = false;
 
 			while (std::tie(it, inserted) = surfaces.try_emplace(name, surface), !inserted)

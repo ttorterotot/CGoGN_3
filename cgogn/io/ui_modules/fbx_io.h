@@ -88,7 +88,7 @@ protected:
 		static std::unique_ptr<pfd::open_file> open_file_dialog;
 		if (open_file_dialog && open_file_dialog->ready())
 		{
-			for (auto file : open_file_dialog->result())
+			for (const auto& file : open_file_dialog->result())
 				load_file(file, mesh_traits<Surface>::dimension == 2 && std::is_default_constructible_v<Surface>);
 			open_file_dialog = nullptr;
 		}

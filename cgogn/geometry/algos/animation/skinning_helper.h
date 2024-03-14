@@ -183,11 +183,8 @@ private:
 		// (see `AttributeContainerGen::new_index`)
 		std::vector<TransformT> offsets(world_transforms.maximum_index());
 
-		for (size_t i = 0; i < as.nb_bones(); ++i)
-		{
-			const auto& bone = as.bone_traverser_[i];
+		for (const auto& bone : as.bone_traverser_)
 			offsets[bone] = world_transforms[bone] * bind_inv_world_transforms[bone];
-		}
 
 		return offsets;
 	}

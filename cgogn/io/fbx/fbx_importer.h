@@ -490,7 +490,7 @@ public:
 	/// @brief Opens and parses an FBX file, filling the maps with objects inside
 	/// @param path the file path to open
 	/// @param surfaces a map to fill with surfaces described in the file
-	/// @param skeletons an optional that would be set with the animation skeleton that may be described in the file
+	/// @param skeleton an optional that would be set with the animation skeleton that may be described in the file
 	/// @param load_surfaces whether or not to actually read surfaces
 	/// @param load_skeleton whether or not to actually read skeletons
 	/// @param normalized whether or not to normalize the positions for each surface (can offset it from bones)
@@ -502,11 +502,11 @@ public:
 		FbxImporter importer{load_surfaces, load_skeleton};
 		importer.read(path);
 
-		if (load_surfaces)
-			importer.load_surfaces(surfaces, normalized);
-
 		if (load_skeleton && !(skeleton = importer.load_skeleton()).value())
 			skeleton = {}; // convert nullptr to empty optional
+
+		if (load_surfaces)
+			importer.load_surfaces(surfaces, normalized);
 	}
 };
 

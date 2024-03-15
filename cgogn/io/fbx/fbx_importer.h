@@ -31,6 +31,7 @@
 
 #include <cgogn/io/cgogn_io_export.h>
 
+#include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/animation/keyframed_animation.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
@@ -128,6 +129,17 @@ protected:
 		ObjectId id;
 		std::string name;
 		SurfaceImportData data;
+	};
+
+	struct Deformer
+	{
+		ObjectId id;
+		std::string name;
+	};
+
+	struct ClusterDeformer : public Deformer
+	{
+		std::vector<std::pair<uint32, AnimScalar>> weights;
 	};
 
 	struct AnimationCurve
@@ -232,6 +244,8 @@ protected:
 	std::vector<MeshModel> models_mesh_;
 	std::vector<LimbNodeModel> models_limb_node_;
 	std::vector<Geometry> geometries_;
+	std::vector<Deformer> deformers_skin_;
+	std::vector<ClusterDeformer> deformers_cluster_;
 	std::vector<AnimationCurve> animation_curves_;
 	std::vector<AnimationCurveNode> animation_curve_nodes_;
 	std::vector<std::pair<ObjectId, ObjectId>> connections_oo_;
@@ -264,9 +278,89 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	auto get_and_init_skinning_attributes(Surface& surface)
+	{
+		auto& weight_index_attr = *get_or_add_attribute<geometry::Vec4i, Surface::Vertex>(surface, "weight_index");
+		auto& weight_value_attr = *get_or_add_attribute<geometry::Vec4, Surface::Vertex>(surface, "weight_value");
+
+		parallel_foreach_cell(surface, [&](Vertex v)
+		{
+			const auto i = index_of(surface, v);
+			weight_index_attr[i] = {-1, -1, -1, -1};
+			weight_value_attr[i] = geometry::Vec4::Zero();
+			return true;
+		});
+
+		return std::make_pair(std::ref(weight_index_attr), std::ref(weight_value_attr));
+	}
+
 	void load_geometry(Surface& surface, Geometry& geometry)
 	{
+		// Import geometry to surface type
 		import_surface_data(surface, geometry.data);
+
+		// Find and compute skinning information
+
+		auto [weight_index_attr, weight_value_attr] = get_and_init_skinning_attributes(surface);
+
+		std::vector<std::pair<const ClusterDeformer*, Skeleton::Bone>> cluster_deformers;
+
+		for (const auto& [skin_id, geometry_id] : connections_oo_)
+		{
+			if (geometry_id != geometry.id)
+				continue;
+
+			if (std::find_if(deformers_skin_.cbegin(), deformers_skin_.cend(),
+					[&](const Deformer& d) { return d.id == skin_id; }) == deformers_skin_.cend())
+				continue;
+
+			for (const auto& [cluster_id, skin_id_] : connections_oo_)
+			{
+				if (skin_id_ != skin_id)
+					continue;
+
+				const auto deformer_it = std::find_if(deformers_cluster_.cbegin(), deformers_cluster_.cend(),
+						[&](const ClusterDeformer& d) { return d.id == cluster_id; });
+
+				if (deformer_it != deformers_cluster_.cend())
+					cluster_deformers.emplace_back(&*deformer_it, INVALID_INDEX);
+			}
+		}
+
+		if (cluster_deformers.empty())
+			return;
+
+		for (const auto& [bone_model_id, cluster_id] : connections_oo_)
+		{
+			const auto bone_model_it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
+					[&](const LimbNodeModel& model) { return model.id == bone_model_id; });
+
+			if (bone_model_it == models_limb_node_.cend())
+				continue;
+
+			const auto cluster_it = std::find_if(cluster_deformers.begin(), cluster_deformers.end(),
+					[&](const std::pair<const ClusterDeformer*, Skeleton::Bone>& entry)
+							{ return entry.first->id == cluster_id; });
+
+			if (cluster_it == cluster_deformers.end())
+				continue;
+
+			cluster_it->second = bone_model_it->bone;
+		}
+
+		for (const auto& [deformer, bone] : cluster_deformers)
+			for (const auto& [vertex_index, weight_value] : deformer->weights)
+			{
+				const auto& v = geometry.data.vertex_id_after_import_[vertex_index];
+
+				for (size_t i = 0; i < 4; ++i)
+					if (weight_index_attr[v][i] == -1)
+					{
+						weight_index_attr[v][i] = bone;
+						weight_value_attr[v][i] = weight_value;
+						break;
+					}
+			}
 	}
 
 	template <typename T>

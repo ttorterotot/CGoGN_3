@@ -310,7 +310,88 @@ void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::is
 // Reads a Deformer subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 {
-	skip_node(is); // TODO
+	int32 vertex_id, nb_vertices = -1;
+	ClusterDeformer deformer;
+	std::string type;
+	std::string subnode_key;
+	char c;
+
+	const auto on_size = [&](uint32 size){
+		cgogn_assert(nb_vertices == -1 || static_cast<uint32>(nb_vertices) == size);
+		nb_vertices = size;
+		deformer.weights.reserve(nb_vertices);
+	};
+
+	const auto get_weight = [&](const uint32& i) -> std::pair<uint32, AnimScalar>& {
+		if (deformer.weights.size() <= i)
+			deformer.weights.resize(i + 1, {uint32(-1), 0.0});
+		return deformer.weights[i];
+	};
+
+	read_object_attributes(is, deformer.id, &deformer.name, &type);
+
+	if (type != "Cluster"s)
+	{
+		if (type == "Skin"s)
+			deformers_skin_.push_back(static_cast<Deformer>(std::move(deformer)));
+		else
+			std::cout << "Warning: unrecognized deformer type " << type << std::endl;
+		skip_value(is);
+		return;
+	}
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			deformers_cluster_.push_back(std::move(deformer));
+			return;
+		case ':':
+			vertex_id = 0;
+			if (subnode_key == "Indexes"s)
+			{
+				if (read_array(is, on_size,
+				[&]{
+					is >> get_weight(vertex_id++).first;
+					return 1;
+				}))
+				{ cgogn_assert(vertex_id == nb_vertices); }
+				else
+					std::cout << "Warning: invalid skinning weight indices syntax" << std::endl;
+			}
+			else if (subnode_key == "Weights"s)
+			{
+				if (read_array(is, on_size,
+				[&]{
+					is >> get_weight(vertex_id++).second;
+					return 1;
+				}))
+				{ cgogn_assert(vertex_id == nb_vertices); }
+				else
+					std::cout << "Warning: invalid skinning weight values syntax" << std::endl;
+			}
+			else
+				skip_value(is); // we ignore transforms because we already get a bind pose to work with
+			subnode_key.clear();
+			break;
+		case ';':
+			if (subnode_key.empty())
+				skip_through_character(is, '\n');
+			break;
+		default:
+			if (!std::isspace(c))
+				subnode_key += c;
+		}
+	}
+
+	std::cout << "Warning: invalid deformer syntax" << std::endl;
 }
 
 // Reads an AnimationCurve subnode (in an Objects node) from past the declaring colon through its closing brace

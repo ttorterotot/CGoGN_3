@@ -367,9 +367,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 			{
 				if (read_array(is, on_size,
 				[&]{
-					FbxImporterBase::AnimScalar value;
-					is >> value;
-					get_keyframe(key_id++).value_ = value;
+					is >> get_keyframe(key_id++).value_;
 					return 1;
 				}))
 				{ cgogn_assert(key_id == nb_keys); }

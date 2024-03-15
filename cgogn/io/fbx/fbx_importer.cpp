@@ -694,7 +694,7 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 // `read_values` should return the amount of scalars read (normally 1)
 // Returns whether the syntax was correct
 bool FbxImporterBase::read_array(std::istream& is,
-		std::function<void(uint32)> on_size, std::function<uint32()> read_values)
+		const std::function<void(uint32)>& on_size, const std::function<uint32()>& read_values)
 {
 	bool in_array = false;
 	int32 announced_size = -1, actual_size = 0;

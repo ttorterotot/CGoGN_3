@@ -111,13 +111,14 @@ public:
 			const Attribute<TransformT>& world_transforms,
 			Attribute<Vec3>& positions)
 	{
-		for (const auto& bone : as.bone_traverser_)
+		for (auto i = static_cast<std::make_signed_t<size_t>>(as.nb_bones()) - 1; i >= 0; --i)
 		{
+			const auto& bone = as.bone_traverser_[i];
 			Vec3 pos = get_basis_position(world_transforms[bone]);
 			const auto& joints = (*as.bone_joints_)[bone];
 			// Set position for the base joint of the bone
 			positions[joints.first] = pos;
-			// Also set position for the tip, may be overwritten if the bone isn't a leaf (given the order of the bone traverser)
+			// Set position for the tip joint of the bone, will be overwritten if the bone isn't a root
 			positions[joints.second] = pos;
 		}
 	}

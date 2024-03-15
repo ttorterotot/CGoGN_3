@@ -154,7 +154,7 @@ auto create_placeholder_skeleton_anim_dq(Skeleton& sk)
 
 auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const ASC_RT& asc_rt, const ASC_DQ& asc_dq)
 {
-	Skeleton* sk = mp_as.add_mesh("Placeholder skeleton");
+	Skeleton* sk = new Skeleton{};
 	std::shared_ptr<AttributeS<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Joint>(*sk, "position");
 
 	add_bone(*sk, add_root(*sk));
@@ -171,6 +171,8 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Skeleton>& mp_as, const
 	Vec3 d = bb.second - bb.first;
 	bb.first -= 0.5 * d;
 	bb.second += 0.5 * d;
+
+	mp_as.register_mesh(sk, "Placeholder skeleton");
 
 	return std::make_tuple(sk, positions, bb);
 }

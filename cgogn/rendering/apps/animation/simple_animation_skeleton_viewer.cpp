@@ -132,7 +132,7 @@ auto create_placeholder_skeleton_anim_dq(Mesh& m)
 
 auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT& asc_rt, const ASC_DQ& asc_dq)
 {
-	Mesh* m = mp.add_mesh("Placeholder");
+	Mesh* m = new Mesh{};
 	std::shared_ptr<Attribute<Vec3>> positions = cgogn::get_or_add_attribute<Vec3, Joint>(*m, "position");
 
 	Mesh::Bone b;
@@ -148,6 +148,8 @@ auto create_placeholder_skeleton(cgogn::ui::MeshProvider<Mesh>& mp, const ASC_RT
 	auto bb_dq = setup_transform_attributes_and_get_bb(*m, asc_dq, *anims_dq, *positions);
 
 	auto bb = std::make_pair<Vec3, Vec3>(bb_dq.first.cwiseMin(bb_rt.first), bb_dq.second.cwiseMax(bb_rt.second));
+
+	mp.register_mesh(m, "Placeholder");
 
 	return std::make_tuple(m, positions, bb);
 }

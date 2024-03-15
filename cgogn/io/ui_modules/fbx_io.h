@@ -31,6 +31,7 @@
 
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/io/fbx/fbx_importer.h>
+#include <cgogn/io/surface/assimp.h>
 
 namespace cgogn
 {
@@ -73,7 +74,8 @@ public:
 		typename io::FbxImporter<Surface>::Map<std::string, Surface*> surfaces;
 		std::optional<Skeleton*> skeleton;
 
-		io::FbxImporter<Surface>::load(path, surfaces, skeleton, load_surfaces, load_skeletons, normalized);
+		io::AssimpImporter::load<Surface>(path, surfaces, skeleton, normalized);
+		// io::FbxImporter<Surface>::load(path, surfaces, skeleton, load_surfaces, load_skeletons, normalized);
 
 		for (const auto [objname, surface] : surfaces)
 			register_surface(surface, objname, filename);

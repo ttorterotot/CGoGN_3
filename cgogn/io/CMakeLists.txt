@@ -9,6 +9,7 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 find_package(Eigen3 3.2)
+find_package(assimp)
 
 add_library(${PROJECT_NAME} STATIC "")
 add_library(cgogn::io ALIAS ${PROJECT_NAME})
@@ -26,6 +27,7 @@ set(src_list
 
 		"${CMAKE_CURRENT_LIST_DIR}/surface/surface_import.h"
 		"${CMAKE_CURRENT_LIST_DIR}/surface/surface_import.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/surface/assimp.h"
 		"${CMAKE_CURRENT_LIST_DIR}/surface/obj.h"
 		"${CMAKE_CURRENT_LIST_DIR}/surface/off.h"
 		"${CMAKE_CURRENT_LIST_DIR}/surface/ply.h"
@@ -68,7 +70,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 generate_export_header(${PROJECT_NAME})
 
 # target_link_libraries(${PROJECT_NAME} cgogn::core Eigen3::Eigen Meshb cgns_static)
-target_link_libraries(${PROJECT_NAME} cgogn::core Eigen3::Eigen Meshb)
+target_link_libraries(${PROJECT_NAME} cgogn::core Eigen3::Eigen Meshb assimp::assimp)
 
 set(PKG_CONFIG_REQUIRES "cgogn_core cgogn_geometry")
 configure_file(${PROJECT_SOURCE_DIR}/cgogn_io.pc.in ${CMAKE_CURRENT_BINARY_DIR}/cgogn_io.pc @ONLY)

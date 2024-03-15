@@ -264,6 +264,11 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	void load_geometry(Surface& surface, Geometry& geometry)
+	{
+		import_surface_data(surface, geometry.data);
+	}
+
 	template <typename T>
 	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
 	{
@@ -450,22 +455,19 @@ private:
 				else
 					continue;
 
-				const auto other_it = std::find_if(
+				const auto geometry_it = std::find_if(
 						geometries_.begin(), geometries_.end(),
 						[&](const Geometry& g){ return g.id == other_id; });
 
-				if (other_it == geometries_.end())
-					continue;
-
-				import_surface_data(*surface, other_it->data);
-
-				if (normalized)
-					if (auto attr = get_attribute<Vec3, Vertex>(*surface,
-							other_it->data.vertex_position_attribute_name_))
-						geometry::rescale(*attr, 1);
+				if (geometry_it != geometries_.end())
+					load_geometry(*surface, *geometry_it);
 			}
 
 			// TODO connections_op_
+
+			if (normalized)
+				if (auto vertex_position = get_attribute<Vec3, Vertex>(*surface, "position"))
+					geometry::rescale(*vertex_position, 1);
 		}
 	}
 

@@ -212,6 +212,12 @@ protected:
 			
 			if (selected_animation_)
 				show_time_controls();
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Generate bone colors"))
+				Embedding::generate_bone_colors(*selected_skeleton_,
+						*get_or_add_attribute<Vec3, Bone>(*selected_skeleton_, GENERATED_BONE_COLOR_ATTRIBUTE_NAME));
 		}
 
 		advance_play();
@@ -377,6 +383,7 @@ private:
 	}
 
 private:
+	static inline const std::string GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};

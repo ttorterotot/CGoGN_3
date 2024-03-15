@@ -272,6 +272,18 @@ public:
 				local_transforms, world_transforms, positions);
 	}
 
+	// Color
+
+	/// @brief Generates colors loosely based on the skeleton's topology
+	/// @param sk the skeleton the attribute is for
+	/// @param bone_color the bone color attribute to write to
+	static void generate_bone_colors(const MESH& sk, Attribute<Vec3>& bone_color)
+	{
+		constexpr const Vec3::Scalar decay_factor = 0.75;
+		for (const auto& bone : sk.bone_traverser_)
+			bone_color[bone] = is_root(sk, bone) ? Vec3::Ones() : Vec3{decay_factor * bone_color[(*sk.bone_parent_)[bone]]};
+	}
+
 	// Transform-type-dependent methods
 
 	template <typename R, typename T>

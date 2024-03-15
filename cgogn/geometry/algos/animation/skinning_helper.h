@@ -68,8 +68,9 @@ public:
 	/// @param bind_positions the bind vertex position attribute to use
 	/// @param positions the vertex position attribute to update
 	/// @param normalize_weights whether or not to normalize weights if they're not already
+	/// @return whether or not all set (!= -1) bone indices could refer to an actual bone in the skeleton
 	template <typename MESH>
-	static void compute_vertex_positions_LBS(
+	static bool compute_vertex_positions_LBS(
 			const MESH& m,
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
@@ -81,6 +82,7 @@ public:
 			bool normalize_weights = false)
 	{
 		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
+		bool res = true;
 
 		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
 		{
@@ -91,8 +93,14 @@ public:
 			for (int j = 0; j < 4; ++j)
 			{
 				auto wi = weight_indices[i][j];
-				if (wi < 0.0)
+				if (wi < 0)
 					continue;
+				if (wi >= offsets.size())
+				{
+					res = false;
+					continue;
+				}
+
 				auto wv = weight_values[i][j];
 				p += wv * transform_point(bind_positions[i], offsets[wi]);
 				w += wv;
@@ -105,6 +113,8 @@ public:
 
 			return true;
 		});
+
+		return res;
 	}
 
 	/// @brief Updates vertex positions from the skeleton and transforms.
@@ -119,8 +129,9 @@ public:
 	/// @param weight_values the affecing bone weight attribute to use
 	/// @param bind_positions the bind vertex position attribute to use
 	/// @param positions the vertex position attribute to update
+	/// @return whether or not all set (!= -1) bone indices could refer to an actual bone in the skeleton
 	template <typename MESH>
-	static void compute_vertex_positions_TBS(
+	static bool compute_vertex_positions_TBS(
 			const MESH& m,
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
@@ -133,6 +144,7 @@ public:
 		static_assert(std::is_same_v<TransformT, DualQuaternion>, "transform type unsupported, use LBS");
 
 		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
+		bool res = true;
 
 		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
 		{
@@ -142,8 +154,13 @@ public:
 			for (int j = 0; j < 4; ++j)
 			{
 				auto wi = weight_indices[i][j];
-				if (wi >= 0.0)
+				if (wi < 0)
+					continue;
+
+				if (wi < offsets.size())
 					t += weight_values[i][j] * offsets[wi];
+				else
+					res = false;
 			}
 
 			if (t.squaredMagnitude() > 0.0)
@@ -153,6 +170,8 @@ public:
 
 			return true;
 		});
+
+		return res;
 	}
 
 	// Transform-type-dependent methods

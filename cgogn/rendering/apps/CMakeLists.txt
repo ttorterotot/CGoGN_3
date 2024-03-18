@@ -11,6 +11,12 @@ find_package(cgogn_rendering REQUIRED)
 
 set(CGOGN_TEST_PREFIX "test_")
 
+# Profiler compilation flags
+if(CGOGN_WITH_GPROF)
+	set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -pg)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
+endif(CGOGN_WITH_GPROF)
 
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)

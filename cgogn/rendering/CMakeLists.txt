@@ -152,6 +152,14 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/cgogn/thirdparty>
 )
 
+# Profiler compilation flags
+if(CGOGN_WITH_GPROF)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC  -DPROFILER)
+	set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -pg)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
+endif(CGOGN_WITH_GPROF)
+
 target_link_libraries(${PROJECT_NAME} cgogn::core ImGUI)
 
 # Write out cgogn_rendering_export.h to the current binary directory

@@ -81,8 +81,14 @@ public:
 			AttributeSf<Vec3>& positions,
 			bool normalize_weights = false)
 	{
-		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
+		std::vector<TransformT> raw_offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
+		std::vector<Mat4> offsets;
 		bool res = true;
+
+		// Pre-compute offset transformation matrices
+		offsets.reserve(raw_offsets.size());
+		std::transform(raw_offsets.cbegin(), raw_offsets.cend(), std::back_inserter(offsets),
+				[](const TransformT& world_transform) { return SkinningHelper::to_transform_matrix(world_transform); });
 
 		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
 		{
@@ -176,16 +182,14 @@ public:
 
 	// Transform-type-dependent methods
 
-	template <typename R, typename T>
-	static Vec3 transform_point(const Vec3& v, const RigidTransformation<R, T>& world_transform)
+	static Mat4 to_transform_matrix(const Mat4& world_transform)
 	{
-		Vec4 res = world_transform.to_transform_matrix() * Vec4{v.x(), v.y(), v.z(), 1.0};
-		return res.head<3>() / res.w();
+		return world_transform;
 	}
 
-	static Vec3 transform_point(const Vec3& v, const DualQuaternion& world_transform)
+	static std::enable_if_t<!std::is_same_v<TransformT, Mat4>, Mat4> to_transform_matrix(const TransformT& world_transform)
 	{
-		return world_transform.transform(v);
+		return world_transform.to_transform_matrix();
 	}
 
 private:
@@ -206,6 +210,12 @@ private:
 			offsets[bone] = world_transforms[bone] * bind_inv_world_transforms[bone];
 
 		return offsets;
+	}
+
+	static Vec3 transform_point(const Vec3& v, const Mat4& world_transform)
+	{
+		Vec4 res = world_transform * Vec4{v.x(), v.y(), v.z(), 1.0};
+		return res.head<3>() / res.w();
 	}
 };
 

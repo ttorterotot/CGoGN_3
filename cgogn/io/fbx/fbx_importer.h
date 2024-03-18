@@ -31,12 +31,13 @@
 
 #include <cgogn/io/cgogn_io_export.h>
 
-#include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/animation/keyframed_animation.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
 #include <cgogn/geometry/types/dual_quaternion.h>
 #include <cgogn/io/surface/surface_import.h>
+#include <cgogn/core/functions/attributes.h>
+#include <cgogn/geometry/functions/bounding_box.h>
 
 namespace cgogn
 {
@@ -278,8 +279,10 @@ private:
 private:
 	auto get_and_init_skinning_attributes(Surface& surface)
 	{
-		auto& weight_index_attr = *get_or_add_attribute<geometry::Vec4i, Surface::Vertex>(surface, "weight_index");
-		auto& weight_value_attr = *get_or_add_attribute<geometry::Vec4, Surface::Vertex>(surface, "weight_value");
+		using Vertex = typename mesh_traits<Surface>::Vertex;
+
+		auto& weight_index_attr = *get_or_add_attribute<geometry::Vec4i, Vertex>(surface, "weight_index");
+		auto& weight_value_attr = *get_or_add_attribute<geometry::Vec4, Vertex>(surface, "weight_value");
 
 		parallel_foreach_cell(surface, [&](Vertex v)
 		{

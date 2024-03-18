@@ -248,7 +248,10 @@ endif()
 # Profiler compilation flags
 if(CGOGN_WITH_GPROF)
 	message(STATUS "Building for code profiling")
-	target_compile_definitions(${PROJECT_NAME} PUBLIC  -pg -DPROFILER)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC  -DPROFILER)
+	set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -pg)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif(CGOGN_WITH_GPROF)
 
 # Code coverage compilation flags

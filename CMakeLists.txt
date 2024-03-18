@@ -90,7 +90,6 @@ option(CGOGN_USE_CGAL "Add CGAL dependency and compile all that use it" OFF)
 #### Continuous integration options
 option(CGOGN_WITH_GPROF "Builds the project for performance analysis with gprof" OFF)
 option(CGOGN_WITH_GCOV "Builds the project for coverage analysis with gcov" OFF)
-option(CGOGN_WITH_PPROF "Profile the project using gprof" OFF)
 option(CGOGN_WITH_ASAN "Builds the project with Google's AddressSanitizer" OFF)
 option(CGOGN_WITH_TSAN "Builds the project with Google's ThreadSanitizer" OFF)
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")

@@ -37,7 +37,7 @@ namespace geometry
 class DualQuaternion
 {
 public:
-	DualQuaternion() : DualQuaternion({1, 0, 0, 0}, {0, 0, 0}) {}
+	DualQuaternion() : DualQuaternion({0, 0, 0}) {}
 
 	[[nodiscard]]
 	static inline DualQuaternion from_rotation(const Quaternion& r)
@@ -48,7 +48,7 @@ public:
 	[[nodiscard]]
 	static inline DualQuaternion from_translation(const Vec3& t)
 	{
-		return DualQuaternion{{1, 0, 0, 0}, t};
+		return DualQuaternion{0.5 * t};
 	}
 
 	[[nodiscard]]
@@ -72,13 +72,13 @@ public:
 	[[nodiscard]]
 	static inline DualQuaternion zero()
 	{
-		return DualQuaternion{{0, 0, 0, 0}, {0, 0, 0}};
+		return DualQuaternion{Quaternion{0, 0, 0, 0}, Quaternion{0, 0, 0, 0}};
 	}
 
 	[[nodiscard]]
 	static inline DualQuaternion identity()
 	{
-		return DualQuaternion{{1, 0, 0, 0}, {0, 0, 0}};
+		return DualQuaternion{{0, 0, 0}};
 	}
 
 	[[nodiscard]]

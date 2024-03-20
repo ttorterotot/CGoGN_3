@@ -38,6 +38,8 @@ template <typename Surface, typename TransformT>
 class SkinningHelper
 {
 private:
+	using AffineTransform = Eigen::Transform<Vec4::Scalar, 3, Eigen::Affine>;
+
 	using Skeleton = AnimationSkeleton;
 
 	template <typename T>
@@ -49,6 +51,35 @@ private:
 	using AttributeSk = AnimationSkeleton::Attribute<T>;
 
 	using Bone = AnimationSkeleton::Bone;
+
+	// Transform type to pre-computed transform type
+
+	template <typename T>
+	struct PrecomputedTransformTmpl
+	{
+		using Type = Mat4;
+
+		static Type from(const TransformT& world_transform)
+		{
+			if constexpr (std::is_same_v<TransformT, Mat4>)
+				return world_transform;
+			else
+				return world_transform.to_transform_matrix();
+		}
+	};
+
+	template <typename R, typename T>
+	struct PrecomputedTransformTmpl<RigidTransformation<R, T>>
+	{
+		using Type = AffineTransform;
+
+		static Type from(const TransformT& world_transform)
+		{
+			return world_transform.to_transform();
+		}
+	};
+
+	using PrecomputedTransform = PrecomputedTransformTmpl<TransformT>;
 
 public:
 
@@ -82,13 +113,13 @@ public:
 			bool normalize_weights = false)
 	{
 		std::vector<TransformT> raw_offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
-		std::vector<Mat4> offsets;
+		std::vector<PrecomputedTransform::Type> offsets;
 		bool res = true;
 
 		// Pre-compute offset transformation matrices
 		offsets.reserve(raw_offsets.size());
 		std::transform(raw_offsets.cbegin(), raw_offsets.cend(), std::back_inserter(offsets),
-				[](const TransformT& world_transform) { return SkinningHelper::to_transform_matrix(world_transform); });
+				[](const TransformT& world_transform) { return PrecomputedTransform::from(world_transform); });
 
 		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
 		{
@@ -180,18 +211,6 @@ public:
 		return res;
 	}
 
-	// Transform-type-dependent methods
-
-	static Mat4 to_transform_matrix(const Mat4& world_transform)
-	{
-		return world_transform;
-	}
-
-	static std::enable_if_t<!std::is_same_v<TransformT, Mat4>, Mat4> to_transform_matrix(const TransformT& world_transform)
-	{
-		return world_transform.to_transform_matrix();
-	}
-
 private:
 
 	// Computes the transform offset for the pose.
@@ -212,9 +231,16 @@ private:
 		return offsets;
 	}
 
-	static Vec3 transform_point(const Vec3& v, const Mat4& world_transform)
+	// Pre-computed-transform-type dependent methods
+
+	static inline Vec3 transform_point(const Vec3& v, const AffineTransform& world_transform)
 	{
-		Vec4 res = world_transform * Vec4{v.x(), v.y(), v.z(), 1.0};
+		return world_transform * v;
+	}
+
+	static inline Vec3 transform_point(const Vec3& v, const Mat4& world_transform)
+	{
+		Vec4 res = world_transform * v.homogeneous().eval();
 		return res.head<3>() / res.w();
 	}
 };

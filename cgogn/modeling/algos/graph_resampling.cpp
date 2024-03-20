@@ -187,7 +187,7 @@ void resample_graph(Graph& g, Graph::Attribute<Vec3>* g_vertex_position, Graph::
 
 	// remove short length-1 branches
 	foreach_cell(new_g, [&](Graph::Edge e) -> bool {
-		std::vector<Graph::Vertex> vertices = incident_vertices(new_g, e);
+		auto vertices = first_incident_vertices<2>(new_g, e);
 		Scalar length = geometry::length(new_g, e, new_g_vertex_position);
 		uint32 deg1 = degree(new_g, vertices[0]);
 		uint32 deg2 = degree(new_g, vertices[1]);

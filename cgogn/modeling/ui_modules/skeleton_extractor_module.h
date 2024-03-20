@@ -233,7 +233,7 @@ public:
 				continue;
 
 			// iv[0] will be removed and iv[1] will survive
-			std::vector<NonManifoldVertex> iv = incident_vertices(*non_manifold_, e);
+			auto iv = first_incident_vertices<2>(*non_manifold_, e);
 			PositionAccu& accu0 = value<PositionAccu>(*non_manifold_, vertex_position_accu, iv[0]);
 			PositionAccu& accu1 = value<PositionAccu>(*non_manifold_, vertex_position_accu, iv[1]);
 			accu1.insert(accu1.end(), accu0.begin(), accu0.end());

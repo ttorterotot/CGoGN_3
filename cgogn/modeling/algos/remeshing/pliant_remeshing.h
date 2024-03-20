@@ -71,7 +71,7 @@ inline bool edge_should_flip(MESH& m, typename MESH::Edge e)
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 
-	std::vector<Vertex> iv = incident_vertices(m, e);
+	auto iv = first_incident_vertices<2>(m, e);
 	const int32 w = degree(m, iv[0]);
 	const int32 x = degree(m, iv[1]);
 	const int32 y = degree(m, Vertex(phi<1, 1>(m, iv[0].dart_)));
@@ -196,7 +196,7 @@ struct PliantRemeshing_Helper
 			if (std::fabs(geometry::angle(m_, e, vertex_position_.get())) > angle_threshold)
 			{
 				value<bool>(m_, feature_edge_, e) = true;
-				std::vector<Vertex> iv = incident_vertices(m_, e);
+				auto iv = first_incident_vertices<2>(m_, e);
 				value<bool>(m_, feature_vertex_, iv[0]) = true;
 				value<bool>(m_, feature_vertex_, iv[1]) = true;
 			}
@@ -264,7 +264,7 @@ void pliant_remeshing(MESH& m, std::shared_ptr<typename mesh_traits<MESH>::templ
 			cache.template build<Edge>();
 			has_long_edge = false;
 			foreach_cell(cache, [&](Edge e) -> bool {
-				std::vector<Vertex> iv = incident_vertices(m, e);
+				auto iv = first_incident_vertices<2>(m, e);
 				Scalar lfs = 0.0; // init to zero for warning remove
 				Scalar coeff = 1.0;
 				if (lfs_adaptive)
@@ -313,7 +313,7 @@ void pliant_remeshing(MESH& m, std::shared_ptr<typename mesh_traits<MESH>::templ
 		{
 			has_short_edge = false;
 			foreach_cell(m, [&](Edge e) -> bool {
-				std::vector<Vertex> iv = incident_vertices(m, e);
+				auto iv = first_incident_vertices<2>(m, e);
 				Scalar lfs;
 				Scalar coeff = 1.0;
 				if (lfs_adaptive)
@@ -373,7 +373,7 @@ void pliant_remeshing(MESH& m, std::shared_ptr<typename mesh_traits<MESH>::templ
 			else
 			{
 				// Delaunay flips
-				std::vector<Vertex> iv = incident_vertices(m, e);
+				auto iv = first_incident_vertices<2>(m, e);
 				if (degree(m, iv[0]) > 4 && degree(m, iv[1]) > 4)
 				{
 					std::vector<Scalar> op_angles = geometry::opposite_angles(m, e, vertex_position.get());

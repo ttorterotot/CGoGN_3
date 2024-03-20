@@ -884,7 +884,7 @@ Dart remesh_igh(CMap2& m2, CMap2::Volume vol, IG_M2Attributes& m2Attribs)
 			edges_n_n.clear();
 			edges_n_4.clear();
 			foreach_incident_edge(m2, vol, [&](CMap2::Edge e) -> bool {
-				auto vertices = incident_vertices(m2, e);
+				auto vertices = first_incident_vertices<2>(m2, e);
 
 				uint32 deg_0 = degree(m2, vertices[0]);
 				uint32 deg_1 = degree(m2, vertices[1]);
@@ -915,6 +915,8 @@ Dart remesh_igh(CMap2& m2, CMap2::Volume vol, IG_M2Attributes& m2Attribs)
 			});
 
 			CMap2::Edge prime_edge = candidate_edges[0];
+
+			// @TODO: unused variable, missing code, or should be removed, or assign to std::ignore
 			auto neigh_vertices = incident_vertices(m2, prime_edge);
 
 			vol_dart = phi_1(m2, prime_edge.dart_);
@@ -2045,7 +2047,7 @@ bool propagate_frame_n_n(const IncidenceGraph& ig, IG_GAttributes& igAttribs, CM
 						 std::vector<IncidenceGraph::Vertex>& branch_vertices)
 {
 	Mat3 lastU;
-	std::vector<IncidenceGraph::Vertex> inc_verts;
+	IncidenceGraph::Vertex first_inc_vert;
 
 	std::vector<Vec3> tangents;
 	tangents.push_back(Vec3());
@@ -2068,9 +2070,9 @@ bool propagate_frame_n_n(const IncidenceGraph& ig, IG_GAttributes& igAttribs, CM
 		IncidenceGraph::Vertex v1 = branch_vertices[i];
 		IncidenceGraph::Edge e0 = get_shared_edge(ig, v0, v1);
 
-		inc_verts = incident_vertices(ig, e0);
-		uint32 vid0 = v0 == inc_verts[0] ? 0 : 1;
-		uint32 vid1 = v1 == inc_verts[0] ? 0 : 1;
+		first_inc_vert = (*ig.edge_incident_vertices_)[e0.index_].first;
+		uint32 vid0 = v0 == first_inc_vert ? 0 : 1;
+		uint32 vid1 = v1 == first_inc_vert ? 0 : 1;
 
 		const Vec3& p0 = value<Vec3>(ig, igAttribs.vertex_position, branch_vertices[i - 1]);
 		const Vec3& p1 = value<Vec3>(ig, igAttribs.vertex_position, branch_vertices[i]);
@@ -2088,8 +2090,8 @@ bool propagate_frame_n_n(const IncidenceGraph& ig, IG_GAttributes& igAttribs, CM
 		{
 			std::vector<IncidenceGraph::Edge> inc_edges = incident_edges(ig, v1);
 			IncidenceGraph::Edge e1 = inc_edges[e0 == inc_edges[0] ? 1 : 0];
-			inc_verts = incident_vertices(ig, e1);
-			vid1 = v1 == inc_verts[0] ? 0 : 1;
+			first_inc_vert = (*ig.edge_incident_vertices_)[e1.index_].first;
+			vid1 = v1 == first_inc_vert ? 0 : 1;
 			if (vid1 == 0)
 				value<std::pair<Mat3, Mat3>>(ig, igAttribs.halfedge_frame, e1).first = U1;
 			else
@@ -2106,8 +2108,8 @@ bool propagate_frame_n_n(const IncidenceGraph& ig, IG_GAttributes& igAttribs, CM
 	endU.col(2) = -endU.col(2);
 
 	IncidenceGraph::Edge e0 = get_shared_edge(ig, branch_vertices[nb_vertices - 2], branch_vertices[nb_vertices - 1]);
-	inc_verts = incident_vertices(ig, e0);
-	uint32 vidEnd = branch_vertices[nb_vertices - 1] == inc_verts[0] ? 0 : 1;
+	first_inc_vert = (*ig.edge_incident_vertices_)[e0.index_].first;
+	uint32 vidEnd = branch_vertices[nb_vertices - 1] == first_inc_vert ? 0 : 1;
 	Mat3 UE;
 	if (vidEnd == 0)
 		UE = value<std::pair<Mat3, Mat3>>(ig, igAttribs.halfedge_frame, e0).first;
@@ -2272,7 +2274,7 @@ bool set_contact_surfaces_geometry(const IncidenceGraph& ig, IG_GAttributes& igA
 		}
 
 		foreach_incident_edge(m2, contact_surface, [&](CMap2::Edge e) -> bool {
-			std::vector<CMap2::Vertex> vertices = incident_vertices(m2, e);
+			auto vertices = first_incident_vertices<2>(m2, e);
 			Vec3 mid = 0.5 * (value<Vec3>(m2, m2Attribs.vertex_position, vertices[0]) +
 							  value<Vec3>(m2, m2Attribs.vertex_position, vertices[1]));
 			geometry::project_on_sphere(mid, center, radius);

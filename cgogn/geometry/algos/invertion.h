@@ -38,7 +38,7 @@ namespace geometry
 template <typename MESH>
 bool edge_has_vertex(MESH& m, typename mesh_traits<MESH>::Edge e, typename mesh_traits<MESH>::Vertex v)
 {
-	auto iv = incident_vertices(m, e);
+	auto iv = first_incident_vertices<2>(m, e);
 	return index_of(m, iv[0]) == index_of(m, v) || index_of(m, iv[1]) == index_of(m, v);
 }
 
@@ -62,7 +62,7 @@ bool contractible(MESH& m, typename mesh_traits<MESH>::Edge e,
 	using Edge = typename mesh_traits<MESH>::Edge;
 	using Face = typename mesh_traits<MESH>::Face;
 
-	auto iv = incident_vertices(m, e);
+	auto iv = first_incident_vertices<2>(m, e);
 	auto v1 = iv[0];
 	auto v2 = iv[1];
 	auto v1_index = index_of(m, v1);

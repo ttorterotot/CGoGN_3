@@ -90,7 +90,7 @@ Scalar angle(const MESH& m, typename mesh_traits<MESH>::Edge e,
 	const Vec3 n1 = normal(m, faces[0], vertex_position);
 	const Vec3 n2 = normal(m, faces[1], vertex_position);
 
-	std::vector<Vertex> vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 	Vec3 edge = value<Vec3>(m, vertex_position, vertices[1]) - value<Vec3>(m, vertex_position, vertices[0]);
 	edge.normalize();
 

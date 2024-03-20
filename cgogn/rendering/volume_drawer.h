@@ -150,7 +150,7 @@ void VolumeDrawerGen::update_edge(const MESH& m, const typename mesh_traits<MESH
 	foreach_cell(m, [&](Volume v) {
 		Vec3 CV = geometry::centroid(m, v, position);
 		foreach_incident_edge(m, v, [&](Edge e) -> bool {
-			auto vs = incident_vertices(m, e); // WARNING PERFORMANCE ISSUE, SPECIAL PAIR VERSION
+			auto vs = first_incident_vertices<2>(m, e); // WARNING PERFORMANCE ISSUE, SPECIAL PAIR VERSION
 			const Vec3& P1 = value<Vec3>(m, position, vs[0]);
 			const Vec3& P2 = value<Vec3>(m, position, vs[1]);
 			out_pos.push_back({float32(CV[0]), float32(CV[1]), float32(CV[2])});
@@ -201,7 +201,7 @@ public:
 			foreach_incident_face(m, v, [&](Face f) -> bool {
 				if (codegree(m, f) < 3)
 				{
-					auto vs = incident_vertices(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
+					auto vs = first_incident_vertices<3>(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
 					const Vec3& P1 = value<Vec3>(m, position, vs[0]);
 					const Vec3& P2 = value<Vec3>(m, position, vs[1]);
 					const Vec3& P3 = value<Vec3>(m, position, vs[2]);
@@ -271,7 +271,7 @@ public:
 			foreach_incident_face(m, v, [&](Face f) -> bool {
 				if (m.has_codegree(f, 3))
 				{
-					auto vs = incident_vertices(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
+					auto vs = first_incident_vertices<3>(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
 					const Vec3& P1 = value<Vec3>(m, position, vs[0]);
 					const Vec3& C1 = value<Vec3>(m, color, vs[0]);
 					const Vec3& P2 = value<Vec3>(m, position, vs[1]);
@@ -350,7 +350,7 @@ public:
 			m.foreach_incident_face(v, [&](Face f) {
 				if (m.has_codegree(f, 3))
 				{
-					auto vs = incident_vertices(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
+					auto vs = first_incident_vertices<3>(m, f); // WARNING PERFORMANCE ISSUE, SPECIAL TRIPLET VERSION
 					const Vec3& P1 = value<Vec3>(m, position, vs[0]);
 					const Vec3& P2 = value<Vec3>(m, position, vs[1]);
 					const Vec3& P3 = value<Vec3>(m, position, vs[2]);

@@ -403,7 +403,7 @@ std::list<Edge> find_path(CMap2& mesh, Vertex a, Vertex b)
 		Vertex next_vertex;
 		Edge nearest_edge;
 		foreach_incident_edge(mesh, v_current, [&](Edge e) -> bool {
-			auto v_incidents = incident_vertices(mesh, e);
+			auto v_incidents = first_incident_vertices<2>(mesh, e);
 			next_vertex = v_incidents[0];
 			if (isSameVertex(mesh, v_current.dart_, next_vertex.dart_))
 				next_vertex = v_incidents[1];

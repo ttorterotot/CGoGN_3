@@ -41,7 +41,7 @@ template <typename MESH>
 Vec3 mid_point(const MESH& m, typename mesh_traits<MESH>::Edge e,
 			   const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
-	auto vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 	return Scalar(0.5) * (value<Vec3>(m, vertex_position, vertices[0]) + value<Vec3>(m, vertex_position, vertices[1]));
 }
 
@@ -49,7 +49,7 @@ template <typename MESH>
 Vec3 end_point(const MESH& m, typename mesh_traits<MESH>::Edge e,
 			   const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
-	auto vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<1>(m, e);
 	return value<Vec3>(m, vertex_position, vertices[0]);
 }
 

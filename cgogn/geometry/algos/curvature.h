@@ -60,7 +60,7 @@ std::tuple<Scalar, Scalar, Vec3, Vec3, Vec3> curvature(
 	tensor.setZero();
 
 	foreach_cell(neighborhood, [&](Edge e) -> bool {
-		std::vector<Vertex> vv = incident_vertices(m, e);
+		auto vv = first_incident_vertices<2>(m, e);
 		Vec3 ev = value<Vec3>(m, vertex_position, vv[1]) - value<Vec3>(m, vertex_position, vv[0]);
 		tensor += (ev * ev.transpose()) * value<Scalar>(m, edge_angle, e) * (Scalar(1) / ev.norm());
 		return true;
@@ -69,7 +69,7 @@ std::tuple<Scalar, Scalar, Vec3, Vec3, Vec3> curvature(
 	const Vec3& p = value<Vec3>(m, vertex_position, v);
 	foreach_cell(neighborhood, [&](HalfEdge h) -> bool {
 		Edge e = incident_edges(m, h)[0];
-		std::vector<Vertex> vv = incident_vertices(m, e);
+		auto vv = first_incident_vertices<2>(m, e);
 		const Vec3& p1 = value<Vec3>(m, vertex_position, vv[0]);
 		const Vec3& p2 = value<Vec3>(m, vertex_position, vv[1]);
 		Vec3 ev = p2 - p1;
@@ -82,7 +82,7 @@ std::tuple<Scalar, Scalar, Vec3, Vec3, Vec3> curvature(
 	Scalar neighborhood_area = area(neighborhood, vertex_position);
 	foreach_cell(neighborhood, [&](HalfEdge h) -> bool {
 		Face f = incident_faces(m, h)[0];
-		std::vector<Vertex> vv = incident_vertices(m, f);
+		auto vv = first_incident_vertices<3>(m, f);
 		const Vec3& p1 = value<Vec3>(m, vertex_position, vv[0]);
 		const Vec3& p2 = value<Vec3>(m, vertex_position, vv[1]);
 		const Vec3& p3 = value<Vec3>(m, vertex_position, vv[2]);

@@ -925,7 +925,7 @@ public:
 									  std::shared_ptr<NonManifoldAttribute<Vec3>>& stability_color,
 									  std::shared_ptr<NonManifoldAttribute<Vec4>>& sphere_info)
 	{
-		auto iv = incident_vertices(nm, e);
+		auto iv = first_incident_vertices<2>(nm, e);
 		NonManifoldVertex v1 = iv[0];
 		NonManifoldVertex v2 = iv[1];
 		const Vec3& v1_p = value<Vec4>(nm, sphere_info, v1).template head<3>();

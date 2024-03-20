@@ -230,7 +230,7 @@ struct NonRigidRegistration_Helper
 		if (target_bvh_->intersect(r, &h))
 		{
 			Face f = target_faces_[h.idx];
-			std::vector<Vertex> vertices = incident_vertices(*target_, f);
+			auto vertices = first_incident_vertices<3>(*target_, f);
 			Vec3 p = h.bcoords[0] * value<Vec3>(*target_, target_vertex_position_, vertices[0]) +
 					 h.bcoords[1] * value<Vec3>(*target_, target_vertex_position_, vertices[1]) +
 					 h.bcoords[2] * value<Vec3>(*target_, target_vertex_position_, vertices[2]);

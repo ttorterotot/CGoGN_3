@@ -60,7 +60,7 @@ void non_manifold_from_surface(SURFACE& s, NONMANIFOLD& nm, const FUNC1& on_vert
 	});
 	auto non_manifold_edge = add_attribute<NonManifoldEdge, SurfaceEdge>(s, "__non_manifold_edge");
 	foreach_cell(s, [&](SurfaceEdge se) -> bool {
-		std::vector<SurfaceVertex> iv = incident_vertices(s, se);
+		auto iv = first_incident_vertices<2>(s, se);
 		NonManifoldEdge nme = add_edge(nm, value<NonManifoldVertex>(s, non_manifold_vertex, iv[0]),
 									   value<NonManifoldVertex>(s, non_manifold_vertex, iv[1]));
 		value<NonManifoldEdge>(s, non_manifold_edge, se) = nme;
@@ -102,7 +102,7 @@ void graph_from_surface(SURFACE& s, GRAPH& g, const FUNC1& on_vertex_added, cons
 		return true;
 	});
 	foreach_cell(s, [&](SurfaceEdge se) -> bool {
-		std::vector<SurfaceVertex> iv = incident_vertices(s, se);
+		auto iv = first_incident_vertices<2>(s, se);
 		GraphEdge ge =
 			connect_vertices(g, value<GraphVertex>(s, graph_vertex, iv[0]), value<GraphVertex>(s, graph_vertex, iv[1]));
 		on_edge_added(ge, se);
@@ -133,7 +133,7 @@ void graph_from_non_manifold(NONMANIFOLD& nm, GRAPH& g, const FUNC1& on_vertex_a
 		return true;
 	});
 	foreach_cell(nm, [&](NonManifoldEdge nme) -> bool {
-		std::vector<NonManifoldVertex> iv = incident_vertices(nm, nme);
+		auto iv = first_incident_vertices<2>(nm, nme);
 		GraphEdge ge = connect_vertices(g, value<GraphVertex>(nm, graph_vertex, iv[0]),
 										value<GraphVertex>(nm, graph_vertex, iv[1]));
 		on_edge_added(ge, nme);

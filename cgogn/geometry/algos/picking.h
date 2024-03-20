@@ -176,7 +176,7 @@ void picking(const MESH& m, const typename mesh_traits<MESH>::template Attribute
 		const Vec3& I = std::get<1>(sf);
 
 		foreach_incident_edge(m, f, [&](Edge e) -> bool {
-			std::vector<Vertex> vertices = incident_vertices(m, e);
+			auto vertices = first_incident_vertices<2>(m, e);
 			Scalar d2 = squared_distance_line_point(value<Vec3>(m, vertex_position, vertices[0]),
 													value<Vec3>(m, vertex_position, vertices[1]), I);
 			if (d2 < min_d2)

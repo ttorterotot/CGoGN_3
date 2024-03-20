@@ -58,7 +58,7 @@ struct DecimationQEM_Helper
 			return true;
 		});
 		parallel_foreach_cell(m_, [&](Face f) -> bool {
-			std::vector<Vertex> iv = incident_vertices(m_, f);
+			auto iv = first_incident_vertices<3>(m_, f);
 			Quadric q(value<Vec3>(m_, vertex_position_, iv[0]), value<Vec3>(m_, vertex_position_, iv[1]),
 					  value<Vec3>(m_, vertex_position_, iv[2]));
 			value<Quadric>(m_, vertex_quadric_, iv[0]) += q;
@@ -74,7 +74,7 @@ struct DecimationQEM_Helper
 
 	Scalar edge_cost(Edge e, const Vec3& p)
 	{
-		std::vector<Vertex> iv = incident_vertices(m_, e);
+		auto iv = first_incident_vertices<2>(m_, e);
 		Quadric q;
 		q += value<Quadric>(m_, vertex_quadric_, iv[0]);
 		q += value<Quadric>(m_, vertex_quadric_, iv[1]);
@@ -83,7 +83,7 @@ struct DecimationQEM_Helper
 
 	Vec3 edge_optimal(Edge e)
 	{
-		std::vector<Vertex> iv = incident_vertices(m_, e);
+		auto iv = first_incident_vertices<2>(m_, e);
 		Quadric q;
 		q += value<Quadric>(m_, vertex_quadric_, iv[0]);
 		q += value<Quadric>(m_, vertex_quadric_, iv[1]);
@@ -96,7 +96,7 @@ struct DecimationQEM_Helper
 
 	void before_collapse(Edge e)
 	{
-		std::vector<Vertex> iv = incident_vertices(m_, e);
+		auto iv = first_incident_vertices<2>(m_, e);
 		q_.zero();
 		q_ += value<Quadric>(m_, vertex_quadric_, iv[0]);
 		q_ += value<Quadric>(m_, vertex_quadric_, iv[1]);

@@ -81,7 +81,7 @@ std::tuple<Vec3, Scalar, Vec3> shrinking_ball_center(
 	if (surface_bvh->intersect(ray, &h))
 	{
 		Face f = bvh_faces[h.idx];
-		std::vector<Vertex> vertices = incident_vertices(m, f);
+		auto vertices = first_incident_vertices<3>(m, f);
 		Vec3 ip = h.bcoords[0] * value<Vec3>(m, vertex_position, vertices[0]) +
 				  h.bcoords[1] * value<Vec3>(m, vertex_position, vertices[1]) +
 				  h.bcoords[2] * value<Vec3>(m, vertex_position, vertices[2]);

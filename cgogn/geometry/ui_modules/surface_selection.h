@@ -136,7 +136,7 @@ class SurfaceSelection : public ViewModule
 				std::vector<Vec3> selected_edges_position;
 				selected_edges_position.reserve(selected_edges_set_->size() * 2);
 				selected_edges_set_->foreach_cell([&](Edge e) {
-					std::vector<Vertex> vertices = incident_vertices(*mesh_, e);
+					auto vertices = first_incident_vertices<2>(*mesh_, e);
 					selected_edges_position.push_back(value<Vec3>(*mesh_, vertex_position_, vertices[0]));
 					selected_edges_position.push_back(value<Vec3>(*mesh_, vertex_position_, vertices[1]));
 				});
@@ -307,7 +307,7 @@ private:
 						selecting_segments.reserve(2 * selecting_edges_.size());
 						for (Edge e : selecting_edges_)
 						{
-							std::vector<Vertex> vertices = incident_vertices(*selected_mesh_, e);
+							auto vertices = first_incident_vertices<2>(*selected_mesh_, e);
 							selecting_segments.push_back(value<Vec3>(*selected_mesh_, p.vertex_position_, vertices[0]));
 							selecting_segments.push_back(value<Vec3>(*selected_mesh_, p.vertex_position_, vertices[1]));
 						}
@@ -369,7 +369,7 @@ private:
 						selecting_segments.reserve(2 * selecting_edges_.size());
 						for (Edge e : selecting_edges_)
 						{
-							std::vector<Vertex> vertices = incident_vertices(*selected_mesh_, e);
+							auto vertices = first_incident_vertices<2>(*selected_mesh_, e);
 							selecting_segments.push_back(value<Vec3>(*selected_mesh_, p.vertex_position_, vertices[0]));
 							selecting_segments.push_back(value<Vec3>(*selected_mesh_, p.vertex_position_, vertices[1]));
 						}

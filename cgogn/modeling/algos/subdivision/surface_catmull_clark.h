@@ -60,7 +60,7 @@ void subdivide_catmull_clark(MESH& m, typename mesh_traits<MESH>::template Attri
 	CellCache<MESH> cache_new(m);
 
 	foreach_cell(cache_old, [&](Edge e) -> bool {
-		std::vector<Vertex> iv = incident_vertices(m, e);
+		auto iv = first_incident_vertices<2>(m, e);
 		Vertex v = cut_edge(m, e);
 		cache_new.add(v);
 		value<Vec3>(m, vertex_position, v) =

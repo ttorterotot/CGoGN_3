@@ -1904,7 +1904,7 @@ bool set_contact_surfaces_geometry(const Graph& g, const GAttributes& gAttribs, 
 		}
 
 		foreach_incident_edge(m2, contact_surface, [&](CMap2::Edge e) -> bool {
-			std::vector<CMap2::Vertex> vertices = incident_vertices(m2, e);
+			auto vertices = first_incident_vertices<2>(m2, e);
 			Vec3 mid = 0.5 * (value<Vec3>(m2, m2Attribs.vertex_position, vertices[0]) +
 							  value<Vec3>(m2, m2Attribs.vertex_position, vertices[1]));
 			geometry::project_on_sphere(mid, center, radius);
@@ -2421,7 +2421,7 @@ Dart remesh(CMap2& m2, CMap2::Volume vol, M2Attributes& m2Attribs)
 			edges_n_n.clear();
 			edges_n_4.clear();
 			foreach_incident_edge(m2, vol, [&](CMap2::Edge e) -> bool {
-				auto vertices = incident_vertices(m2, e);
+				auto vertices = first_incident_vertices<2>(m2, e);
 
 				uint32 deg_0 = degree(m2, vertices[0]);
 				uint32 deg_1 = degree(m2, vertices[1]);
@@ -2452,6 +2452,8 @@ Dart remesh(CMap2& m2, CMap2::Volume vol, M2Attributes& m2Attribs)
 			});
 
 			CMap2::Edge prime_edge = candidate_edges[0];
+
+			// @TODO: unused variable, missing code, or should be removed, or assign to std::ignore
 			auto neigh_vertices = incident_vertices(m2, prime_edge);
 
 			vol_dart = phi_1(m2, prime_edge.dart_);

@@ -211,7 +211,7 @@ bool edge_can_collapse(const GMap2& m, GMap2::Edge e)
 	using Vertex = GMap2::Vertex;
 	using Face = GMap2::Face;
 
-	auto vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 
 	if (is_incident_to_boundary(m, vertices[0]) || is_incident_to_boundary(m, vertices[1]))
 		return false;

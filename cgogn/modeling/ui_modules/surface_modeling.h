@@ -143,7 +143,7 @@ public:
 		foreach_cell(m, [&](Edge e) -> bool {
 			if (edge_can_flip(m, e))
 			{
-				std::vector<Vertex> iv = incident_vertices(m, e);
+				auto iv = first_incident_vertices<2>(m, e);
 				if (degree(m, iv[0]) < 4 || degree(m, iv[1]) < 4)
 					return true;
 				std::vector<Scalar> op_angles = geometry::opposite_angles(m, e, vertex_position);

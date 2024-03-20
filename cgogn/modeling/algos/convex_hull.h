@@ -216,7 +216,7 @@ void convex_hull(const std::vector<Vec3>& points, MESH& m,
 	for (uint32 i = 0; i < points.size(); ++i)
 	{
 		foreach_cell(m, [&](Face f) -> bool {
-			std::vector<Vertex> vertices = incident_vertices(m, f);
+			auto vertices = first_incident_vertices<3>(m, f);
 			Vec3 N = geometry::normal(value<Vec3>(m, vertex_position, vertices[0]),
 									  value<Vec3>(m, vertex_position, vertices[1]),
 									  value<Vec3>(m, vertex_position, vertices[2]));
@@ -281,7 +281,7 @@ void convex_hull(const std::vector<Vec3>& points, MESH& m,
 			if (i == active_point_index)
 				continue;
 			foreach_incident_face(m, v, [&](Face iface) -> bool {
-				std::vector<Vertex> vertices = incident_vertices(m, iface);
+				auto vertices = first_incident_vertices<3>(m, iface);
 				Vec3 N = geometry::normal(value<Vec3>(m, vertex_position, vertices[0]),
 										  value<Vec3>(m, vertex_position, vertices[1]),
 										  value<Vec3>(m, vertex_position, vertices[2]));

@@ -39,7 +39,7 @@ Scalar length(const MESH& m, typename mesh_traits<MESH>::Edge e,
 			  const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
-	std::vector<Vertex> vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 	return (value<Vec3>(m, vertex_position, vertices[0]) - value<Vec3>(m, vertex_position, vertices[1])).norm();
 }
 
@@ -48,7 +48,7 @@ Scalar squared_length(const MESH& m, typename mesh_traits<MESH>::Edge e,
 					  const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
-	std::vector<Vertex> vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 	return (value<Vec3>(m, vertex_position, vertices[0]) - value<Vec3>(m, vertex_position, vertices[1])).squaredNorm();
 }
 

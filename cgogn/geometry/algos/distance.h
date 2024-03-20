@@ -55,7 +55,7 @@ Vec3 closest_point_on_surface(const MESH& m,
 	Scalar min_dist = std::numeric_limits<Scalar>::max();
 
 	foreach_cell(m, [&](Face f) -> bool {
-		std::vector<Vertex> vertices = incident_vertices(m, f);
+		auto vertices = first_incident_vertices<3>(m, f);
 		// std::vector<const Vec3*> vertices_position;
 		// std::transform(vertices.begin(), vertices.end(), std::back_inserter(vertices_position),
 		// 			   [&](Vertex v) -> const Vec3* { return &value<Vec3>(m, vertex_position, v); });
@@ -90,7 +90,7 @@ Vec3 closest_point_on_surface(const MESH& m,
 	Scalar min_dist = std::numeric_limits<Scalar>::max();
 
 	g.foreach_face_around(p, [&](Face f) {
-		std::vector<Vertex> vertices = incident_vertices(m, f);
+		auto vertices = first_incident_vertices<3>(m, f);
 		// std::vector<const Vec3*> vertices_position;
 		// std::transform(vertices.begin(), vertices.end(), std::back_inserter(vertices_position),
 		// 			   [&](Vertex v) -> const Vec3* { return &value<Vec3>(m, vertex_position, v); });

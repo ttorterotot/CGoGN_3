@@ -185,7 +185,7 @@ bool edge_can_collapse(const CMap2& m, CMap2::Edge e)
 	using Vertex = CMap2::Vertex;
 	using Face = CMap2::Face;
 
-	auto vertices = incident_vertices(m, e);
+	auto vertices = first_incident_vertices<2>(m, e);
 
 	if (is_incident_to_boundary(m, vertices[0]) || is_incident_to_boundary(m, vertices[1]))
 		return false;
@@ -650,7 +650,7 @@ std::pair<std::vector<CMap2::HalfEdge>, std::vector<CMap2::Face>> build_horizon(
 		foreach_adjacent_face_through_edge(m, f_i, [&](CMap2::Face af) -> bool {
 			if (visible.is_marked(af))
 				return true;
-			std::vector<CMap2::Vertex> vertices = incident_vertices(m, af);
+			auto vertices = first_incident_vertices<3>(m, af);
 			Vec3 N = geometry::normal(value<Vec3>(m, vertex_position, vertices[0]),
 									  value<Vec3>(m, vertex_position, vertices[1]),
 									  value<Vec3>(m, vertex_position, vertices[2]));

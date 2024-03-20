@@ -391,7 +391,7 @@ void blossom_quad_remeshing(MESH& m,
 	foreach_cell(m, [&](Edge e) -> bool {
 		if (is_incident_to_boundary(m, e))
 		{
-			if (degree(m, incident_vertices(m, e)[0]) > 3)
+			if (degree(m, first_incident_vertices<1>(m, e)[0]) > 3)
 			{
 				value<int>(m, edge_weight, e) = 10;
 				nb_graph_edges++;
@@ -420,7 +420,7 @@ void blossom_quad_remeshing(MESH& m,
 	foreach_cell(m, [&](Edge e) -> bool {
 		if (is_incident_to_boundary(m, e))
 		{
-			if (degree(m, incident_vertices(m, e)[0]) > 3)
+			if (degree(m, first_incident_vertices<1>(m, e)[0]) > 3)
 			{
 				Face f1 = incident_faces(m, e)[0];
 				Face f2 = next_boundary_face(m, e);
@@ -497,7 +497,7 @@ void blossom_quad_remeshing(MESH& m,
 
 					Face fbn = next_boundary_face(m, be);
 					Face fbp = previous_boundary_face(m, be);
-					std::vector<Vertex> vertices = incident_vertices(m, be);
+					auto vertices = first_incident_vertices<2>(m, be);
 					Vertex nv;
 					if (value<uint32>(m, face_index, fbn) == match_idx)
 					{

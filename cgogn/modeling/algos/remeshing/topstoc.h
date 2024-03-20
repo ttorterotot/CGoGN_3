@@ -106,7 +106,7 @@ void debug_off(MESH& _m)
 	}
 
 	foreach_cell(_m, [&](Face f) -> bool {
-		std::vector<Vertex> iv = incident_vertices(_m, f);
+		auto iv = first_incident_vertices<3>(_m, f);
 		file << "3 " << _m.index_of(iv[0]) << " " << _m.index_of(iv[1]) << " " << _m.index_of(iv[2]) << std::endl;
 		return true;
 	});
@@ -251,7 +251,7 @@ void compute_surface_data(MESH& _m, MESH& _new_m,
 	// compute the new face count
 	uint32 face_count = 0;
 	foreach_cell(_m, [&](Face f) -> bool {
-		std::vector<Vertex> iv = incident_vertices(_m, f);
+		auto iv = first_incident_vertices<3>(_m, f);
 		if (value<uint32>(_m, _vertex_anchor, iv[0]) != value<uint32>(_m, _vertex_anchor, iv[1]) &&
 			value<uint32>(_m, _vertex_anchor, iv[0]) != value<uint32>(_m, _vertex_anchor, iv[2]) &&
 			value<uint32>(_m, _vertex_anchor, iv[1]) != value<uint32>(_m, _vertex_anchor, iv[2]))
@@ -275,7 +275,7 @@ void compute_surface_data(MESH& _m, MESH& _new_m,
 
 	// push faces for surface import
 	foreach_cell(_m, [&](Face f) -> bool {
-		std::vector<Vertex> iv = incident_vertices(_m, f);
+		auto iv = first_incident_vertices<3>(_m, f);
 		if (value<uint32>(_m, _vertex_anchor, iv[0]) != value<uint32>(_m, _vertex_anchor, iv[1]) &&
 			value<uint32>(_m, _vertex_anchor, iv[0]) != value<uint32>(_m, _vertex_anchor, iv[2]) &&
 			value<uint32>(_m, _vertex_anchor, iv[1]) != value<uint32>(_m, _vertex_anchor, iv[2]))

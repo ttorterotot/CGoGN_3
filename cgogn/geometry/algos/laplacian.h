@@ -111,7 +111,7 @@ Eigen::SparseMatrix<Scalar, Eigen::ColMajor> cotan_operator_matrix(
 	COTANcoeffs.reserve(nb_vertices * 10);
 	foreach_cell(m, [&](Edge e) -> bool {
 		Scalar w = value<Scalar>(m, edge_cotan_weight, e);
-		auto vertices = incident_vertices(m, e);
+		auto vertices = first_incident_vertices<2>(m, e);
 		uint32 vidx1 = value<uint32>(m, vertex_index, vertices[0]);
 		uint32 vidx2 = value<uint32>(m, vertex_index, vertices[1]);
 		COTANcoeffs.push_back(Eigen::Triplet<Scalar>(int(vidx1), int(vidx2), w));
@@ -211,7 +211,7 @@ Eigen::SparseMatrix<Scalar, Eigen::ColMajor> topo_laplacian_matrix(
 	std::vector<Eigen::Triplet<Scalar>> LAPLcoeffs;
 	LAPLcoeffs.reserve(nb_vertices * 10);
 	foreach_cell(m, [&](Edge e) -> bool {
-		auto vertices = incident_vertices(m, e);
+		auto vertices = first_incident_vertices<2>(m, e);
 		uint32 vidx1 = value<uint32>(m, vertex_index, vertices[0]);
 		uint32 vidx2 = value<uint32>(m, vertex_index, vertices[1]);
 		LAPLcoeffs.push_back(Eigen::Triplet<Scalar>(int(vidx1), int(vidx2), 1));

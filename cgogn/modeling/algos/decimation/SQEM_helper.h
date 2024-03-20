@@ -96,7 +96,7 @@ struct DecimationSQEM_Helper
 		});
 		foreach_cell(m_, [&](Face f) -> bool {
 			Vec4 n1 = Vec4(0, 0, 0, 1), n2 = Vec4(0, 0, 0, 1);
-			auto ifv = incident_vertices(m_, f);
+			auto ifv = first_incident_vertices<3>(m_, f);
 			Vec4 p1 = value<Vec4>(m_, sphere_info_, ifv[0]);
 			Vec4 p2 = value<Vec4>(m_, sphere_info_, ifv[1]);
 			Vec4 p3 = value<Vec4>(m_, sphere_info_, ifv[2]);
@@ -121,7 +121,7 @@ struct DecimationSQEM_Helper
 			auto ief = incident_faces(m_, e);
 			if (ief.size() == 1 || ief.size() == 0)
 			{
-				auto iev = incident_vertices(m_, e);
+				auto iev = first_incident_vertices<2>(m_, e);
 				auto iv1_e = incident_edges(m_, iev[0]);
 				auto iv2_e = incident_edges(m_, iev[1]);
 				double sr = value<double>(m_, stability_ratio_, e);
@@ -238,7 +238,7 @@ struct DecimationSQEM_Helper
 		{
 
 			foreach_cell(m_, [&](Edge e) {
-				auto iv = incident_vertices(m_, e);
+				auto iv = first_incident_vertices<2>(m_, e);
 				if (incident_faces(m_, e).size() == 0 &&
 					(incident_edges(m_, iv[0]).size() == 1 || incident_edges(m_, iv[1]).size() == 1))
 				{
@@ -258,7 +258,7 @@ struct DecimationSQEM_Helper
 			{
 				Vertex v = add_vertex(m_);
 				value<EdgeInfo>(m_, edge_queue_it_, e).first = false;
-				auto iv = incident_vertices(m_, e);
+				auto iv = first_incident_vertices<2>(m_, e);
 				Vec4 opt = value<Vec4>(m_, sphere_opt_, e);
 				value<bool>(m_, fixed_vertex_, v) =
 					value<bool>(m_, fixed_vertex_, iv[0]) || value<bool>(m_, fixed_vertex_, iv[1]);
@@ -284,7 +284,7 @@ struct DecimationSQEM_Helper
 				}
 
 				foreach_incident_edge(m_, v, [&](Edge ie) -> bool {
-					auto iv = incident_vertices(m_, ie);
+					auto iv = first_incident_vertices<2>(m_, ie);
 					Vertex v1 = iv[0];
 					Vertex v2 = iv[1];
 					const Vec3 v1_p = value<Vec4>(m_, sphere_info_, v1).template head<3>();
@@ -419,7 +419,7 @@ struct DecimationSQEM_Helper
 	Scalar triangle_inverted(Edge e, Vec4& opt)
 	{
 		Scalar cost = 0;
-		std::vector<Vertex> iv = incident_vertices(m_, e);
+		auto iv = first_incident_vertices<2>(m_, e);
 		Vec4 p1 = value<Vec4>(m_, sphere_info_, iv[0]);
 		Vec4 p2 = value<Vec4>(m_, sphere_info_, iv[1]);
 		Vec4 p3 = (p1 + p2) * Scalar(0.5);
@@ -473,7 +473,7 @@ struct DecimationSQEM_Helper
 	Scalar edge_optimal(Edge e, Vec4& opt)
 	{
 		Scalar cost = 0;
-		std::vector<Vertex> iv = incident_vertices(m_, e);
+		auto iv = first_incident_vertices<2>(m_, e);
 		if (value<bool>(m_, fixed_vertex_, iv[0]) && value<bool>(m_, fixed_vertex_, iv[1]))
 		{
 			value<EdgeInfo>(m_, edge_queue_it_, e).first = false;

@@ -276,7 +276,7 @@ private:
 
 			// build the cell cache of working area edges
 			p.working_cells_->template build<Edge>([&](Edge e) -> bool {
-				auto vertices = incident_vertices(m, e);
+				auto vertices = first_incident_vertices<2>(m, e);
 				return (working_vertices_marker.is_marked(vertices[0]) &&
 						working_vertices_marker.is_marked(vertices[1]));
 			});

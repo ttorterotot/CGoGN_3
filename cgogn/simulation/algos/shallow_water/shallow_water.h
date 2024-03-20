@@ -139,7 +139,7 @@ void init_attributes(MESH& m, Attributes<MESH>& swa, Context& swc)
 		if (is_incident_to_boundary(m, e))
 			value<BoundaryCondition>(m, swa.edge_bc_type_, e) = BC_Q;
 
-		std::vector<Vertex> vertices = incident_vertices(m, e);
+		auto vertices = first_incident_vertices<2>(m, e);
 		Vec3 vec =
 			value<Vec3>(m, swa.vertex_position_, vertices[1]) - value<Vec3>(m, swa.vertex_position_, vertices[0]);
 		Scalar l = vec.norm();
@@ -200,7 +200,7 @@ void domain_geometry_changed(MESH& m, Attributes<MESH>& swa, Context& swc)
 	using Face = typename mesh_traits<MESH>::Face;
 
 	parallel_foreach_cell(m, [&](Edge e) -> bool {
-		std::vector<Vertex> vertices = incident_vertices(m, e);
+		auto vertices = first_incident_vertices<2>(m, e);
 		Vec3 vec =
 			value<Vec3>(m, swa.vertex_position_, vertices[1]) - value<Vec3>(m, swa.vertex_position_, vertices[0]);
 		Scalar l = vec.norm();

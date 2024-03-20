@@ -122,14 +122,18 @@ bool is_simplicial(const MESH& m)
 	if constexpr (mesh_traits<MESH>::dimension == 2)
 	{
 		foreach_cell(m, [&](typename mesh_traits<MESH>::Face f) -> bool {
-			res = incident_vertices(m, f).size() == 3;
+			auto vertices = first_incident_vertices<4>(m, f);
+			res = vertices[2] != INVALID_INDEX && vertices[3] == INVALID_INDEX;
+			//    ^-- equivalent to incident_vertices(m, f).size() == 3
 			return res;
 		});
 	}
 	if constexpr (mesh_traits<MESH>::dimension == 3)
 	{
 		foreach_cell(m, [&](typename mesh_traits<MESH>::Volume v) -> bool {
-			res = incident_vertices(m, v).size() == 4;
+			auto vertices = first_incident_vertices<5>(m, f);
+			res = vertices[3] != INVALID_INDEX && vertices[4] == INVALID_INDEX;
+			//    ^-- equivalent to incident_vertices(m, f).size() == 4
 			return res;
 		});
 	}

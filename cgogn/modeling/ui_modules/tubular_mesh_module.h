@@ -128,7 +128,7 @@ protected:
 		if (surface_bvh_->intersect(r, &h))
 		{
 			SurfaceFace f = surface_faces_[h.idx];
-			std::vector<SurfaceVertex> vertices = incident_vertices(*surface_, f);
+			auto vertices = first_incident_vertices<3>(*surface_, f);
 			Vec3 p = h.bcoords[0] * value<Vec3>(*surface_, surface_vertex_position_, vertices[0]) +
 					 h.bcoords[1] * value<Vec3>(*surface_, surface_vertex_position_, vertices[1]) +
 					 h.bcoords[2] * value<Vec3>(*surface_, surface_vertex_position_, vertices[2]);
@@ -563,7 +563,7 @@ public:
 		uint32 nbe = 0;
 
 		foreach_cell(*volume_, [&](VolumeEdge e) -> bool {
-			// auto vertices = incident_vertices(*volume_, e);
+			// auto vertices = first_incident_vertices<2>(*volume_, e);
 
 			std::vector<VolumeEdge> parallel_edges;
 			parallel_edges.reserve(16);
@@ -703,7 +703,7 @@ public:
 
 			Scalar target_length = value<Scalar>(*volume_, volume_edge_target_length_, e) / length_mean_;
 
-			auto vertices = incident_vertices(*volume_, e);
+			auto vertices = first_incident_vertices<2>(*volume_, e);
 			uint32 vidx1 = value<uint32>(*volume_, volume_vertex_index_, vertices[0]);
 			uint32 vidx2 = value<uint32>(*volume_, volume_vertex_index_, vertices[1]);
 
@@ -946,7 +946,7 @@ public:
 			parallel_foreach_cell(*volume_, [&](VolumeEdge e) -> bool {
 				uint32 eidx = value<uint32>(*volume_, volume_edge_index_, e);
 
-				auto vertices = incident_vertices(*volume_, e);
+				auto vertices = first_incident_vertices<2>(*volume_, e);
 				const Vec3& pos1 = value<Vec3>(*volume_, volume_vertex_position_, vertices[0]);
 				const Vec3& pos2 = value<Vec3>(*volume_, volume_vertex_position_, vertices[1]);
 

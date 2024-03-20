@@ -26,6 +26,8 @@
 
 #include <vector>
 
+#include <cgogn/core/utils/numerics.h>
+
 namespace cgogn
 {
 
@@ -34,6 +36,7 @@ struct mesh_traits;
 
 // some generic functions to gather local neighborhood cells
 
+// Consider using first_incident_vertices to avoid heap allocations if you expect a given number of vertices
 template <typename MESH, typename CELL>
 std::vector<typename mesh_traits<MESH>::Vertex> incident_vertices(const MESH& m, CELL c)
 {
@@ -55,6 +58,21 @@ void append_incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_t
 		vertices.push_back(v);
 		return true;
 	});
+}
+
+template <size_t Count, typename MESH, typename CELL>
+std::array<typename mesh_traits<MESH>::Vertex, Count> first_incident_vertices(const MESH& m, CELL c)
+{
+	using Vertex = typename mesh_traits<MESH>::Vertex;
+	std::array<Vertex, Count> vertices;
+	for (size_t i = 0; i < Count; ++i) // compilers might be better able to optimize this
+		vertices[i] = Vertex(INVALID_INDEX);
+	size_t i = 0;
+	foreach_incident_vertex(m, c, [&](Vertex v) -> bool {
+		vertices[i] = v;
+		return ++i < Count;
+	});
+	return vertices;
 }
 
 template <typename MESH>

@@ -150,7 +150,7 @@ void mean_curvature_skeleton(MESH& m,
 	// smoothness
 	foreach_cell(m, [&](Edge e) -> bool {
 		Scalar w = value<Scalar>(m, helper.edge_weight_, e);
-		auto iv = incident_vertices(m, e);
+		auto iv = first_incident_vertices<2>(m, e);
 		uint32 vidx1 = value<uint32>(m, helper.vertex_index_, iv[0]);
 		uint32 vidx2 = value<uint32>(m, helper.vertex_index_, iv[1]);
 		Scalar v_wL1 = value<bool>(m, helper.vertex_is_fixed_, iv[0]) ? 0.0 : wL;
@@ -220,7 +220,7 @@ void mean_curvature_skeleton(MESH& m,
 	{
 		has_flat_edge = false;
 		foreach_cell(m, [&](Edge e) -> bool {
-			std::vector<Vertex> iv = incident_vertices(m, e);
+			auto iv = first_incident_vertices<2>(m, e);
 			if (degree(m, iv[0]) < 5 || degree(m, iv[1]) < 5)
 				return true;
 
@@ -260,7 +260,7 @@ void mean_curvature_skeleton(MESH& m,
 	// 			return true;
 
 	// 		has_long_edge = true;
-	// 		std::vector<Vertex> iv = incident_vertices(m, e);
+	// 		auto iv = first_incident_vertices<2>(m, e);
 	// 		const Vec3& p0 = value<Vec3>(m, helper.vertex_position_, iv[0]);
 	// 		const Vec3& p1 = value<Vec3>(m, helper.vertex_position_, iv[1]);
 
@@ -298,7 +298,7 @@ void mean_curvature_skeleton(MESH& m,
 	{
 		has_short_edge = false;
 		foreach_cell(m, [&](Edge e) -> bool {
-			std::vector<Vertex> iv = incident_vertices(m, e);
+			auto iv = first_incident_vertices<2>(m, e);
 			if (geometry::length(m, e, helper.vertex_position_.get()) < helper.edge_collapse_threshold_)
 			{
 				if (edge_can_collapse(m, e))

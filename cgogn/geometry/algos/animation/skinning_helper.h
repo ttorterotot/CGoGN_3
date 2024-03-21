@@ -113,7 +113,7 @@ public:
 			bool normalize_weights = false)
 	{
 		std::vector<TransformT> raw_offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
-		std::vector<PrecomputedTransform::Type> offsets;
+		std::vector<typename PrecomputedTransform::Type> offsets;
 		bool res = true;
 
 		// Pre-compute offset transformation matrices

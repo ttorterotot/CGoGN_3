@@ -24,6 +24,7 @@
 #ifndef CGOGN_CORE_FUNCTIONS_MESH_INFO_H_
 #define CGOGN_CORE_FUNCTIONS_MESH_INFO_H_
 
+#include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/utils/numerics.h>
 #include <cgogn/core/utils/tuples.h>
 
@@ -131,9 +132,9 @@ bool is_simplicial(const MESH& m)
 	if constexpr (mesh_traits<MESH>::dimension == 3)
 	{
 		foreach_cell(m, [&](typename mesh_traits<MESH>::Volume v) -> bool {
-			auto vertices = first_incident_vertices<5>(m, f);
+			auto vertices = first_incident_vertices<5>(m, v);
 			res = vertices[3] != INVALID_INDEX && vertices[4] == INVALID_INDEX;
-			//    ^-- equivalent to incident_vertices(m, f).size() == 4
+			//    ^-- equivalent to incident_vertices(m, v).size() == 4
 			return res;
 		});
 	}

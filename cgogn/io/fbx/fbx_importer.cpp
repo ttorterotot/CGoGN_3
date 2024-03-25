@@ -617,7 +617,7 @@ void FbxImporterBase::read_connections_node(std::istream& is)
 				expect_property = true;
 				break;
 			}
-			// Intentional fallthrough
+			[[fallthrough]];
 		default:
 			if (in_quotes && expect_property)
 			{
@@ -800,7 +800,7 @@ bool FbxImporterBase::read_array(std::istream& is,
 			cgogn_assert(c_ == 'a' && depth == 1);
 			in_array = true;
 			c = '\0';
-			// Intentional fallthrough
+			[[fallthrough]];
 		case ',':
 			cgogn_assert(in_array);
 			actual_size += read_values();

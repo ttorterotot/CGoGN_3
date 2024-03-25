@@ -87,8 +87,8 @@ public:
 	/// Does not check if there's at least one keyframe per animation, for that see `are_none_empty`.
 	/// @param begin the iterator to start checking from
 	/// @param end the past-the-end iterator to stop checking at
-	/// @param warn whether or not to print warnings in the standard output if the animation is found not to be sorted
-	/// @return whether or not the animation is sorted
+	/// @param warn whether or not to print warnings in the standard output if an animation is found not to be sorted
+	/// @return whether or not each animation is sorted
 	template <typename It>
 	static bool are_all_sorted(It begin, It end)
 	{

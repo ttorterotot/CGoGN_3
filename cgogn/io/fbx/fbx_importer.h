@@ -63,7 +63,7 @@ protected:
 	using Skeleton = AnimationSkeleton;
 	using ObjectId = uint32;
 	using AnimTimeT = double;
-	using AnimScalar = Vec3::Scalar;
+	using AnimScalar = geometry::Scalar;
 	using AnimationT = geometry::KeyframedAnimation<std::vector, AnimTimeT, AnimScalar>;
 
 	class Properties

@@ -38,7 +38,7 @@ template <typename Surface, typename TransformT>
 class SkinningHelper
 {
 private:
-	using AffineTransform = Eigen::Transform<Vec4::Scalar, 3, Eigen::Affine>;
+	using AffineTransform = Eigen::Transform<Scalar, 3, Eigen::Affine>;
 
 	using Skeleton = AnimationSkeleton;
 

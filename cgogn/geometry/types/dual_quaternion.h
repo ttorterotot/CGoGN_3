@@ -257,7 +257,7 @@ public:
 		return (*this = *this + other);
 	}
 
-	template <class T> // Scalar and DualQuaternion
+	template <class T> // Scalar or DualQuaternion
 	inline DualQuaternion& operator*=(const T& other)
 	{
 		return (*this = *this * other);

@@ -229,6 +229,8 @@ private:
 	void read_definitions_node(std::istream& is);
 	void read_properties_70_subnode(std::istream& is, Properties& p);
 	void read_property(std::istream& is, Properties& p);
+	bool read_node(std::istream& is, std::function<void(const std::string&)> read_value,
+			const std::optional<size_t>& subnode_key_reserve_size = {});
 	bool read_array(std::istream& is,
 			const std::function<void(uint32)>& on_size, const std::function<uint32()>& read_values);
 	void read_integer_and_warn_if_not_expected(std::istream& is, const std::string& nature, int expected_version);

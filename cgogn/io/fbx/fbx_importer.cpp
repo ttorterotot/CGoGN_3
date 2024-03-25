@@ -82,49 +82,22 @@ void FbxImporterBase::read_root(std::istream& is)
 // Reads an Objects node from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_node(std::istream& is)
 {
-	std::string subnode_key;
-	char c;
-
-	subnode_key.reserve(32);
-
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			return;
-		case ':':
-			if (subnode_key == "Model"s)
-				read_objects_model_subnode(is);
-			else if (subnode_key == "Geometry"s)
-				read_objects_geometry_subnode(is);
-			else if (subnode_key == "Deformer"s)
-				read_objects_deformer_subnode(is);
-			else if (subnode_key == "AnimationCurve"s)
-				read_objects_animation_curve_subnode(is);
-			else if (subnode_key == "AnimationCurveNode"s)
-				read_objects_animation_curve_node_subnode(is);
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
-
-	std::cout << "Warning: invalid syntax for Objects node" << std::endl;
+	if (!read_node(is,
+			[&](const std::string& subnode_key) {
+				if (subnode_key == "Model"s)
+					read_objects_model_subnode(is);
+				else if (subnode_key == "Geometry"s)
+					read_objects_geometry_subnode(is);
+				else if (subnode_key == "Deformer"s)
+					read_objects_deformer_subnode(is);
+				else if (subnode_key == "AnimationCurve"s)
+					read_objects_animation_curve_subnode(is);
+				else if (subnode_key == "AnimationCurveNode"s)
+					read_objects_animation_curve_node_subnode(is);
+				else
+					skip_value(is);
+			}, 32))
+		std::cout << "Warning: invalid syntax for Objects node" << std::endl;
 }
 
 // Reads a Model subnode (inside an Objects node) from past the declaring colon through its closing brace
@@ -133,8 +106,6 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 	std::variant<Model, MeshModel, LimbNodeModel> model_variant{}; // default-constructed to the Model type
 	auto* model = std::get_if<Model>(&model_variant); // necessarily non-null because we know that variant is assigned
 	std::string type;
-	std::string subnode_key;
-	char c;
 
 	read_object_attributes(is, model->id, &model->name, &type);
 
@@ -159,44 +130,23 @@ void FbxImporterBase::read_objects_model_subnode(std::istream& is)
 		model = std::get_if<LimbNodeModel>(&model_variant);
 	}
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			if (auto* m = std::get_if<LimbNodeModel>(&model_variant))
-				models_limb_node_.push_back(std::move(*m));
-			else if (auto* m = std::get_if<MeshModel>(&model_variant))
-				models_mesh_.push_back(std::move(*m));
-			// Other model types are ignored because we don't have a use for them yet
-			// It would simply be a matter of having a vector of plain models to push to
-			return;
-		case ':':
-			if (subnode_key == "Version"s)
-				read_integer_and_warn_if_not_expected(is, "model version", 232);
-			else if (subnode_key == "Properties70"s)
-				read_properties_70_subnode(is, model->properties);
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
+	if (!read_node(is,
+			[&](const std::string& subnode_key) {
+				if (subnode_key == "Version"s)
+					read_integer_and_warn_if_not_expected(is, "model version", 232);
+				else if (subnode_key == "Properties70"s)
+					read_properties_70_subnode(is, model->properties);
+				else
+					skip_value(is);
+			}))
+		std::cout << "Warning: invalid syntax for model " << model->name << std::endl;
+	else if (auto* m = std::get_if<LimbNodeModel>(&model_variant))
+		models_limb_node_.push_back(std::move(*m));
+	else if (auto* m = std::get_if<MeshModel>(&model_variant))
+		models_mesh_.push_back(std::move(*m));
 
-	std::cout << "Warning: invalid syntax for model " << model->name << std::endl;
+	// Other model types are ignored because we don't have a use for them yet
+	// It would simply be a matter of having a vector of plain models to push to
 }
 
 // Reads a Geometry subnode (inside an Objects node) from past the declaring colon through its closing brace
@@ -204,10 +154,6 @@ void FbxImporterBase::read_objects_geometry_subnode(std::istream& is)
 {
 	Geometry geometry{};
 	std::string type;
-	std::string subnode_key;
-	char c;
-
-	subnode_key.reserve(32);
 
 	read_object_attributes(is, geometry.id, &geometry.name, &type);
 
@@ -215,41 +161,20 @@ void FbxImporterBase::read_objects_geometry_subnode(std::istream& is)
 		std::cout << "Warning: expected geometry of type Mesh for geometry " << geometry.name
 				<< " but got " << type << std::endl;
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			geometries_.push_back(std::move(geometry));
-			return;
-		case ':':
-			if (subnode_key == "Vertices"s)
-				read_objects_geometry_vertices_subnode(is, geometry.data);
-			else if (subnode_key == "PolygonVertexIndex"s)
-				read_objects_geometry_polygon_vertex_index_subnode(is, geometry.data);
-			else if (subnode_key == "GeometryVersion"s)
-				read_integer_and_warn_if_not_expected(is, "geometry version", 124);
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
-
-	std::cout << "Warning: invalid syntax for geometry " << geometry.name << std::endl;
+	if (read_node(is,
+			[&](const std::string& subnode_key) {
+				if (subnode_key == "Vertices"s)
+					read_objects_geometry_vertices_subnode(is, geometry.data);
+				else if (subnode_key == "PolygonVertexIndex"s)
+					read_objects_geometry_polygon_vertex_index_subnode(is, geometry.data);
+				else if (subnode_key == "GeometryVersion"s)
+					read_integer_and_warn_if_not_expected(is, "geometry version", 124);
+				else
+					skip_value(is);
+			}), 32)
+		geometries_.push_back(std::move(geometry));
+	else
+		std::cout << "Warning: invalid syntax for geometry " << geometry.name << std::endl;
 }
 
 // Reads a Vertices subnode (inside a Geometry subnode in an Objects node)
@@ -310,11 +235,9 @@ void FbxImporterBase::read_objects_geometry_polygon_vertex_index_subnode(std::is
 // Reads a Deformer subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 {
-	int32 vertex_id, nb_vertices = -1;
+	int32 nb_vertices = -1;
 	ClusterDeformer deformer;
 	std::string type;
-	std::string subnode_key;
-	char c;
 
 	const auto on_size = [&](uint32 size){
 		cgogn_assert(nb_vertices == -1 || static_cast<uint32>(nb_vertices) == size);
@@ -328,70 +251,53 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 		return deformer.weights[i];
 	};
 
+	const auto read_cluster_subnode = [&](const std::string& subnode_key) {
+		int32 vertex_id = 0;
+		if (subnode_key == "Indexes"s)
+		{
+			if (read_array(is, on_size,
+			[&]{
+				is >> get_weight(vertex_id++).first;
+				return 1;
+			}))
+			{ cgogn_assert(vertex_id == nb_vertices); }
+			else
+				std::cout << "Warning: invalid skinning weight indices syntax" << std::endl;
+		}
+		else if (subnode_key == "Weights"s)
+		{
+			if (read_array(is, on_size,
+			[&]{
+				is >> get_weight(vertex_id++).second;
+				return 1;
+			}))
+			{ cgogn_assert(vertex_id == nb_vertices); }
+			else
+				std::cout << "Warning: invalid skinning weight values syntax" << std::endl;
+		}
+		else
+			skip_value(is); // we ignore transforms because we already get a bind pose to work with
+	};
+
 	read_object_attributes(is, deformer.id, &deformer.name, &type);
 
-	if (type != "Cluster"s)
+	if (type == "Cluster"s)
 	{
-		if (type == "Skin"s)
-			deformers_skin_.push_back(static_cast<Deformer>(std::move(deformer)));
-		else
-			std::cout << "Warning: unrecognized deformer type " << type << std::endl;
-		skip_value(is);
-		return;
-	}
-
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
+		if (read_node(is, read_cluster_subnode))
 			deformers_cluster_.push_back(std::move(deformer));
-			return;
-		case ':':
-			vertex_id = 0;
-			if (subnode_key == "Indexes"s)
-			{
-				if (read_array(is, on_size,
-				[&]{
-					is >> get_weight(vertex_id++).first;
-					return 1;
-				}))
-				{ cgogn_assert(vertex_id == nb_vertices); }
-				else
-					std::cout << "Warning: invalid skinning weight indices syntax" << std::endl;
-			}
-			else if (subnode_key == "Weights"s)
-			{
-				if (read_array(is, on_size,
-				[&]{
-					is >> get_weight(vertex_id++).second;
-					return 1;
-				}))
-				{ cgogn_assert(vertex_id == nb_vertices); }
-				else
-					std::cout << "Warning: invalid skinning weight values syntax" << std::endl;
-			}
-			else
-				skip_value(is); // we ignore transforms because we already get a bind pose to work with
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
+		else
+			std::cout << "Warning: invalid deformer syntax" << std::endl;
 	}
-
-	std::cout << "Warning: invalid deformer syntax" << std::endl;
+	else if (type == "Skin"s)
+	{
+		deformers_skin_.push_back(static_cast<Deformer>(std::move(deformer)));
+		skip_value(is);
+	}
+	else
+	{
+		std::cout << "Warning: unrecognized deformer type " << type << std::endl;
+		skip_value(is);
+	}
 }
 
 // Reads an AnimationCurve subnode (in an Objects node) from past the declaring colon through its closing brace
@@ -399,8 +305,6 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 {
 	int32 key_id, nb_keys = -1;
 	AnimationCurve curve{};
-	std::string subnode_key;
-	char c;
 
 	const auto on_size = [&](uint32 size){
 		cgogn_assert(nb_keys == -1 || static_cast<uint32>(nb_keys) == size);
@@ -414,106 +318,64 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 		return curve.animation[i];
 	};
 
+	const auto read_subnode = [&](const std::string& subnode_key) {
+		key_id = 0;
+		if (subnode_key == "KeyTime"s)
+		{
+			if (read_array(is, on_size,
+			[&]{
+				uint64 time;
+				is >> time;
+				get_keyframe(key_id++).time_ = time * ANIM_TIME_RATIO;
+				return 1;
+			}))
+			{ cgogn_assert(key_id == nb_keys); }
+			else
+				std::cout << "Warning: invalid key times syntax" << std::endl;
+		}
+		else if (subnode_key == "KeyValueFloat"s)
+		{
+			if (read_array(is, on_size,
+			[&]{
+				is >> get_keyframe(key_id++).value_;
+				return 1;
+			}))
+			{ cgogn_assert(key_id == nb_keys); }
+			else
+				std::cout << "Warning: invalid key values syntax" << std::endl;
+		}
+		else if (subnode_key == "Default"s)
+			is >> curve.default_value;
+		else
+			skip_value(is);
+	};
+
 	read_object_attributes(is, curve.id);
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			animation_curves_.push_back(std::move(curve));
-			return;
-		case ':':
-			key_id = 0;
-			if (subnode_key == "KeyTime"s)
-			{
-				if (read_array(is, on_size,
-				[&]{
-					uint64 time;
-					is >> time;
-					get_keyframe(key_id++).time_ = time * ANIM_TIME_RATIO;
-					return 1;
-				}))
-				{ cgogn_assert(key_id == nb_keys); }
-				else
-					std::cout << "Warning: invalid key times syntax" << std::endl;
-			}
-			else if (subnode_key == "KeyValueFloat"s)
-			{
-				if (read_array(is, on_size,
-				[&]{
-					is >> get_keyframe(key_id++).value_;
-					return 1;
-				}))
-				{ cgogn_assert(key_id == nb_keys); }
-				else
-					std::cout << "Warning: invalid key values syntax" << std::endl;
-			}
-			else if (subnode_key == "Default"s)
-				is >> curve.default_value;
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
-
-	std::cout << "Warning: invalid animation curve syntax" << std::endl;
+	if (read_node(is, read_subnode))
+		animation_curves_.push_back(std::move(curve));
+	else
+		std::cout << "Warning: invalid animation curve syntax" << std::endl;
 }
 
 // Reads an AnimationCurveNode subnode (in an Objects node) from past the declaring colon through its closing brace
 void FbxImporterBase::read_objects_animation_curve_node_subnode(std::istream& is)
 {
 	AnimationCurveNode node{};
-	std::string subnode_key;
-	char c;
 
 	read_object_attributes(is, node.id);
 
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			animation_curve_nodes_.push_back(std::move(node));
-			return;
-		case ':':
-			if (subnode_key == "Properties70"s)
-				read_properties_70_subnode(is, node.properties);
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
-
-	std::cout << "Warning: invalid animation curve node syntax" << std::endl;
+	if (read_node(is,
+			[&](const std::string& subnode_key)
+			{
+				if (subnode_key == "Properties70"s)
+					read_properties_70_subnode(is, node.properties);
+				else
+					skip_value(is);
+			}))
+		animation_curve_nodes_.push_back(std::move(node));
+	else
+		std::cout << "Warning: invalid animation curve node syntax" << std::endl;
 }
 
 void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,
@@ -642,41 +504,14 @@ void FbxImporterBase::read_connections_node(std::istream& is)
 // Reads a FBXHeaderExtension node from past the declaring colon through its closing brace
 void FbxImporterBase::read_fbx_header_extension_node(std::istream& is)
 {
-	std::string subnode_key;
-	char c;
-
-	subnode_key.reserve(32);
-
-	for (int depth = 0; is.get(c);)
-	{
-		switch (c)
-		{
-		case '{':
-			cgogn_assert(depth == 0); // no subnode without key
-			++depth;
-			break;
-		case '}':
-			--depth;
-			cgogn_assert(depth == 0);
-			return;
-		case ':':
-			if (subnode_key == "FBXVersion"s)
-				read_integer_and_warn_if_not_expected(is, "FBX version", 7700);
-			else
-				skip_value(is);
-			subnode_key.clear();
-			break;
-		case ';':
-			if (subnode_key.empty())
-				skip_through_character(is, '\n');
-			break;
-		default:
-			if (!std::isspace(c))
-				subnode_key += c;
-		}
-	}
-
-	std::cout << "Warning: invalid syntax for FBXHeaderExtension node" << std::endl;
+	if (!read_node(is,
+			[&](const std::string& subnode_key) {
+				if (subnode_key == "FBXVersion"s)
+					read_integer_and_warn_if_not_expected(is, "FBX version", 7700);
+				else
+					skip_value(is);
+			}, 32))
+		std::cout << "Warning: invalid syntax for FBXHeaderExtension node" << std::endl;
 }
 
 // Reads a Definitions node from past the declaring colon through its closing brace
@@ -768,6 +603,50 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 	}
 
 	skip_through_character(is, '\n');
+}
+
+// Reads a (sub)node from past the declaring colon through its closing brace
+// `subnode_key_reserve_size` is recommended to be set if and only if keys are expected to be larger than 15 (*)
+// Returns whether the syntax was correct
+// (*) This is because most implementations store a union of either a small local buffer or a pointer to the free store
+//	GCC: see `_S_local_capacity` and `_M_local_buf` in `basic_string` (bits/basic_string.h)
+//	MSVC: see `_BUF_SIZE` and `_Bxty` in `_String_val` (xstring)
+bool FbxImporterBase::read_node(std::istream& is, std::function<void(const std::string&)> read_value,
+		const std::optional<size_t>& subnode_key_reserve_size)
+{
+	std::string subnode_key;
+	char c;
+
+	if (subnode_key_reserve_size)
+		subnode_key.reserve(*subnode_key_reserve_size);
+
+	for (int depth = 0; is.get(c);)
+	{
+		switch (c)
+		{
+		case '{':
+			cgogn_assert(depth == 0); // no subnode without key
+			++depth;
+			break;
+		case '}':
+			--depth;
+			cgogn_assert(depth == 0);
+			return true;
+		case ':':
+			read_value(subnode_key);
+			subnode_key.clear();
+			break;
+		case ';':
+			if (subnode_key.empty())
+				skip_through_character(is, '\n');
+			break;
+		default:
+			if (!std::isspace(c))
+				subnode_key += c;
+		}
+	}
+
+	return false;
 }
 
 // Reads an array subnode from past the declaring colon through its closing braces

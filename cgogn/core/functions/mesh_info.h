@@ -124,7 +124,7 @@ bool is_simplicial(const MESH& m)
 	{
 		foreach_cell(m, [&](typename mesh_traits<MESH>::Face f) -> bool {
 			auto vertices = first_incident_vertices<4>(m, f);
-			res = vertices[2] != INVALID_INDEX && vertices[3] == INVALID_INDEX;
+			res = vertices[2].is_valid() && !vertices[3].is_valid();
 			//    ^-- equivalent to incident_vertices(m, f).size() == 3
 			return res;
 		});
@@ -133,7 +133,7 @@ bool is_simplicial(const MESH& m)
 	{
 		foreach_cell(m, [&](typename mesh_traits<MESH>::Volume v) -> bool {
 			auto vertices = first_incident_vertices<5>(m, v);
-			res = vertices[3] != INVALID_INDEX && vertices[4] == INVALID_INDEX;
+			res = vertices[3].is_valid() && !vertices[4].is_valid();
 			//    ^-- equivalent to incident_vertices(m, v).size() == 4
 			return res;
 		});

@@ -41,7 +41,7 @@ bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Joint& joint)
 
 bool is_root(const AnimationSkeleton& as, const AnimationSkeleton::Bone& bone)
 {
-	return (*as.bone_parent_)[bone] == INVALID_INDEX;
+	return !(*as.bone_parent_)[bone].is_valid();
 }
 
 AnimationSkeleton::Bone add_bone_from_existing_joints(
@@ -62,7 +62,7 @@ AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, const Animatio
 {
 	using Joint = AnimationSkeleton::Joint;
 
-	const bool& is_root = parent == INVALID_INDEX;
+	const bool& is_root = !parent.is_valid();
 
 	cgogn_assert(is_root || std::find(as.bone_traverser_.cbegin(), as.bone_traverser_.cend(), parent)
 			!= as.bone_traverser_.cend());
@@ -188,7 +188,7 @@ void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
 
 void attach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone, const AnimationSkeleton::Bone& new_parent)
 {
-	if (new_parent == INVALID_INDEX)
+	if (!new_parent.is_valid())
 	{
 		detach_bone(as, bone);
 		return;
@@ -218,7 +218,7 @@ void detach_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& bone)
 {
 	auto& parent = (*as.bone_parent_)[bone];
 
-	if (parent == INVALID_INDEX)
+	if (!parent.is_valid())
 		return;
 
 	parent = INVALID_INDEX;

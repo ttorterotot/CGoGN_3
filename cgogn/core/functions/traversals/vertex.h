@@ -63,6 +63,7 @@ void append_incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_t
 template <size_t Count, typename MESH, typename CELL>
 std::array<typename mesh_traits<MESH>::Vertex, Count> first_incident_vertices(const MESH& m, CELL c)
 {
+	static_assert(Count > 0);
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 	std::array<Vertex, Count> vertices;
 	for (size_t i = 0; i < Count; ++i) // compilers might be better able to optimize this

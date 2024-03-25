@@ -308,15 +308,15 @@ public:
 	}
 
 	template <typename R, typename T>
-	static Vec3 get_basis_position(const geometry::RigidTransformation<R, T>& world_transform)
+	static inline Vec3 get_basis_position(const geometry::RigidTransformation<R, T>& world_transform)
 	{
-		Vec4 res = world_transform.to_transform_matrix() * Vec4{0, 0, 0, 1};
-		return res.head<3>() / res.w();
+		using RT = geometry::RigidTransformation<R, T>;
+		return Eigen::Translation<typename RT::Scalar, RT::Dim>{world_transform.translation()}.translation();
 	}
 
-	static Vec3 get_basis_position(const geometry::DualQuaternion& world_transform)
+	static inline Vec3 get_basis_position(const geometry::DualQuaternion& world_transform)
 	{
-		return world_transform.transform(Vec3{0, 0, 0});
+		return world_transform.translation();
 	}
 };
 

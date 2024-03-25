@@ -204,10 +204,10 @@ protected:
 
 		for (size_t i = 0; i < size; ++i)
 		{
-			if (!ptr[i].has_value())
+			if (!ptr[i])
 				ptr[i] = other_values[i];
-			else if (warn_unequal && other_values[i].has_value() && other_values[i].value() != ptr[i].value())
-				std::cout << "Warning: inconsistent values " << ptr[i].value() << " and " << other_values[i].value()
+			else if (warn_unequal && other_values[i] && *other_values[i] != *ptr[i])
+				std::cout << "Warning: inconsistent values " << *ptr[i] << " and " << *other_values[i]
 						<< " for property " << property_name;
 		}
 	}

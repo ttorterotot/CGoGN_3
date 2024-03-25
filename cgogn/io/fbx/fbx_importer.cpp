@@ -761,7 +761,7 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 		const auto& [ptr, size] = pi->second(p);
 		for (int i = 0; i < size && !is.fail() && skip_through_character(is, ','); ++i)
 		{
-			std::remove_reference_t<decltype(ptr[i].value())> value;
+			std::remove_reference_t<decltype(*ptr[i])> value;
 			is >> value;
 			ptr[i].emplace(std::move(value));
 		}
@@ -907,7 +907,7 @@ geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<
 		ro /= RotationOrder::Base;
 
 		if (xyz[axis])
-			res = Eigen::AngleAxis<geometry::Quaternion::Scalar>(M_PI / 180.0 * xyz[axis].value(), axes[axis])
+			res = Eigen::AngleAxis<geometry::Quaternion::Scalar>(M_PI / 180.0 * *xyz[axis], axes[axis])
 					* res;
 	}
 

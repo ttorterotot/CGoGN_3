@@ -535,13 +535,13 @@ void FbxImporterBase::read_object_attributes(std::istream& is, ObjectId& id,
 				++stage;
 			break;
 		case NAME:
-			if (c == '"') // TODO handle escape sequences
+			if (c == '"')
 				++stage;
 			else if (name)
 				*name += c;
 			break;
 		case TYPE:
-			if (c == '"') // TODO handle escape sequences
+			if (c == '"')
 				++stage;
 			else if (type)
 				*type += c;
@@ -741,7 +741,7 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 				++stage;
 			break;
 		case NAME:
-			if (c == '"') // TODO handle escape sequences
+			if (c == '"')
 				++stage;
 			else
 				name += c;
@@ -749,7 +749,7 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 		case TYPE:
 		case TYPE_NAME:
 		case LAST:
-			if (c == '"') // TODO handle escape sequences
+			if (c == '"')
 				++stage;
 			break;
 		}

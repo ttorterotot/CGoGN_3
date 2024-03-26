@@ -169,7 +169,7 @@ int main(int argc, char** argv)
 	cgogn::thread_start();
 
 	cgogn::ui::App app;
-	app.set_window_title("Simple graph viewer");
+	app.set_window_title("Simple animation skeleton viewer");
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);

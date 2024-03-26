@@ -218,7 +218,7 @@ int main(int argc, char** argv)
 	cgogn::thread_start();
 
 	cgogn::ui::App app;
-	app.set_window_title("Simple graph viewer");
+	app.set_window_title("Simple skinning viewer");
 	app.set_window_size(1000, 800);
 
 	auto sp_mp = std::make_shared<cgogn::ui::MeshProvider<Surface>>(app);

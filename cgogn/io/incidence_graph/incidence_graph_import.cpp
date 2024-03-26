@@ -25,7 +25,6 @@
 
 #include <cgogn/core/types/incidence_graph/incidence_graph.h>
 #include <cgogn/core/types/maps/cmap/graph.h>
-#include <cgogn/core/types/animation/animation_skeleton.h>
 
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/functions/mesh_info.h>
@@ -98,11 +97,6 @@ void import_incidence_graph_data(Graph& g, IncidenceGraphImportData& incidence_g
 		connect_vertices(g, vertices[incidence_graph_data.edges_vertex_indices_[2 * i]],
 						 vertices[incidence_graph_data.edges_vertex_indices_[2 * i + 1]]);
 	}
-}
-
-void import_incidence_graph_data(AnimationSkeleton& g, IncidenceGraphImportData& incidence_graph_data)
-{
-	cgogn_assert_not_reached("Not implemented");
 }
 
 } // namespace io

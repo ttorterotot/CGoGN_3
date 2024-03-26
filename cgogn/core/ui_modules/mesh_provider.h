@@ -31,6 +31,8 @@
 #include <cgogn/core/ui_modules/mesh_data.h>
 #include <cgogn/core/utils/string.h>
 
+#include <cgogn/core/types/animation/animation_skeleton.h>
+
 #include <cgogn/geometry/functions/bounding_box.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
@@ -551,11 +553,14 @@ public:
 protected:
 	void main_menu() override
 	{
+		if constexpr (std::is_same_v<MESH, AnimationSkeleton>)
+			return;
+
 		static std::shared_ptr<pfd::open_file> open_file_dialog;
 		if (open_file_dialog && open_file_dialog->ready())
 		{
 			auto result = open_file_dialog->result();
-			if (uint32(result.size()) > 0)
+			if constexpr (!std::is_same_v<MESH, AnimationSkeleton>)
 			{
 				if constexpr (mesh_traits<MESH>::dimension == 1)
 				{

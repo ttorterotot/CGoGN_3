@@ -592,7 +592,7 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 	if (pi != PROPERTY_INFO_.cend())
 	{
 		const auto& [ptr, size] = pi->second(p);
-		for (int i = 0; i < size && !is.fail() && skip_through_character(is, ','); ++i)
+		for (int i = 0; i < size && !is.fail() && (skip_through_character(is, ','), is); ++i)
 		{
 			std::remove_reference_t<decltype(*ptr[i])> value;
 			is >> value;
@@ -760,9 +760,9 @@ void FbxImporterBase::skip_value(std::istream& is)
 }
 
 // Ignores everything through a given character
-std::istream& FbxImporterBase::skip_through_character(std::istream& is, char c)
+void FbxImporterBase::skip_through_character(std::istream& is, char c)
 {
-	return is.ignore(std::numeric_limits<std::streamsize>::max(), c);
+	is.ignore(std::numeric_limits<std::streamsize>::max(), c);
 }
 
 std::string FbxImporterBase::resolve_name(const std::string& name_with_escape_sequences)

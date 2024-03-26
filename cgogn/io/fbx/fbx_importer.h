@@ -236,7 +236,7 @@ private:
 	void read_integer_and_warn_if_not_expected(std::istream& is, const std::string& nature, int expected_version);
 	void skip_node(std::istream& is);
 	void skip_value(std::istream& is);
-	std::istream& skip_through_character(std::istream& is, char c);
+	void skip_through_character(std::istream& is, char c);
 
 	template <typename T, size_t Size>
 	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }

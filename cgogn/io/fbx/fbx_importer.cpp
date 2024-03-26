@@ -600,7 +600,8 @@ void FbxImporterBase::read_property(std::istream& is, Properties& p)
 		}
 	}
 
-	skip_through_character(is, '\n');
+	if (skip_through_characters(is, "\n}").value_or('\0') == '}')
+		is.unget();
 }
 
 // Reads a (sub)node from past the declaring colon through its closing brace
@@ -763,6 +764,17 @@ void FbxImporterBase::skip_value(std::istream& is)
 void FbxImporterBase::skip_through_character(std::istream& is, char c)
 {
 	is.ignore(std::numeric_limits<std::streamsize>::max(), c);
+}
+
+// Ignores everything through a given set of characters
+std::optional<char> FbxImporterBase::skip_through_characters(std::istream& is, const std::string& characters)
+{
+	char c;
+	while (is.get(c))
+		if (characters.find(c) != std::string::npos)
+			return c;
+
+	return {};
 }
 
 std::string FbxImporterBase::resolve_name(const std::string& name_with_escape_sequences)

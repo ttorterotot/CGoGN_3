@@ -237,6 +237,7 @@ private:
 	void skip_node(std::istream& is);
 	void skip_value(std::istream& is);
 	void skip_through_character(std::istream& is, char c);
+	std::optional<char> skip_through_characters(std::istream& is, const std::string& characters);
 
 	template <typename T, size_t Size>
 	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }

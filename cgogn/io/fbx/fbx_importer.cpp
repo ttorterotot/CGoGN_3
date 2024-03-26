@@ -199,9 +199,7 @@ void FbxImporterBase::read_objects_geometry_vertices_subnode(std::istream& is, S
 				}
 				return 1;
 			}))
-	{
 		cgogn_assert(d.nb_vertices_ == d.vertex_position_.size());
-	}
 	else
 		std::cout << "Warning: invalid syntax for Vertices subnode" << std::endl;
 }
@@ -260,7 +258,7 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 				is >> get_weight(vertex_id++).first;
 				return 1;
 			}))
-			{ cgogn_assert(vertex_id == nb_vertices); }
+				cgogn_assert(vertex_id == nb_vertices);
 			else
 				std::cout << "Warning: invalid skinning weight indices syntax" << std::endl;
 		}
@@ -271,7 +269,7 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 				is >> get_weight(vertex_id++).second;
 				return 1;
 			}))
-			{ cgogn_assert(vertex_id == nb_vertices); }
+				cgogn_assert(vertex_id == nb_vertices);
 			else
 				std::cout << "Warning: invalid skinning weight values syntax" << std::endl;
 		}
@@ -329,7 +327,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 				get_keyframe(key_id++).time_ = time * ANIM_TIME_RATIO;
 				return 1;
 			}))
-			{ cgogn_assert(key_id == nb_keys); }
+				cgogn_assert(key_id == nb_keys);
 			else
 				std::cout << "Warning: invalid key times syntax" << std::endl;
 		}
@@ -340,7 +338,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 				is >> get_keyframe(key_id++).value_;
 				return 1;
 			}))
-			{ cgogn_assert(key_id == nb_keys); }
+				cgogn_assert(key_id == nb_keys);
 			else
 				std::cout << "Warning: invalid key values syntax" << std::endl;
 		}

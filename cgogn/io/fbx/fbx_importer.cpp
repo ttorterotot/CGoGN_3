@@ -884,7 +884,7 @@ geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<
 		size_t axis = ro % RotationOrder::Base;
 		ro /= RotationOrder::Base;
 
-		if (xyz[axis])
+		if (xyz[axis] && *xyz[axis] != 0.0)
 			res = Eigen::AngleAxis<geometry::Quaternion::Scalar>(M_PI / 180.0 * *xyz[axis], axes[axis])
 					* res;
 	}

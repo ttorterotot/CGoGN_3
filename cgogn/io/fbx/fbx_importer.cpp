@@ -829,6 +829,23 @@ std::optional<char> FbxImporterBase::skip_through_characters(std::istream& is, c
 	return {};
 }
 
+const FbxImporterBase::LimbNodeModel* FbxImporterBase::get_parent_bone(const ObjectId& child_id) const
+{
+	for (const auto& [child_id_, parent_id] : connections_oo_)
+	{
+		if (child_id != child_id_)
+			continue;
+
+		const auto it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
+				[&](const LimbNodeModel& e) { return e.id == parent_id; });
+
+		if (it != models_limb_node_.cend())
+			return &*it;
+	}
+
+	return nullptr;
+}
+
 std::string FbxImporterBase::resolve_name(const std::string& name_with_escape_sequences)
 {
 	return name_with_escape_sequences; // ignore escape sequences for now

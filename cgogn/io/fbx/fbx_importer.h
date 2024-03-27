@@ -187,6 +187,11 @@ protected:
 	/// @param path the file path to open
 	void read(const std::string& path);
 
+	/// @brief Retrieves a pointer to the parent `LimbNodeModel` from the ID of one of its children
+	/// @param child_id the ID of the child node
+	/// @return a pointer to the parent `LimbNodeModel`, or `nullptr` if it wasn't found
+	const LimbNodeModel* get_parent_bone(const ObjectId& child_id) const;
+
 	/// @brief Resolves a name string potentially containing escape sequences to the desired string.
 	/// Reverse engineering of how Maya reads files saved in Blender with names containing special characters,
 	/// and how Blender reads those files back when escape sequences are modified,
@@ -384,23 +389,6 @@ private:
 						break;
 					}
 			}
-	}
-
-	const LimbNodeModel* get_parent_bone(const ObjectId& child_id) const
-	{
-		for (const auto& [child_id_, parent_id] : connections_oo_)
-		{
-			if (child_id != child_id_)
-				continue;
-
-			const auto it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
-					[&](const LimbNodeModel& e) { return e.id == parent_id; });
-
-			if (it != models_limb_node_.cend())
-				return &*it;
-		}
-
-		return nullptr;
 	}
 
 	template <typename T>

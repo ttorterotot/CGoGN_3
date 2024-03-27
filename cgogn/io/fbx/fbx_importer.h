@@ -58,6 +58,14 @@ public:
 		ZXY = 0201, // Y -> X -> Z
 		ZYX = 0210, // X -> Y -> Z
 	};
+	static constexpr const std::array<RotationOrder, 6> ID_TO_ROTATION_ORDER{
+		RotationOrder::ZYX,
+		RotationOrder::ZXY,
+		RotationOrder::YXZ,
+		RotationOrder::YZX,
+		RotationOrder::XZY,
+		RotationOrder::XYZ,
+	};
 
 protected:
 	using Skeleton = AnimationSkeleton;
@@ -73,6 +81,7 @@ protected:
 		// (usage of unions for this purpose is not ISO C++)
 
 		std::array<std::optional<AnimScalar>, 3> aod3_0_, aod3_1_, aod3_2_, aod3_3_;
+		std::optional<AnimScalar> z_0_;
 
 	public:
 
@@ -82,11 +91,13 @@ protected:
 		inline constexpr std::array<std::optional<AnimScalar>, 3>& post_rotation(){ return aod3_1_; }
 		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_translation(){ return aod3_2_; }
 		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_rotation(){ return aod3_3_; }
+		inline constexpr std::optional<AnimScalar>& rotation_order(){ return z_0_; }
 
 		inline constexpr const std::array<std::optional<AnimScalar>, 3>& pre_rotation() const { return aod3_0_; }
 		inline constexpr const std::array<std::optional<AnimScalar>, 3>& post_rotation() const { return aod3_1_; }
 		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_translation() const { return aod3_2_; }
 		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_rotation() const { return aod3_3_; }
+		inline constexpr const std::optional<AnimScalar>& rotation_order() const { return z_0_; }
 
 		// AnimationCurveNode
 
@@ -162,6 +173,9 @@ protected:
 private:
 	static constexpr const AnimTimeT ANIM_TIME_RATIO = 5e-11; // 0.05ns (eyeballed)
 
+public:
+	static const RotationOrder& get_rotation_order(const size_t& id);
+
 protected:
 
 	inline FbxImporterBase(bool load_surfaces, bool load_skeleton)
@@ -181,6 +195,8 @@ protected:
 	/// @param name_with_escape_sequences the raw name read from the FBX file
 	/// @return the processed name
 	static std::string resolve_name(const std::string& name_with_escape_sequences);
+
+	const RotationOrder& get_default_rotation_order(const std::string& template_key) const;
 
 	static geometry::Quaternion from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 			const RotationOrder& rotation_order = RotationOrder::ZYX);
@@ -265,6 +281,7 @@ private:
 		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),
 		std::make_pair("d|Y", [](Properties& p){ return std::make_pair(p.d().data() + 1, 1); }),
 		std::make_pair("d|Z", [](Properties& p){ return std::make_pair(p.d().data() + 2, 1); }),
+		std::make_pair("RotationOrder", [](Properties& p){ return std::make_pair(&p.rotation_order(), 1); }),
 	};
 
 	bool load_surfaces_;
@@ -482,6 +499,8 @@ private:
 		auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
 		auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
 
+		const auto& default_rotation_order = get_default_rotation_order("Model");
+
 		for (const LimbNodeModel& m : models_limb_node_)
 		{
 			KA_RT anim_rt; // RigidTransformation animation
@@ -499,15 +518,16 @@ private:
 				times = AnimationT::get_unique_keyframe_times(anim_copies);
 			}
 
-			const auto& rotation_order = RotationOrder::XYZ;
+			const auto& rotation_order = m.properties.rotation_order() ?
+					get_rotation_order(static_cast<size_t>(*m.properties.rotation_order())) : default_rotation_order;
 
 			const auto lcl_translation_value_d = [&](const size_t& index) {
 					return m.properties.lcl_translation()[index].value_or(0.0);
 			};
 
-			auto pre_rotation = from_euler(m.properties.pre_rotation());
-			auto post_rotation = from_euler(m.properties.post_rotation());
-			auto lcl_rotation = from_euler(m.properties.lcl_rotation());
+			auto pre_rotation = from_euler(m.properties.pre_rotation(), rotation_order);
+			auto post_rotation = from_euler(m.properties.post_rotation(), rotation_order);
+			auto lcl_rotation = from_euler(m.properties.lcl_rotation(), rotation_order);
 			auto total_lcl_rotation = pre_rotation * lcl_rotation * post_rotation;
 			Vec3 lcl_translation{lcl_translation_value_d(0), lcl_translation_value_d(1), lcl_translation_value_d(2)};
 

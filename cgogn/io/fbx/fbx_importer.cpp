@@ -515,7 +515,59 @@ void FbxImporterBase::read_fbx_header_extension_node(std::istream& is)
 // Reads a Definitions node from past the declaring colon through its closing brace
 void FbxImporterBase::read_definitions_node(std::istream& is)
 {
-	skip_node(is); // TODO
+	if (!read_node(is,
+			[&](const std::string& subnode_key) {
+				if (subnode_key == "Version"s)
+					read_integer_and_warn_if_not_expected(is, "definitions version", 100);
+				else if (subnode_key == "ObjectType"s)
+					read_definitions_object_type_subnode(is);
+				else
+					skip_value(is);
+			}))
+		std::cout << "Warning: invalid syntax for Definitions node" << std::endl;
+}
+
+void FbxImporterBase::read_definitions_object_type_subnode(std::istream& is)
+{
+	Properties properties{};
+	std::string object_type;
+	char c;
+
+	const auto read_subsubnode = [&](const std::string& subnode_key)
+	{
+		if (subnode_key == "Properties70"s)
+			read_properties_70_subnode(is, properties);
+		else
+			skip_value(is);
+	};
+
+	const auto read_subnode = [&](const std::string& subnode_key)
+	{
+		if (subnode_key == "PropertyTemplate"s)
+		{
+			// Skip quoted "FbxNode"
+			skip_through_character(is, '"');
+			skip_through_character(is, '"');
+
+			if (!read_node(is, read_subsubnode))
+				std::cout << "Warning: invalid syntax for PropertyTemplate subnode" << std::endl;
+		}
+		else
+			skip_value(is);
+	};
+
+	skip_through_character(is, '"');
+
+	while (is.get(c))
+		if (c == '"')
+			break;
+		else
+			object_type += c;
+
+	if (is && read_node(is, read_subnode))
+		property_templates_[std::move(object_type)] = std::move(properties);
+	else
+		std::cout << "Warning: invalid animation curve node syntax" << std::endl;
 }
 
 // Reads a Properties70 subnode from past the declaring colon through its closing brace

@@ -227,6 +227,7 @@ private:
 	void read_connections_node(std::istream& is);
 	void read_fbx_header_extension_node(std::istream& is);
 	void read_definitions_node(std::istream& is);
+	void read_definitions_object_type_subnode(std::istream& is);
 	void read_properties_70_subnode(std::istream& is, Properties& p);
 	void read_property(std::istream& is, Properties& p);
 	bool read_node(std::istream& is, std::function<void(const std::string&)> read_value,
@@ -243,6 +244,7 @@ private:
 	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
 
 protected:
+	std::unordered_map<std::string, Properties> property_templates_;
 	std::vector<MeshModel> models_mesh_;
 	std::vector<LimbNodeModel> models_limb_node_;
 	std::vector<Geometry> geometries_;

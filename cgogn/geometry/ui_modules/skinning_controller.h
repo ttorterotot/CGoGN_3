@@ -242,7 +242,8 @@ private:
 					*selected_mesh_, *selected_skeleton_,
 					*selected_bind_bone_inv_world_transform_, *selected_bone_world_transform_,
 					*selected_vertex_weight_index_, *selected_vertex_weight_value_,
-					*selected_bind_vertex_position_, *selected_vertex_position_);
+					*selected_bind_vertex_position_, *selected_vertex_position_,
+					true); // normalize weights
 
 		if (mesh_provider_)
 			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());

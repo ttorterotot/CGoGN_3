@@ -36,6 +36,7 @@
 #include <cgogn/geometry/ui_modules/animation_skeleton_controller.h>
 #include <cgogn/rendering/ui_modules/animation_skeleton_render.h>
 #include <cgogn/geometry/ui_modules/skinning_controller.h>
+#include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/io/ui_modules/fbx_io.h>
@@ -159,9 +160,12 @@ int main(int argc, char** argv)
 	cgogn::ui::FbxIO<Surface> fbx_io(app, sp_mp_sf, sp_mp_as);
 	ASC_RT asc_rt(app);
 	ASC_DQ asc_dq(app);
-	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_rt(app);
-	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_dq(app);
+	cgogn::ui::SkinningController<Surface, RigidTransformation> skc_s_rt(app);
+	cgogn::ui::SkinningController<Surface, DualQuaternion> skc_s_dq(app);
+	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_v_rt(app);
+	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
 	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
+	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::VolumeRender<Volume> vr(app);
 
 	app.init_modules();

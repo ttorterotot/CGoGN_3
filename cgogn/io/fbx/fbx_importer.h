@@ -427,7 +427,7 @@ private:
 	void load_bones(Skeleton& skeleton)
 	{
 		for (LimbNodeModel& m : models_limb_node_)
-			m.bone = add_root(skeleton);
+			m.bone = add_root(skeleton, m.name);
 
 		for (const LimbNodeModel& m : models_limb_node_)
 			if (auto* parent = get_parent_bone(m.id))

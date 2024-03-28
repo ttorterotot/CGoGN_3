@@ -104,6 +104,17 @@ protected:
 		inline constexpr std::array<std::optional<AnimScalar>, 3>& d(){ return aod3_0_; }
 
 		inline constexpr const std::array<std::optional<AnimScalar>, 3>& d() const { return aod3_0_; }
+
+		// Utility
+
+		template <size_t Size>
+		static inline bool any_set(const std::array<std::optional<AnimScalar>, Size>& values)
+		{
+			for (size_t i = 0; i < Size; ++i) // compilers might be better able to optimize this
+				if (values[i])
+					return true;
+			return false;
+		}
 	};
 
 	struct Model
@@ -201,10 +212,15 @@ protected:
 	/// @return the processed name
 	static std::string resolve_name(const std::string& name_with_escape_sequences);
 
-	const RotationOrder& get_default_rotation_order(const std::string& template_key) const;
-
 	static geometry::Quaternion from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 			const RotationOrder& rotation_order = RotationOrder::ZYX);
+
+	const Vec3 get_default_translation(const std::string& template_key,
+			const std::array<std::optional<AnimScalar>, 3>& (Properties::* f)() const) const;
+	const geometry::Quaternion get_default_rotation(const std::string& template_key,
+			const std::array<std::optional<AnimScalar>, 3>& (Properties::* f)() const,
+			const RotationOrder& rotation_order = RotationOrder::ZYX) const;
+	const RotationOrder& get_default_rotation_order(const std::string& template_key) const;
 
 	/// @brief Sets missing values for a property in `p` from `other_values`
 	/// @param p the property to fill (existing values take priority over those from `other_values`)
@@ -487,7 +503,12 @@ private:
 		auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
 		auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
 
-		const auto& default_rotation_order = get_default_rotation_order("Model");
+		const std::string template_key = "Model";
+		const auto& default_rotation_order = get_default_rotation_order(template_key);
+		const auto default_pre_rotation = get_default_rotation(template_key, &Properties::pre_rotation, default_rotation_order);
+		const auto default_post_rotation = get_default_rotation(template_key, &Properties::post_rotation, default_rotation_order);
+		const auto default_lcl_rotation = get_default_rotation(template_key, &Properties::lcl_rotation, default_rotation_order);
+		const Vec3 default_lcl_translation = get_default_translation(template_key, &Properties::lcl_translation);
 
 		for (const LimbNodeModel& m : models_limb_node_)
 		{
@@ -509,15 +530,24 @@ private:
 			const auto& rotation_order = m.properties.rotation_order() ?
 					get_rotation_order(static_cast<size_t>(*m.properties.rotation_order())) : default_rotation_order;
 
-			const auto lcl_translation_value_d = [&](const size_t& index) {
-					return m.properties.lcl_translation()[index].value_or(0.0);
+			const auto rotation_d = [&](const std::array<std::optional<AnimScalar>, 3>& values,
+					geometry::Quaternion default_value)
+			{
+				return Properties::any_set(values) ? from_euler(values, rotation_order) : default_value;
 			};
 
-			auto pre_rotation = from_euler(m.properties.pre_rotation(), rotation_order);
-			auto post_rotation = from_euler(m.properties.post_rotation(), rotation_order);
-			auto lcl_rotation = from_euler(m.properties.lcl_rotation(), rotation_order);
+			const auto lcl_translation_d = [&] {
+				const auto& values = m.properties.lcl_translation();
+				if (!Properties::any_set(values))
+					return default_lcl_translation;
+				return Vec3{values[0].value_or(0.0), values[1].value_or(0.0), values[2].value_or(0.0)};
+			};
+
+			auto pre_rotation = rotation_d(m.properties.pre_rotation(), default_pre_rotation);
+			auto post_rotation = rotation_d(m.properties.post_rotation(), default_post_rotation);
+			auto lcl_rotation = rotation_d(m.properties.lcl_rotation(), default_lcl_rotation);
 			auto total_lcl_rotation = pre_rotation * lcl_rotation * post_rotation;
-			Vec3 lcl_translation{lcl_translation_value_d(0), lcl_translation_value_d(1), lcl_translation_value_d(2)};
+			Vec3 lcl_translation = lcl_translation_d();
 
 			anim_rt_b.emplace_back(0.0, RT{total_lcl_rotation, lcl_translation});
 			anim_dq_b.emplace_back(0.0, geometry::DualQuaternion::from_tr(lcl_translation, total_lcl_rotation));

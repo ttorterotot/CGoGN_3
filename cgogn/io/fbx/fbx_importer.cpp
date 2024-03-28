@@ -864,13 +864,6 @@ const FbxImporterBase::RotationOrder& FbxImporterBase::get_rotation_order(const 
 	return ID_TO_ROTATION_ORDER[0];
 }
 
-const FbxImporterBase::RotationOrder& FbxImporterBase::get_default_rotation_order(const std::string& template_key) const
-{
-	const auto template_it = property_templates_.find(template_key);
-	return get_rotation_order(static_cast<size_t>(template_it != property_templates_.cend() ?
-		template_it->second.rotation_order().value_or(0) : 0));
-}
-
 geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 		const RotationOrder& rotation_order)
 {
@@ -890,6 +883,34 @@ geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<
 	}
 
 	return res;
+}
+
+const Vec3 FbxImporterBase::get_default_translation(
+		const std::string& template_key, const std::array<std::optional<AnimScalar>, 3>& (Properties::* f)() const) const
+{
+	const auto template_it = property_templates_.find(template_key);
+
+	if (template_it == property_templates_.cend())
+		return Vec3::Zero();
+
+	const auto& arr = (template_it->second.*f)();
+	return Vec3{arr[0].value_or(0.0), arr[1].value_or(0.0), arr[2].value_or(0.0)};
+}
+
+const geometry::Quaternion FbxImporterBase::get_default_rotation(
+		const std::string& template_key, const std::array<std::optional<AnimScalar>, 3>& (Properties::* f)() const,
+		const RotationOrder& rotation_order) const
+{
+	const auto template_it = property_templates_.find(template_key);
+	return template_it != property_templates_.cend() ?
+			from_euler((template_it->second.*f)(), rotation_order) : geometry::Quaternion::Identity();
+}
+
+const FbxImporterBase::RotationOrder& FbxImporterBase::get_default_rotation_order(const std::string& template_key) const
+{
+	const auto template_it = property_templates_.find(template_key);
+	return get_rotation_order(static_cast<size_t>(template_it != property_templates_.cend() ?
+		template_it->second.rotation_order().value_or(0) : 0));
 }
 
 void FbxImporterBase::AnimationCurveNode::set_animation(const AnimationT* anim, const std::string& axis_property_name)

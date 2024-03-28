@@ -217,8 +217,8 @@ public:
 		if (ContainerT<Keyframe>::size() <= 0)
 			return default_value;
 
-		auto it = std::find_if(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(),
-				[&time](const Keyframe& k){ return k.time_ > time; });
+		auto it = std::upper_bound(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(),
+				AnimationKeyframe{time, default_value}, CompareKeyframes);
 
 		if (it == ContainerT<Keyframe>::cbegin())
 			return to_interpolation_space((*this)[0].value_);

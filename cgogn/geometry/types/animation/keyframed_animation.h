@@ -217,8 +217,9 @@ public:
 		if (ContainerT<Keyframe>::size() <= 0)
 			return default_value;
 
+		const auto& placeholder_value = (*this)[0].value_;
 		auto it = std::upper_bound(ContainerT<Keyframe>::cbegin(), ContainerT<Keyframe>::cend(),
-				AnimationKeyframe{time, default_value}, CompareKeyframes);
+				AnimationKeyframe{time, placeholder_value}, CompareKeyframes);
 
 		if (it == ContainerT<Keyframe>::cbegin())
 			return to_interpolation_space((*this)[0].value_);

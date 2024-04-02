@@ -182,7 +182,8 @@ protected:
 	};
 
 private:
-	static constexpr const AnimTimeT ANIM_TIME_RATIO = 5e-11; // 0.05ns (eyeballed)
+	// https://help.autodesk.com/view/FBX/2015/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
+	static constexpr const AnimTimeT ANIM_TIME_RATIO = 1.0 / 46186158000l;
 
 public:
 	static const RotationOrder& get_rotation_order(const size_t& id);

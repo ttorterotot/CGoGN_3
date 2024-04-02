@@ -205,7 +205,8 @@ protected:
 			}
 
 			if constexpr (USE_LBS_)
-				ImGui::Checkbox("Normalize weights", &normalize_weights_);
+				if (ImGui::Checkbox("Normalize weights", &normalize_weights_))
+					update_embedding();
 		}
 
 		imgui_mesh_selector(skeleton_provider_, selected_skeleton_, "Skeleton", [&](Skeleton& sk) { set_skeleton(&sk); });

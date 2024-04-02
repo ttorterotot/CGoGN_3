@@ -203,6 +203,9 @@ protected:
 				ImGui::Text("Invalid weight indices found");
 				ImGui::Text("Is the right skeleton selected?");
 			}
+
+			if constexpr (!std::is_same_v<TransformT, geometry::DualQuaternion>)
+				ImGui::Checkbox("Normalize weights", &normalize_weights_);
 		}
 
 		imgui_mesh_selector(skeleton_provider_, selected_skeleton_, "Skeleton", [&](Skeleton& sk) { set_skeleton(&sk); });
@@ -243,7 +246,7 @@ private:
 					*selected_bind_bone_inv_world_transform_, *selected_bone_world_transform_,
 					*selected_vertex_weight_index_, *selected_vertex_weight_value_,
 					*selected_bind_vertex_position_, *selected_vertex_position_,
-					true); // normalize weights
+					normalize_weights_);
 
 		if (mesh_provider_)
 			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());
@@ -256,6 +259,7 @@ private:
 	bool selected_vertex_weight_index_valid_ = true;
 	std::shared_ptr<AttributeSf<Vec4i>> selected_vertex_weight_index_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec4>> selected_vertex_weight_value_ = nullptr;
+	bool normalize_weights_ = true;
 	std::string bind_vertex_position_attribute_name_;
 	MeshProvider<Mesh>* mesh_provider_ = nullptr;
 	Skeleton* selected_skeleton_ = nullptr;

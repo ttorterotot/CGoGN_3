@@ -96,17 +96,16 @@ public:
 	}
 
 	/// @brief Computes the first and last keyframe's times across all animations.
-	/// If no animation has any keyframe, then `start_time > end_time`.
 	/// @param anims the container containing the animations
-	/// @param start_time the variable to update with the start time
-	/// @param end_time the variable to update with the end time
 	/// @param all_sorted whether or not all animations can be expected to be sorted
+	/// @return an optional with a pair of the start and end times respectively,
+	///         or the empty optional if no animation has any keyframe
 	template <template <typename> typename ContainerOther>
-	static void compute_keyframe_time_extrema(const ContainerOther<KeyframedAnimation>& anims,
-			TimeT& start_time, TimeT& end_time, bool all_sorted = false)
+	static std::optional<std::pair<TimeT, TimeT>> compute_keyframe_time_extrema(
+			const ContainerOther<KeyframedAnimation>& anims, bool all_sorted = false)
 	{
-		start_time = std::numeric_limits<TimeT>::max();
-		end_time = std::numeric_limits<TimeT>::lowest();
+		TimeT start_time = std::numeric_limits<TimeT>::max();
+		TimeT end_time = std::numeric_limits<TimeT>::lowest();
 
 		if (all_sorted)
 		{
@@ -130,6 +129,10 @@ public:
 				}
 			}
 		}
+
+		return start_time <= end_time
+				? std::make_pair(start_time, end_time)
+				: std::optional<std::pair<TimeT, TimeT>>{};
 	}
 
 	/// @brief Computes the (ordered) set of keyframes' times across all animations.

@@ -90,7 +90,8 @@ std::string process_bone_name(const std::string& raw_name, bool to_lower_case = 
 // The reader may find files easier to understand by adding a line break after each semicolon
 // When matching bone names, everything preceding and including the last instance of a colon is stripped,
 // and also converts the string to lower case for insensitivity, for example, `Provider::Rig::Hips` becomes `hips`
-bool load_weights(const Skeleton& sk, Volume& m, const std::string& path)
+bool load_weights(const Skeleton& sk, Volume& m, const std::vector<uint32>& vertex_id_after_import,
+		const std::string& path)
 {
 	std::string buf;
 	cgogn::io::Scoped_C_Locale loc;
@@ -103,25 +104,22 @@ bool load_weights(const Skeleton& sk, Volume& m, const std::string& path)
 	auto& wi = *cgogn::add_attribute<Vec4i, Vertex>(m, "weight_index");
 	auto& wv = *cgogn::add_attribute<Vec4, Vertex>(m, "weight_value");
 
-	bool broke_out = false;
-	cgogn::foreach_cell(m, [&](Vertex v)
+	for (const auto& i : vertex_id_after_import)
 	{
-		if ((broke_out = !is || is.eof()))
+		if (!is || is.eof())
 			return false;
-
-		const auto i = cgogn::index_of(m, v);
 
 		wi[i] = {-1, -1, -1, -1};
 		wv[i] = Vec4::Zero();
 
 		for (uint32 j = 0; ; ++j)
 		{
-			if ((broke_out = !is || !(is >> buf)))
+			if (!is || !(is >> buf))
 				return false;
 
 			if (buf[0] == ';')
 				break;
-			else if ((broke_out = j >= 4))
+			else if (j >= 4)
 				return false;
 
 			Vec4::Scalar w;
@@ -130,11 +128,9 @@ bool load_weights(const Skeleton& sk, Volume& m, const std::string& path)
 			wi[i][j] = bones.at(process_bone_name(buf));
 			wv[i][j] = w;
 		}
+	}
 
-		return !broke_out;
-	});
-
-	return !broke_out;
+	return true;
 }
 
 int main(int argc, char** argv)
@@ -188,14 +184,15 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	Volume* m = mp.load_volume_from_file(argv[1]);
+	std::vector<uint32> vertex_id_after_import;
+	Volume* m = mp.load_volume_from_file(argv[1], &vertex_id_after_import);
 	if (!m)
 	{
 		std::cout << "Volume could not be loaded" << std::endl;
 		return 1;
 	}
 
-	if (!load_weights(*sk, *m, argv[2]))
+	if (!load_weights(*sk, *m, vertex_id_after_import, argv[2]))
 	{
 		std::cout << "Volume weights could not be loaded" << std::endl;
 		return 1;

@@ -38,7 +38,7 @@ namespace io
 {
 
 template <typename MESH>
-bool import_TET(MESH& m, const std::string& filename)
+bool import_TET(MESH& m, const std::string& filename, std::vector<uint32>* vertex_id_after_import = nullptr)
 {
 	static_assert(mesh_traits<MESH>::dimension == 3, "MESH dimension should be 3");
 
@@ -146,6 +146,9 @@ bool import_TET(MESH& m, const std::string& filename)
 	}
 
 	import_volume_data(m, volume_data);
+
+	if (vertex_id_after_import)
+		*vertex_id_after_import = volume_data.vertex_id_after_import_;
 
 	return true;
 }

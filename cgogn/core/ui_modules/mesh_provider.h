@@ -296,7 +296,7 @@ public:
 		}
 	}
 
-	MESH* load_volume_from_file(const std::string& filename)
+	MESH* load_volume_from_file(const std::string& filename, std::vector<uint32>* vertex_id_after_import = nullptr)
 	{
 		if constexpr (mesh_traits<MESH>::dimension == 3 && std::is_default_constructible_v<MESH>)
 		{
@@ -309,9 +309,9 @@ public:
 			std::string ext = extension(filename);
 			bool imported;
 			if (ext.compare("tet") == 0)
-				imported = io::import_TET(*m, filename);
+				imported = io::import_TET(*m, filename, vertex_id_after_import);
 			else if (ext.compare("mesh") == 0 || ext.compare("meshb") == 0)
-				imported = io::import_MESHB(*m, filename);
+				imported = io::import_MESHB(*m, filename, vertex_id_after_import);
 			else
 				imported = false;
 

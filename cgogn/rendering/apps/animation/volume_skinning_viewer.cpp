@@ -175,6 +175,7 @@ int main(int argc, char** argv)
 	v1->link_module(&mp_sf);
 	v1->link_module(&mp_as);
 	v1->link_module(&asr);
+	v1->link_module(&sr);
 	v1->link_module(&vr);
 
 	Skeleton* sk{};

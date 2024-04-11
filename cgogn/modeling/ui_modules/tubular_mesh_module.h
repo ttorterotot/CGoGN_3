@@ -94,12 +94,6 @@ public:
 	{
 	}
 
-	~TubularMesh()
-	{
-		if (transversal_faces_marker_)
-			delete transversal_faces_marker_;
-	}
-
 protected:
 	void init() override
 	{
@@ -301,7 +295,7 @@ public:
 
 		// if (!transversal_faces_marker_)
 		// {
-		// 	transversal_faces_marker_ = new CellMarker<VOLUME, VolumeFace>(*volume_);
+		// 	transversal_faces_marker_ = std::make_unique<CellMarker<VOLUME, VolumeFace>>(*volume_);
 		// 	modeling::mark_tranversal_faces(*volume_, *contact_surface_, std::get<1>(hex_building_attributes_),
 		// 									*transversal_faces_marker_);
 		// }
@@ -917,9 +911,7 @@ public:
 		if (refresh_solver_)
 		{
 			refresh_solver_matrix_values(fit_to_data);
-			if (solver_)
-				delete solver_;
-			solver_ = new Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>();
+			solver_ = std::make_unique<Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>>();
 			Eigen::SparseMatrix<Scalar, Eigen::ColMajor> A = solver_matrix_.transpose() * solver_matrix_;
 			solver_->analyzePattern(A);
 			solver_->factorize(A);
@@ -1292,8 +1284,7 @@ public:
 		{
 			surface_vertex_position_ = attribute;
 
-			if (surface_bvh_)
-				delete surface_bvh_;
+			surface_bvh_ = nullptr; // free memory already, recreated later
 
 			uint32 nb_vertices = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceVertex>();
 			uint32 nb_faces = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceFace>();
@@ -1325,12 +1316,8 @@ public:
 				return true;
 			});
 
-			surface_bvh_ = new acc::BVHTree<uint32, Vec3>(face_vertex_indices, vertex_position);
-
-			// if (surface_kdt_)
-			// 	delete surface_kdt_;
-
-			// surface_kdt_ = new acc::KDTree<3, uint32>(vertex_position);
+			surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, vertex_position);
+			// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
 		}
 	}
 
@@ -1555,9 +1542,9 @@ private:
 
 	SURFACE* surface_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec3>> surface_vertex_position_ = nullptr;
-	acc::BVHTree<uint32, Vec3>* surface_bvh_ = nullptr;
+	std::unique_ptr<acc::BVHTree<uint32, Vec3>> surface_bvh_;
 	std::vector<SurfaceFace> surface_faces_;
-	// acc::KDTree<3, uint32>* surface_kdt_ = nullptr;
+	// std::unique_ptr<acc::KDTree<3, uint32>> surface_kdt_;
 	std::vector<SurfaceVertex> surface_vertices_;
 
 	SURFACE* contact_surface_ = nullptr;
@@ -1585,7 +1572,7 @@ private:
 	bool refresh_volume_skin_ = true;
 
 	Eigen::SparseMatrix<Scalar, Eigen::ColMajor> solver_matrix_;
-	Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>* solver_ = nullptr;
+	std::unique_ptr<Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>> solver_;
 	bool refresh_solver_matrix_values_only_ = true;
 	bool refresh_solver_ = true;
 
@@ -1594,7 +1581,7 @@ private:
 	double animate_volume_slot_duration_ = 1.0;
 	std::vector<std::shared_ptr<VolumeAttribute<Vec3>>> animate_volume_vertex_positions_;
 
-	CellMarker<VOLUME, VolumeFace>* transversal_faces_marker_ = nullptr;
+	std::unique_ptr<CellMarker<VOLUME, VolumeFace>> transversal_faces_marker_;
 	CellsSet<VOLUME, VolumeFace>* selected_volume_faces_set_ = nullptr;
 
 	std::tuple<modeling::GAttributes, modeling::M2Attributes, modeling::M3Attributes> hex_building_attributes_;

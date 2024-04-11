@@ -176,7 +176,6 @@ struct NonRigidRegistration_Helper
 		remove_attribute<Vertex>(source_, source_vertex_index_);
 		remove_attribute<Vertex>(source_, source_vertex_position_init_);
 		remove_attribute<Vertex>(source_, source_vertex_rotation_matrix_);
-		delete target_bvh_;
 	}
 
 	void init_source_steady_pos()
@@ -209,9 +208,7 @@ struct NonRigidRegistration_Helper
 			});
 			return true;
 		});
-		if (target_bvh_)
-			delete target_bvh_;
-		target_bvh_ = new acc::BVHTree<uint32, Vec3>(target_face_vertex_indices, target_vertex_positions);
+		target_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(target_face_vertex_indices, target_vertex_positions);
 		remove_attribute<Vertex>(target, target_vertex_index);
 	}
 
@@ -277,7 +274,7 @@ struct NonRigidRegistration_Helper
 	const Attribute<Vec3>* target_vertex_position_ = nullptr;
 
 	Scalar fit_to_target_;
-	acc::BVHTree<uint32, Vec3>* target_bvh_ = nullptr;
+	std::unique_ptr<acc::BVHTree<uint32, Vec3>> target_bvh_;
 	std::vector<Face> target_faces_;
 
 	Eigen::SparseMatrix<Scalar, Eigen::ColMajor> A_;

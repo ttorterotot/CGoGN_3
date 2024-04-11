@@ -69,14 +69,8 @@ class SurfaceDeformation : public ViewModule
 			  initialized_(false), solver_ready_(false), vertex_position_init_(nullptr), vertex_area_(nullptr),
 			  vertex_diff_coord_(nullptr), vertex_bi_diff_coord_(nullptr), vertex_rotation_matrix_(nullptr),
 			  vertex_rotated_diff_coord_(nullptr), vertex_rotated_bi_diff_coord_(nullptr), vertex_index_(nullptr),
-			  edge_weight_(nullptr), solver_(nullptr)
+			  edge_weight_(nullptr)
 		{
-		}
-
-		~Parameters()
-		{
-			if (solver_)
-				delete solver_;
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);
@@ -106,7 +100,7 @@ class SurfaceDeformation : public ViewModule
 		Eigen::SparseMatrix<Scalar, Eigen::ColMajor> working_LAPL_;
 		Eigen::SparseMatrix<Scalar, Eigen::ColMajor> working_BILAPL_;
 
-		Eigen::SparseLU<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>* solver_;
+		std::unique_ptr<Eigen::SparseLU<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>> solver_;
 	};
 
 public:
@@ -321,9 +315,8 @@ private:
 			p.working_LAPL_.makeCompressed();
 			p.working_BILAPL_.makeCompressed();
 
-			if (p.solver_)
-				delete p.solver_;
-			p.solver_ = new Eigen::SparseLU<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>(p.working_BILAPL_);
+			p.solver_ = std::make_unique<Eigen::SparseLU<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>>(
+					p.working_BILAPL_);
 
 			p.solver_ready_ = true;
 		}

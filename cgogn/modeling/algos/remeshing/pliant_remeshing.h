@@ -100,14 +100,12 @@ struct PliantRemeshing_Helper
 	using Face = typename mesh_traits<MESH>::Face;
 
 	PliantRemeshing_Helper(MESH& m, const std::shared_ptr<Attribute<Vec3>>& vertex_position)
-		: m_(m), vertex_position_(vertex_position), surface_bvh_(nullptr)
+		: m_(m), vertex_position_(vertex_position)
 	{
 		compute_bvh();
 	}
 	~PliantRemeshing_Helper()
 	{
-		if (surface_bvh_)
-			delete surface_bvh_;
 		if (feature_edge_)
 			remove_attribute<Edge>(m_, feature_edge_);
 		if (vertex_lfs_)
@@ -116,8 +114,7 @@ struct PliantRemeshing_Helper
 
 	void compute_bvh()
 	{
-		if (surface_bvh_)
-			delete surface_bvh_;
+		surface_bvh_ = nullptr; // free memory already, recreated later
 		auto bvh_vertex_index = add_attribute<uint32, Vertex>(m_, "__bvh_vertex_index");
 		std::vector<Vec3> bvh_vertex_position;
 		bvh_vertex_position.reserve(nb_cells<Vertex>(m_));
@@ -136,7 +133,7 @@ struct PliantRemeshing_Helper
 			});
 			return true;
 		});
-		surface_bvh_ = new acc::BVHTree<uint32, Vec3>(face_vertex_indices, bvh_vertex_position);
+		surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, bvh_vertex_position);
 		remove_attribute<Vertex>(m_, bvh_vertex_index);
 	}
 
@@ -224,7 +221,7 @@ struct PliantRemeshing_Helper
 	std::shared_ptr<Attribute<bool>> feature_corner_;
 	std::shared_ptr<Attribute<Scalar>> vertex_lfs_;
 	Scalar lfs_min_, lfs_max_, lfs_mean_;
-	acc::BVHTree<uint32, Vec3>* surface_bvh_;
+	std::unique_ptr<acc::BVHTree<uint32, Vec3>> surface_bvh_;
 };
 
 template <typename MESH>

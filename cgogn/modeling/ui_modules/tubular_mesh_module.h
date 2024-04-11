@@ -565,48 +565,48 @@ public:
 			// perpendicular_edges.reserve(16);
 
 			Dart ed = e.dart_;
-			parallel_edges.push_back(VolumeEdge(ed)); // the edge itself
+			parallel_edges.emplace_back(ed); // the edge itself
 			// Dart c = phi<1, 2, 3>(*volume_, ed);
 			// if (!is_boundary(*volume_, c))
-			// 	parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+			// 	parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 			do
 			{
 				Dart vd = phi<2, 1, 1>(*volume_, ed);
-				parallel_edges.push_back(VolumeEdge(vd));
+				parallel_edges.emplace_back(vd);
 				// c = phi<1, 2, 3>(*volume_, vd);
 				// if (!is_boundary(*volume_, c))
-				// 	parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+				// 	parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 				if (!is_boundary(*volume_, ed))
 				{
 					vd = phi<2, 1, 1>(*volume_, vd);
-					parallel_edges.push_back(VolumeEdge(vd));
+					parallel_edges.emplace_back(vd);
 					// c = phi<1, 2, 3>(*volume_, vd);
 					// if (!is_boundary(*volume_, c))
-					// 	parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+					// 	parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 				}
 				else
-					parallel_edges.push_back(VolumeEdge(ed)); // edge is on the boundary -> count twice
-				// perpendicular_edges.push_back(VolumeEdge(phi1(*volume_, ed)));
-				// perpendicular_edges.push_back(VolumeEdge(phi_1(*volume_, ed)));
+					parallel_edges.emplace_back(ed); // edge is on the boundary -> count twice
+				// perpendicular_edges.emplace_back(phi1(*volume_, ed));
+				// perpendicular_edges.emplace_back(phi_1(*volume_, ed));
 				ed = phi<3, 2>(*volume_, ed);
 			} while (ed != e.dart_);
 
 			// Dart ed2 = phi2(*volume_, e.dart_);
 			// c = phi<1, 2, 3>(*volume_, ed2);
 			// if (!is_boundary(*volume_, c))
-			// 	parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+			// 	parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 			// do
 			// {
 			// 	Dart vd = phi<2, 1, 1>(*volume_, ed2);
 			// 	c = phi<1, 2, 3>(*volume_, vd);
 			// 	if (!is_boundary(*volume_, c))
-			// 		parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+			// 		parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 			// 	if (!is_boundary(*volume_, ed))
 			// 	{
 			// 		vd = phi<2, 1, 1>(*volume_, vd);
 			// 		c = phi<1, 2, 3>(*volume_, vd);
 			// 		if (!is_boundary(*volume_, c))
-			// 			parallel_edges.push_back(VolumeEdge(phi<2, 1>(*volume_, c)));
+			// 			parallel_edges.emplace_back(phi<2, 1>(*volume_, c));
 			// 	}
 			// 	ed2 = phi<3, 2>(*volume_, ed2);
 			// } while (ed2 != phi2(*volume_, e.dart_));
@@ -701,11 +701,11 @@ public:
 			uint32 vidx1 = value<uint32>(*volume_, volume_vertex_index_, vertices[0]);
 			uint32 vidx2 = value<uint32>(*volume_, volume_vertex_index_, vertices[1]);
 
-			triplets.push_back(Eigen::Triplet<Scalar>(int(eidx), int(vidx1), -1 / target_length));
-			triplets.push_back(Eigen::Triplet<Scalar>(int(eidx), int(vidx2), 1 / target_length));
+			triplets.emplace_back(int(eidx), int(vidx1), -1 / target_length);
+			triplets.emplace_back(int(eidx), int(vidx2), 1 / target_length);
 
-			triplets.push_back(Eigen::Triplet<Scalar>(int(eidx + 1), int(vidx1), 1 / target_length));
-			triplets.push_back(Eigen::Triplet<Scalar>(int(eidx + 1), int(vidx2), -1 / target_length));
+			triplets.emplace_back(int(eidx + 1), int(vidx1), 1 / target_length);
+			triplets.emplace_back(int(eidx + 1), int(vidx2), -1 / target_length);
 
 			return true;
 		});
@@ -716,8 +716,8 @@ public:
 			uint32 volume_vertex_idx =
 				value<uint32>(*volume_, volume_vertex_index_,
 							  value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
-			triplets.push_back(Eigen::Triplet<Scalar>(int(nb_oriented_edges + boundary_vertex_idx),
-													  int(volume_vertex_idx), fit_to_data));
+			triplets.emplace_back(int(nb_oriented_edges + boundary_vertex_idx),
+								  int(volume_vertex_idx), fit_to_data);
 			return true;
 		});
 
@@ -807,12 +807,12 @@ public:
 			uint32 nbv = 0;
 			foreach_adjacent_vertex_through_edge(*volume_skin_, v, [&](SurfaceVertex av) -> bool {
 				uint32 avidx = value<uint32>(*volume_skin_, volume_skin_vertex_index_, av);
-				Acoeffs.push_back(Eigen::Triplet<Scalar>(int(vidx), int(avidx), 1));
+				Acoeffs.emplace_back(int(vidx), int(avidx), 1);
 				++nbv;
 				return true;
 			});
-			Acoeffs.push_back(Eigen::Triplet<Scalar>(int(vidx), int(vidx), -1 * Scalar(nbv)));
-			Acoeffs.push_back(Eigen::Triplet<Scalar>(int(nb_vertices + vidx), int(vidx), fit_to_data));
+			Acoeffs.emplace_back(int(vidx), int(vidx), -1 * Scalar(nbv));
+			Acoeffs.emplace_back(int(nb_vertices + vidx), int(vidx), fit_to_data);
 			b(vidx, 0) = 0;
 			b(vidx, 1) = 0;
 			b(vidx, 2) = 0;

@@ -67,6 +67,8 @@ class TubularMesh : public VolumeSurfaceFitting<SURFACE, VOLUME>
 	using VolumeFace = typename mesh_traits<VOLUME>::Face;
 
 public:
+	using Base::closest_surface_point;
+	using Base::closest_surface_face_and_point;
 	using Base::set_current_volume;
 	using Base::refresh_volume_skin;
 	using Base::intersect_bvh;
@@ -122,10 +124,9 @@ public:
 
 	void recenter_graph_from_surface()
 	{
-		const auto& surface_bvh_ = this->surface_bvh_; // template inheritance resolution
 		parallel_foreach_cell(*graph_, [&](GraphVertex v) -> bool {
 			Vec3& p = value<Vec3>(*graph_, graph_vertex_position_, v);
-			Vec3 cp = surface_bvh_->closest_point(p);
+			Vec3 cp = closest_surface_point(p);
 			Scalar prev_r;
 			Scalar r = (cp - p).norm();
 			// Vec3 prev_displ;
@@ -135,14 +136,14 @@ public:
 			{
 				prev_r = r;
 				// prev_displ = displ;
-				cp = surface_bvh_->closest_point(p);
+				cp = closest_surface_point(p);
 				r = (cp - p).norm();
 				displ = 0.01 * (p - cp);
 				p += displ;
 			} while (prev_r > r);
 			// } while (prev_displ.dot(displ) > 0);
 
-			cp = surface_bvh_->closest_point(p);
+			cp = closest_surface_point(p);
 			value<Scalar>(*graph_, graph_vertex_radius_, v) = (cp - p).norm();
 
 			return true;
@@ -157,7 +158,7 @@ public:
 	{
 		parallel_foreach_cell(*graph_, [&](GraphVertex v) -> bool {
 			const Vec3& p = value<Vec3>(*graph_, graph_vertex_position_, v);
-			Vec3 cp = this->surface_bvh_->closest_point(p);
+			Vec3 cp = closest_surface_point(p);
 			value<Scalar>(*graph_, graph_vertex_radius_, v) = (cp - p).norm() * 0.5;
 			return true;
 		});

@@ -429,10 +429,25 @@ public:
 		refresh_solver_matrix_values_only_ = false;
 	}
 
+	// Returns the closest position to `p` on the surface
+	Vec3 closest_surface_point(const Vec3& p)
+	{
+		cgogn_assert(surface_bvh_);
+		return surface_bvh_->closest_point(p);
+	}
+
+	// Returns the BVH index of the surface face closest to `p` and the closest position on that face
+	std::pair<uint32, Vec3> closest_surface_face_and_point(const Vec3& p)
+	{
+		cgogn_assert(surface_bvh_);
+		std::pair<uint32, Vec3> res;
+		surface_bvh_->closest_point(p, &res);
+		return res;
+	}
+
 	bool is_inside(const Vec3& p)
 	{
-		std::pair<uint32, Vec3> cp;
-		surface_bvh_->closest_point(p, &cp);
+		std::pair<uint32, Vec3> cp = closest_surface_face_and_point(p);
 		Vec3 dir = (cp.second - p).normalized();
 		Vec3 n = geometry::normal(*surface_, surface_faces_[cp.first], surface_vertex_position_.get());
 		return dir.dot(n) >= 0.0;
@@ -445,7 +460,7 @@ public:
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
 			const Vec3& p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v);
-			Vec3 proj = surface_bvh_->closest_point(p);
+			Vec3 proj = closest_surface_point(p);
 			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = proj;
 			value<Vec3>(*volume_, volume_vertex_position_,
 						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = proj;
@@ -476,7 +491,7 @@ public:
 		// 	if (h.hit)
 		// 		pos = h.pos;
 		// 	else
-		// 		pos = surface_bvh_->closest_point(p);
+		// 		pos = closest_surface_point(p);
 
 		// 	value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = pos;
 		// 	value<Vec3>(*volume_, volume_vertex_position_,
@@ -517,7 +532,7 @@ public:
 			b(vidx, 0) = 0;
 			b(vidx, 1) = 0;
 			b(vidx, 2) = 0;
-			Vec3 pos = surface_bvh_->closest_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
+			Vec3 pos = closest_surface_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
 			b(nb_vertices + vidx, 0) = fit_to_data * pos[0];
 			b(nb_vertices + vidx, 1) = fit_to_data * pos[1];
 			b(nb_vertices + vidx, 2) = fit_to_data * pos[2];
@@ -542,7 +557,7 @@ public:
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
 			const Vec3& pos = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v);
-			// Vec3 cp = surface_bvh_->closest_point(pos);
+			// Vec3 cp = closest_surface_point(pos);
 			value<Vec3>(*volume_, volume_vertex_position_,
 						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = pos;
 			return true;
@@ -716,7 +731,7 @@ public:
 					switch (proximity)
 					{
 					case geometry::NEAREST_POINT: {
-						pos = surface_bvh_->closest_point(p);
+						pos = closest_surface_point(p);
 					}
 					break;
 					case geometry::NORMAL_RAY: {
@@ -741,7 +756,7 @@ public:
 						if (h.hit)
 							pos = h.pos;
 						else
-							pos = surface_bvh_->closest_point(p);
+							pos = closest_surface_point(p);
 					}
 					break;
 					}

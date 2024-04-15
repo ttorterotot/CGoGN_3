@@ -447,9 +447,9 @@ public:
 
 	bool is_inside(const Vec3& p)
 	{
-		std::pair<uint32, Vec3> cp = closest_surface_face_and_point(p);
-		Vec3 dir = (cp.second - p).normalized();
-		Vec3 n = geometry::normal(*surface_, surface_faces_[cp.first], surface_vertex_position_.get());
+		auto [face_id, cp] = closest_surface_face_and_point(p);
+		Vec3 dir = (cp - p).normalized();
+		Vec3 n = geometry::normal(*surface_, surface_faces_[face_id], surface_vertex_position_.get());
 		return dir.dot(n) >= 0.0;
 	}
 

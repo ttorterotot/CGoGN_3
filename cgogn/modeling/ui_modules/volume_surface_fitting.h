@@ -445,6 +445,7 @@ public:
 		return res;
 	}
 
+	// Not an actual inside test, could fail for some geometries
 	bool is_inside(const Vec3& p)
 	{
 		auto [face_id, cp] = closest_surface_face_and_point(p);

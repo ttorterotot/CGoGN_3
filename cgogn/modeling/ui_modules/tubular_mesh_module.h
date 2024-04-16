@@ -48,9 +48,9 @@ using geometry::Scalar;
 using geometry::Vec3;
 
 template <typename GRAPH, typename SURFACE, typename VOLUME>
-class TubularMesh : public VolumeSurfaceFitting<SURFACE, VOLUME>
+class TubularMesh : public VolumeSurfaceFitting<SURFACE, VOLUME, false>
 {
-	using Base = VolumeSurfaceFitting<SURFACE, VOLUME>;
+	using Base = VolumeSurfaceFitting<SURFACE, VOLUME, false>;
 
 	// Protected members need to be specified due to two-phase lookup
 

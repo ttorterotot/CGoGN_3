@@ -62,7 +62,7 @@ using geometry::Mat3;
 using geometry::Scalar;
 using geometry::Vec3;
 
-template <typename SURFACE, typename VOLUME>
+template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true>
 class VolumeSurfaceFitting : public ViewModule
 {
 	template <typename T>
@@ -80,7 +80,9 @@ class VolumeSurfaceFitting : public ViewModule
 	using VolumeVolume = typename mesh_traits<VOLUME>::Volume;
 
 public:
-	using ViewModule::ViewModule; // inherit constructor
+	VolumeSurfaceFitting(const App& app, const std::string& name = "VolumeSurfaceFitting") : ViewModule(app, name)
+	{
+	}
 
 protected:
 	virtual void init() override
@@ -1065,6 +1067,13 @@ protected:
 
 	virtual void left_panel_meshes()
 	{
+		if constexpr (HasVolumeSelector)
+		{
+			ImGui::TextUnformatted("Volume");
+			imgui_mesh_selector(volume_provider_, volume_, "Volume", [&](VOLUME& v) { set_current_volume(&v); });
+			ImGui::Separator();
+		}
+
 		ImGui::TextUnformatted("Surface");
 		imgui_mesh_selector(surface_provider_, surface_, "Surface", [&](SURFACE& s) { set_current_surface(&s); });
 		if (surface_)

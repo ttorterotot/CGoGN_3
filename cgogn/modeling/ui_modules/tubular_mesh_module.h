@@ -51,7 +51,22 @@ template <typename GRAPH, typename SURFACE, typename VOLUME>
 class TubularMesh : public VolumeSurfaceFitting<SURFACE, VOLUME>
 {
 	using Base = VolumeSurfaceFitting<SURFACE, VOLUME>;
+
+	// Protected members need to be specified due to two-phase lookup
+
 	using Base::set_volume_caches_dirty;
+
+	using Base::app_;
+	using Base::surface_provider_;
+	using Base::volume_provider_;
+	using Base::surface_;
+	using Base::surface_vertex_position_;
+	using Base::contact_surface_;
+	using Base::volume_;
+	using Base::volume_vertex_position_;
+	using Base::volume_skin_;
+	using Base::volume_skin_vertex_position_;
+	using Base::volume_skin_vertex_volume_vertex_;
 
 	template <typename T>
 	using GraphAttribute = typename mesh_traits<GRAPH>::template Attribute<T>;
@@ -83,7 +98,7 @@ protected:
 	{
 		Base::init();
 		graph_provider_ = static_cast<ui::MeshProvider<GRAPH>*>(
-			this->app_.module("MeshProvider (" + std::string{mesh_traits<GRAPH>::name} + ")"));
+			app_.module("MeshProvider (" + std::string{mesh_traits<GRAPH>::name} + ")"));
 	}
 
 public:
@@ -226,12 +241,6 @@ public:
 
 	VOLUME* build_hex_mesh()
 	{
-		// Template inheritance resolution
-		auto& volume_ = this->volume_;
-		auto& volume_provider_ = this->volume_provider_;
-		auto& surface_provider_ = this->surface_provider_;
-		auto& contact_surface_ = this->contact_surface_;
-
 		// Scalar min_radius = std::numeric_limits<Scalar>::max();
 		// for (Scalar r : *graph_vertex_radius_)
 		// 	if (r < min_radius)
@@ -271,7 +280,7 @@ public:
 
 		set_current_volume(volume_); // acquire attributes
 
-		volume_provider_->set_mesh_bb_vertex_position(*volume_, this->volume_vertex_position_);
+		volume_provider_->set_mesh_bb_vertex_position(*volume_, volume_vertex_position_);
 
 		graph_provider_->emit_connectivity_changed(*graph_);
 		graph_provider_->emit_attribute_changed(*graph_, graph_vertex_position_.get());
@@ -283,15 +292,6 @@ public:
 
 	void add_volume_padding(bool pad_extremities)
 	{
-		// Template inheritance resolution
-		auto& surface_provider_ = this->surface_provider_;
-		auto& volume_ = this->volume_;
-		auto& volume_provider_ = this->volume_provider_;
-		auto& volume_vertex_position_ = this->volume_vertex_position_;
-		auto& volume_skin_ = this->volume_skin_;
-		auto& volume_skin_vertex_position_ = this->volume_skin_vertex_position_;
-		auto& volume_skin_vertex_volume_vertex_ = this->volume_skin_vertex_volume_vertex_;
-
 		if constexpr (std::is_same_v<GRAPH, Graph>)
 			modeling::padding(*volume_, nullptr);
 
@@ -321,11 +321,6 @@ public:
 
 	void subdivide_slice()
 	{
-		// Template inheritance resolution
-		auto& volume_ = this->volume_;
-		auto& volume_provider_ = this->volume_provider_;
-		auto& volume_vertex_position_ = this->volume_vertex_position_;
-
 		if (selected_volume_faces_set_->size() == 1)
 		{
 			VolumeEdge e = modeling::find_fiber_dir(*volume_, *(selected_volume_faces_set_->begin()));
@@ -341,11 +336,6 @@ public:
 
 	void subdivide_all_slices()
 	{
-		// Template inheritance resolution
-		auto& volume_ = this->volume_;
-		auto& volume_provider_ = this->volume_provider_;
-		auto& volume_vertex_position_ = this->volume_vertex_position_;
-
 		if (selected_volume_faces_set_->size() == 1)
 		{
 			VolumeEdge e = modeling::find_fiber_dir(*volume_, *(selected_volume_faces_set_->begin()));
@@ -366,11 +356,6 @@ public:
 
 	void fiber_aligned_subdivision_from_input()
 	{
-		// Template inheritance resolution
-		auto& volume_ = this->volume_;
-		auto& volume_provider_ = this->volume_provider_;
-		auto& volume_vertex_position_ = this->volume_vertex_position_;
-
 		if (selected_volume_faces_set_->size() == 1)
 		{
 			CellMarker<VOLUME, VolumeEdge> edge_fibers(*volume_);
@@ -458,7 +443,7 @@ protected:
 			if (ImGui::Button("Subdivide leaflets"))
 				subdivide_leaflets();
 		}
-		if (graph_ && graph_vertex_position_ && graph_vertex_radius_ && this->surface_ && this->surface_vertex_position_)
+		if (graph_ && graph_vertex_position_ && graph_vertex_radius_ && surface_ && surface_vertex_position_)
 		{
 			if (ImGui::Button("Init radius from surface"))
 				init_graph_radius_from_surface();
@@ -478,7 +463,7 @@ protected:
 		ImGui::Separator();
 		if (graph_ && graph_vertex_position_)
 		{
-			if (!this->volume_)
+			if (!volume_)
 				if (ImGui::Button("Build hex mesh"))
 					build_hex_mesh();
 		}

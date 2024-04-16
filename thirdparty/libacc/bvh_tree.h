@@ -311,7 +311,7 @@ std::pair<typename BVHTree<IdxType, Vec3fType>::Node::ID, typename BVHTree<IdxTy
 	std::vector<AABB> right_aabbs(n);
 	for (char d = 0; d < 3; ++d)
 	{
-		std::sort(&indices[node.first], &indices[node.last], [&aabbs, d](IdxType first, IdxType second) -> bool {
+		std::sort(indices.begin() + node.first, indices.begin() + node.last, [&aabbs, d](IdxType first, IdxType second) -> bool {
 			return mid(aabbs[first], d) < mid(aabbs[second], d) ||
 				   (mid(aabbs[first], d) == mid(aabbs[second], d) && first < second);
 		});
@@ -346,7 +346,7 @@ std::pair<typename BVHTree<IdxType, Vec3fType>::Node::ID, typename BVHTree<IdxTy
 	char d;
 	IdxType i;
 	std::tie(d, i) = split;
-	std::sort(&indices[node.first], &indices[node.last], [&aabbs, d](std::size_t first, std::size_t second) -> bool {
+	std::sort(indices.begin() + node.first, indices.begin() + node.last, [&aabbs, d](std::size_t first, std::size_t second) -> bool {
 		return mid(aabbs[first], d) < mid(aabbs[second], d) ||
 			   (mid(aabbs[first], d) == mid(aabbs[second], d) && first < second);
 	});

@@ -24,6 +24,8 @@
 #ifndef CGOGN_UI_IMGUI_HELPERS_H_
 #define CGOGN_UI_IMGUI_HELPERS_H_
 
+#include <optional>
+
 #include <imgui/imgui.h>
 
 #include <cgogn/core/ui_modules/mesh_data.h>
@@ -55,6 +57,8 @@ void imgui_combo_attribute(const MESH& m,
 	static_assert(is_func_parameter_same<FUNC, const std::shared_ptr<Attribute>&>::value,
 				  "Wrong function attribute parameter type");
 
+	std::optional<const std::shared_ptr<Attribute>> new_attribute = {};
+
 	if (ImGui::BeginCombo(label.c_str(), selected_attribute ? selected_attribute->name().c_str() : "-- select --"))
 	{
 		foreach_attribute<T, CELL>(m, [&](const std::shared_ptr<Attribute>& attribute) {
@@ -62,13 +66,15 @@ void imgui_combo_attribute(const MESH& m,
 			if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 			{
 				if (attribute != selected_attribute)
-					on_change(attribute);
+					new_attribute.emplace(attribute);
 			}
 			if (is_selected)
 				ImGui::SetItemDefaultFocus();
 		});
 		ImGui::EndCombo();
 	}
+	if (new_attribute)
+		on_change(std::move(*new_attribute));
 	if (selected_attribute)
 	{
 		double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
@@ -87,6 +93,8 @@ void imgui_combo_any_attribute(const MESH& m,
 	static_assert(is_func_parameter_same<FUNC, const std::shared_ptr<AttributeGen>&>::value,
 				  "Wrong function attribute parameter type");
 
+	std::optional<const std::shared_ptr<AttributeGen>> new_attribute = {};
+
 	if (ImGui::BeginCombo(label.c_str(), selected_attribute ? selected_attribute->name().c_str() : "-- select --"))
 	{
 		foreach_attribute<CELL>(m, [&](const std::shared_ptr<AttributeGen>& attribute) {
@@ -96,13 +104,15 @@ void imgui_combo_any_attribute(const MESH& m,
 			if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 			{
 				if (attribute != selected_attribute)
-					on_change(attribute);
+					new_attribute.emplace(attribute);
 			}
 			if (is_selected)
 				ImGui::SetItemDefaultFocus();
 		});
 		ImGui::EndCombo();
 	}
+	if (new_attribute)
+		on_change(std::move(*new_attribute));
 	if (selected_attribute)
 	{
 		double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
@@ -118,6 +128,8 @@ void imgui_combo_cells_set(MeshData<MESH>& md, const CellsSet<MESH, CELL>* selec
 {
 	static_assert(is_func_parameter_same<FUNC, CellsSet<MESH, CELL>*>::value, "Wrong function CellsSet parameter type");
 
+	std::optional<CellsSet<MESH, CELL>*> new_cells_set = {};
+
 	if (ImGui::BeginCombo(label.c_str(), selected_set ? selected_set->name().c_str() : "-- select --"))
 	{
 		md.template foreach_cells_set<CELL>([&](CellsSet<MESH, CELL>& cs) {
@@ -125,13 +137,15 @@ void imgui_combo_cells_set(MeshData<MESH>& md, const CellsSet<MESH, CELL>* selec
 			if (ImGui::Selectable(cs.name().c_str(), is_selected))
 			{
 				if (&cs != selected_set)
-					on_change(&cs);
+					new_cells_set = &cs;
 			}
 			if (is_selected)
 				ImGui::SetItemDefaultFocus();
 		});
 		ImGui::EndCombo();
 	}
+	if (new_cells_set)
+		on_change(*new_cells_set);
 	if (selected_set)
 	{
 		double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;

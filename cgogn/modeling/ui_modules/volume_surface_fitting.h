@@ -980,45 +980,45 @@ public:
 
 	void set_current_surface_vertex_position(const std::shared_ptr<SurfaceAttribute<Vec3>>& attribute)
 	{
-		if (surface_)
-		{
-			surface_vertex_position_ = attribute;
+		if (!surface_)
+			return;
 
-			surface_bvh_ = nullptr; // free memory already, recreated later
+		surface_vertex_position_ = attribute;
 
-			uint32 nb_vertices = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceVertex>();
-			uint32 nb_faces = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceFace>();
+		surface_bvh_ = nullptr; // free memory already, recreated later
 
-			auto vertex_index = get_or_add_attribute<uint32, SurfaceVertex>(*surface_, "__bvh_vertex_index");
+		uint32 nb_vertices = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceVertex>();
+		uint32 nb_faces = surface_provider_->mesh_data(*surface_).template nb_cells<SurfaceFace>();
 
-			std::vector<Vec3> vertex_position;
-			vertex_position.reserve(nb_vertices);
-			surface_vertices_.clear();
-			surface_vertices_.reserve(nb_vertices);
-			uint32 idx = 0;
-			foreach_cell(*surface_, [&](SurfaceVertex v) -> bool {
-				value<uint32>(*surface_, vertex_index, v) = idx++;
-				surface_vertices_.push_back(v);
-				vertex_position.push_back(value<Vec3>(*surface_, surface_vertex_position_, v));
+		auto vertex_index = get_or_add_attribute<uint32, SurfaceVertex>(*surface_, "__bvh_vertex_index");
+
+		std::vector<Vec3> vertex_position;
+		vertex_position.reserve(nb_vertices);
+		surface_vertices_.clear();
+		surface_vertices_.reserve(nb_vertices);
+		uint32 idx = 0;
+		foreach_cell(*surface_, [&](SurfaceVertex v) -> bool {
+			value<uint32>(*surface_, vertex_index, v) = idx++;
+			surface_vertices_.push_back(v);
+			vertex_position.push_back(value<Vec3>(*surface_, surface_vertex_position_, v));
+			return true;
+		});
+
+		surface_faces_.clear();
+		surface_faces_.reserve(nb_faces);
+		std::vector<uint32> face_vertex_indices;
+		face_vertex_indices.reserve(nb_faces * 3);
+		foreach_cell(*surface_, [&](SurfaceFace f) -> bool {
+			surface_faces_.push_back(f);
+			foreach_incident_vertex(*surface_, f, [&](SurfaceVertex v) -> bool {
+				face_vertex_indices.push_back(value<uint32>(*surface_, vertex_index, v));
 				return true;
 			});
+			return true;
+		});
 
-			surface_faces_.clear();
-			surface_faces_.reserve(nb_faces);
-			std::vector<uint32> face_vertex_indices;
-			face_vertex_indices.reserve(nb_faces * 3);
-			foreach_cell(*surface_, [&](SurfaceFace f) -> bool {
-				surface_faces_.push_back(f);
-				foreach_incident_vertex(*surface_, f, [&](SurfaceVertex v) -> bool {
-					face_vertex_indices.push_back(value<uint32>(*surface_, vertex_index, v));
-					return true;
-				});
-				return true;
-			});
-
-			surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, vertex_position);
-			// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
-		}
+		surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, vertex_position);
+		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
 	}
 
 protected:

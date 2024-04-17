@@ -40,6 +40,7 @@
 #include <cgogn/geometry/algos/length.h>
 #include <cgogn/geometry/algos/normal.h>
 #include <cgogn/geometry/algos/registration.h>
+#include <cgogn/geometry/algos/animation/skinning_weight_interpolation.h>
 
 #include <cgogn/modeling/algos/graph_to_hex.h>
 #include <cgogn/modeling/algos/subdivision.h>
@@ -61,8 +62,10 @@ namespace ui
 using geometry::Mat3;
 using geometry::Scalar;
 using geometry::Vec3;
+using geometry::Vec4;
+using geometry::Vec4i;
 
-template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true>
+template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true, bool SubdivideSkinningWeights = false>
 class VolumeSurfaceFitting : public ViewModule
 {
 	template <typename T>
@@ -186,9 +189,23 @@ public:
 
 	void subdivide_volume()
 	{
+		bool skinning_weight_attributes_set =
+			volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
+		std::vector<VolumeVertex> skinning_weight_source_vertices;
+		std::vector<Vec4::Scalar> skinning_weight_value_buffer;
 		CellCache<CMap3> cache(*volume_);
 		cache.build<VolumeVolume>();
 		cache.build<VolumeFace>();
+
+		const auto& set_weights = [&](const VolumeVertex& v, const std::vector<VolumeVertex> source_vertices)
+		{
+			if (skinning_weight_attributes_set)
+				std::tie(value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
+						value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)) =
+					geometry::SkinningWeightInterpolation::compute_weights(*volume_,
+									*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
+									source_vertices, {}, skinning_weight_value_buffer);
+		};
 
 		modeling::primal_cut_all_volumes(
 			cache,
@@ -197,30 +214,44 @@ public:
 				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
 					0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
 						   cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+				if constexpr (SubdivideSkinningWeights)
+					set_weights(v, av);
 			},
 			[&](VolumeVertex v) {
+				if constexpr (SubdivideSkinningWeights)
+					skinning_weight_source_vertices.resize(0);
 				Vec3 center;
 				center.setZero();
 				uint32 count = 0;
 				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
 					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+					if constexpr (SubdivideSkinningWeights)
+						skinning_weight_source_vertices.push_back(av);
 					++count;
 					return true;
 				});
 				center /= Scalar(count);
 				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+				if constexpr (SubdivideSkinningWeights)
+					set_weights(v, skinning_weight_source_vertices);
 			},
 			[&](VolumeVertex v) {
+				if constexpr (SubdivideSkinningWeights)
+					skinning_weight_source_vertices.resize(0);
 				Vec3 center;
 				center.setZero();
 				uint32 count = 0;
 				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
 					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+					if constexpr (SubdivideSkinningWeights)
+						skinning_weight_source_vertices.push_back(av);
 					++count;
 					return true;
 				});
 				center /= Scalar(count);
 				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+				if constexpr (SubdivideSkinningWeights)
+					set_weights(v, skinning_weight_source_vertices);
 			});
 
 		volume_provider_->emit_connectivity_changed(*volume_);
@@ -1098,8 +1129,24 @@ protected:
 		// 	subdivide_volume_width_wise();
 		// if (ImGui::Button("Find Fibers"))
 		// 	fiber_aligned_subdivision_from_input();
-		if (ImGui::Button("Subdivide volume"))
-			subdivide_volume();
+		if (volume_)
+		{
+			if constexpr (SubdivideSkinningWeights)
+			{
+				imgui_combo_attribute<VolumeVertex, Vec4i>(*volume_, volume_vertex_skinning_weight_index_,
+														   "Skinning weight index##volume",
+														   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
+															   volume_vertex_skinning_weight_index_ = attribute;
+														   });
+				imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
+														   "Skinning weight value##volume",
+														   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
+															   volume_vertex_skinning_weight_value_ = attribute;
+														   });
+			}
+			if (ImGui::Button("Subdivide volume"))
+				subdivide_volume();
+		}
 		// if (ImGui::Button("Subdivide skin"))
 		// 	subdivide_skin();
 	}
@@ -1229,6 +1276,9 @@ public:
 	bool refresh_edge_target_length_ = true;
 
 private:
+	std::shared_ptr<VolumeAttribute<Vec4i>> volume_vertex_skinning_weight_index_;
+	std::shared_ptr<VolumeAttribute<Vec4>> volume_vertex_skinning_weight_value_;
+
 	bool refresh_volume_cells_indexing_ = true;
 
 	CellsSet<VOLUME, VolumeVertex>* selected_frozen_vertices_set_ = nullptr;
@@ -1249,6 +1299,9 @@ private:
 
 	std::shared_ptr<boost::synapse::connection> timer_connection_;
 };
+
+template <typename SURFACE, typename VOLUME>
+using SkinnedVolumeSurfaceFitting = VolumeSurfaceFitting<SURFACE, VOLUME, true, true>;
 
 } // namespace ui
 

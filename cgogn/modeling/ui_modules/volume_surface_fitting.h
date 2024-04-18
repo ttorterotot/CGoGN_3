@@ -619,8 +619,6 @@ public:
 	void optimize_volume_vertices(Scalar fit_to_data, uint32 nb_iter, geometry::ProximityPolicy proximity,
 								  bool use_skin_as_boundary)
 	{
-		MeshData<SURFACE>& mds = surface_provider_->mesh_data(*surface_);
-
 		if (refresh_edge_target_length_)
 			refresh_edge_target_length();
 		if (refresh_volume_skin_)

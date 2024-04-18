@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_SKINNING_HELPER_H_
-#define CGOGN_MODULE_SKINNING_HELPER_H_
+#ifndef CGOGN_SKINNING_HELPER_H_
+#define CGOGN_SKINNING_HELPER_H_
 
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
@@ -249,4 +249,4 @@ private:
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_SKINNING_HELPER_H_
+#endif // CGOGN_SKINNING_HELPER_H_

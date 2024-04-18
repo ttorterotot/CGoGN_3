@@ -48,6 +48,7 @@ namespace cgogn
 namespace ui
 {
 
+using geometry::Mat4;
 using geometry::Vec3;
 using geometry::Scalar;
 
@@ -156,6 +157,18 @@ public:
 	}
 
 private:
+	template <typename T>
+	static Mat4 get_transform_matrix(const T& transform)
+	{
+		return transform.to_transform_matrix();
+	}
+
+	template <>
+	static Mat4 get_transform_matrix(const Mat4& transform)
+	{
+		return transform;
+	}
+
 	bool attribute_is_or_set_transform_tmpl(const std::shared_ptr<AttributeGen>& attribute,
 			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
 	{
@@ -268,7 +281,7 @@ private:
 		std::vector<geometry::Vec3> normals;
 		for (const auto& transform : bone_transform)
 		{
-			geometry::Mat4 transform_matrix = transform.to_transform_matrix();
+			Mat4 transform_matrix = get_transform_matrix(transform);
 			normals.push_back(transform_matrix.block<3, 1>(0, 1) / transform_matrix(3, 3));
 		}
 		rendering::update_vbo(normals, p.bone_normal_vbo_.get());

@@ -428,7 +428,7 @@ auto foreach_incident_vertex(const AnimationSkeleton& as, CELL c, const FUNC& fu
 
 	if constexpr (std::is_same_v<CELL, Edge>)
 	{
-		const auto& evs = (*as.bone_joints_)[c.index_];
+		const auto& evs = (*as.bone_joints_)[index_of(as, c)];
 		if (func(evs.first))
 			func(evs.second);
 	}

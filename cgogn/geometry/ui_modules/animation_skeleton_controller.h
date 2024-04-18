@@ -269,7 +269,7 @@ private:
 	{
 		if (!selected_animation_time_extrema_) // no pose
 		{
-				ImGui::Text("Empty animation");
+				ImGui::TextUnformatted("Empty animation");
 				return;
 		}
 

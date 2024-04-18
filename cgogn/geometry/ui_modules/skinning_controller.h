@@ -200,8 +200,8 @@ protected:
 
 			if (!selected_vertex_weight_index_valid_)
 			{
-				ImGui::Text("Invalid weight indices found");
-				ImGui::Text("Is the right skeleton selected?");
+				ImGui::TextUnformatted("Invalid weight indices found");
+				ImGui::TextUnformatted("Is the right skeleton selected?");
 			}
 
 			if constexpr (USE_LBS_)

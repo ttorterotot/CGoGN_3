@@ -43,9 +43,9 @@ private:
 	using Skeleton = AnimationSkeleton;
 
 	template <typename T>
-	using AttributeSf = typename cgogn::mesh_traits<Surface>::template Attribute<T>;
+	using AttributeSf = typename mesh_traits<Surface>::template Attribute<T>;
 
-	using Vertex = typename cgogn::mesh_traits<Surface>::Vertex;
+	using Vertex = typename mesh_traits<Surface>::Vertex;
 
 	template <typename T>
 	using AttributeSk = AnimationSkeleton::Attribute<T>;
@@ -121,9 +121,9 @@ public:
 		std::transform(raw_offsets.cbegin(), raw_offsets.cend(), std::back_inserter(offsets),
 				[](const TransformT& world_transform) { return PrecomputedTransform::from(world_transform); });
 
-		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
 		{
-			const auto i = cgogn::index_of(m, v);
+			const auto i = index_of(m, v);
 			Vec3 p = Vec3::Zero();
 			Vec4::Scalar w = 0.0;
 
@@ -183,9 +183,9 @@ public:
 		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
 		bool res = true;
 
-		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
 		{
-			const auto i = cgogn::index_of(m, v);
+			const auto i = index_of(m, v);
 			DualQuaternion t = DualQuaternion::zero();
 
 			for (int j = 0; j < 4; ++j)

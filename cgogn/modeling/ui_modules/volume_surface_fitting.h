@@ -952,7 +952,7 @@ public:
 
 	void export_subdivided_skin()
 	{
-		SURFACE volume_skin;
+		SURFACE volume_skin{};
 		auto volume_skin_vertex_position = add_attribute<Vec3, SurfaceVertex>(volume_skin, "position");
 		modeling::extract_volume_surface(*volume_, volume_vertex_position_.get(), volume_skin,
 										 volume_skin_vertex_position.get());

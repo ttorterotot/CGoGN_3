@@ -34,18 +34,13 @@ namespace cgogn
 namespace geometry
 {
 
-template <typename Surface, typename TransformT>
+template <typename TransformT>
 class SkinningHelper
 {
 private:
 	using AffineTransform = Eigen::Transform<Scalar, 3, Eigen::Affine>;
 
 	using Skeleton = AnimationSkeleton;
-
-	template <typename T>
-	using AttributeSf = typename mesh_traits<Surface>::template Attribute<T>;
-
-	using Vertex = typename mesh_traits<Surface>::Vertex;
 
 	template <typename T>
 	using AttributeSk = AnimationSkeleton::Attribute<T>;
@@ -106,10 +101,10 @@ public:
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
 			const AttributeSk<TransformT>& world_transforms,
-			const AttributeSf<Vec4i>& weight_indices,
-			const AttributeSf<Vec4>& weight_values,
-			const AttributeSf<Vec3>& bind_positions,
-			AttributeSf<Vec3>& positions,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			const typename mesh_traits<MESH>::template Attribute<Vec3>& bind_positions,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& positions,
 			bool normalize_weights = false)
 	{
 		std::vector<TransformT> raw_offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
@@ -173,10 +168,10 @@ public:
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
 			const AttributeSk<TransformT>& world_transforms,
-			const AttributeSf<Vec4i>& weight_indices,
-			const AttributeSf<Vec4>& weight_values,
-			const AttributeSf<Vec3>& bind_positions,
-			AttributeSf<Vec3>& positions)
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			const typename mesh_traits<MESH>::template Attribute<Vec3>& bind_positions,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& positions)
 	{
 		static_assert(std::is_same_v<TransformT, DualQuaternion>, "transform type unsupported, use LBS");
 

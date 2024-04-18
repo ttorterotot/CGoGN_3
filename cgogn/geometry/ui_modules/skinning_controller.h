@@ -47,7 +47,7 @@ template <typename Mesh, typename TransformT>
 class SkinningController : public Module
 {
 public:
-	using Skinning = geometry::SkinningHelper<Mesh, TransformT>;
+	using Skinning = geometry::SkinningHelper<TransformT>;
 
 protected:
 	using Skeleton = AnimationSkeleton;

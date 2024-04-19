@@ -1102,6 +1102,24 @@ protected:
 		{
 			ImGui::TextUnformatted("Volume");
 			imgui_mesh_selector(volume_provider_, volume_, "Volume", [&](VOLUME& v) { set_current_volume(&v); });
+
+			if constexpr (SubdivideSkinningWeights)
+			{
+				if (volume_)
+				{
+					imgui_combo_attribute<VolumeVertex, Vec4i>(*volume_, volume_vertex_skinning_weight_index_,
+															   "Skinning weight index##volume",
+															   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
+																   volume_vertex_skinning_weight_index_ = attribute;
+															   });
+					imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
+															   "Skinning weight value##volume",
+															   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
+																   volume_vertex_skinning_weight_value_ = attribute;
+															   });
+				}
+			}
+
 			ImGui::Separator();
 		}
 
@@ -1129,24 +1147,8 @@ protected:
 		// 	subdivide_volume_width_wise();
 		// if (ImGui::Button("Find Fibers"))
 		// 	fiber_aligned_subdivision_from_input();
-		if (volume_)
-		{
-			if constexpr (SubdivideSkinningWeights)
-			{
-				imgui_combo_attribute<VolumeVertex, Vec4i>(*volume_, volume_vertex_skinning_weight_index_,
-														   "Skinning weight index##volume",
-														   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
-															   volume_vertex_skinning_weight_index_ = attribute;
-														   });
-				imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
-														   "Skinning weight value##volume",
-														   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
-															   volume_vertex_skinning_weight_value_ = attribute;
-														   });
-			}
-			if (ImGui::Button("Subdivide volume"))
-				subdivide_volume();
-		}
+		if (volume_ && ImGui::Button("Subdivide volume"))
+			subdivide_volume();
 		// if (ImGui::Button("Subdivide skin"))
 		// 	subdivide_skin();
 	}

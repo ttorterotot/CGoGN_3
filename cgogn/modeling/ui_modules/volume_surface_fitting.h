@@ -760,6 +760,8 @@ public:
 							pos = closest_surface_point(p);
 					}
 					break;
+					default:
+						cgogn_assert_not_reached("Missing proximity policy case");
 					}
 
 					uint32 boundary_vertex_idx = value<uint32>(*volume_skin_, volume_skin_vertex_index_, v);

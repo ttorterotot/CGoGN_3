@@ -98,6 +98,7 @@ target_link_libraries(volume_skinning_viewer
 	cgogn::io
 	cgogn::rendering
 	cgogn::modeling
+	simpleICP
 	Blossom5
 	${CMAKE_DL_LIBS}
 	${APPLE_LINK}

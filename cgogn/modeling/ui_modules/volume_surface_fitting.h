@@ -65,7 +65,7 @@ using geometry::Vec3;
 using geometry::Vec4;
 using geometry::Vec4i;
 
-template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true, bool SubdivideSkinningWeights = false>
+template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true, bool HasSkinningUtility = false>
 class VolumeSurfaceFitting : public ViewModule
 {
 	template <typename T>
@@ -81,6 +81,9 @@ class VolumeSurfaceFitting : public ViewModule
 	using VolumeEdge = typename mesh_traits<VOLUME>::Edge;
 	using VolumeFace = typename mesh_traits<VOLUME>::Face;
 	using VolumeVolume = typename mesh_traits<VOLUME>::Volume;
+
+	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsTransfer = HasSkinningUtility;
 
 public:
 	VolumeSurfaceFitting(const App& app, const std::string& name = "VolumeSurfaceFitting") : ViewModule(app, name)
@@ -400,6 +403,8 @@ public:
 			return true;
 		});
 
+		update_volume_skin_skinning_attributes();
+
 		surface_provider_->emit_connectivity_changed(*volume_skin_);
 
 		refresh_volume_skin_ = false;
@@ -537,6 +542,46 @@ public:
 		surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
 
 		refresh_edge_target_length_ = true;
+	}
+
+	bool can_transfer_skinning_weights()
+	{
+		return volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_
+				&& surface_vertex_skinning_weight_index_ && surface_vertex_skinning_weight_value_
+				&& surface_vertex_position_ && surface_bvh_;
+	}
+
+	void transfer_skinning_weights()
+	{
+		if (refresh_volume_skin_)
+			refresh_volume_skin(); // already updates skin skinning attributes
+
+		std::array<Scalar, 3> source_vertex_weights{};
+		std::vector<Vec4::Scalar> skinning_weight_value_buffer;
+
+		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
+			const auto [face_id, proj] = closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
+
+			// Get barycentric coordinates of projected point
+			const auto source_vertices = first_incident_vertices<3>(*surface_, surface_faces_.at(face_id));
+			cgogn_assert(source_vertices[2].is_valid());
+			geometry::closest_point_in_triangle(proj,
+					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[0]),
+					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[1]),
+					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[2]),
+					source_vertex_weights[0], source_vertex_weights[1], source_vertex_weights[2]);
+
+			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
+					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
+					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
+
+			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
+			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;
+			value<Vec4>(*volume_skin_, volume_skin_vertex_skinning_weight_value_, v) = values;
+			value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, vv) = values;
+			return true;
+		});
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)
@@ -1052,6 +1097,33 @@ public:
 		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
 	}
 
+	template <typename T>
+	void update_volume_skin_skinning_attribute(
+			std::shared_ptr<SurfaceAttribute<T>>& skin_attribute,
+			const std::shared_ptr<VolumeAttribute<T>>& volume_attribute)
+	{
+		if (!volume_attribute || !volume_ || !volume_skin_)
+		{
+			skin_attribute = nullptr;
+			return;
+		}
+
+		skin_attribute = get_or_add_attribute<T, SurfaceVertex>(*volume_skin_, volume_attribute->name());
+
+		// Copy values
+		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			value<T>(*volume_skin_, skin_attribute, v) = value<T>(*volume_, volume_attribute,
+					value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
+			return true;
+		});
+	}
+
+	void update_volume_skin_skinning_attributes()
+	{
+		update_volume_skin_skinning_attribute(volume_skin_vertex_skinning_weight_index_, volume_vertex_skinning_weight_index_);
+		update_volume_skin_skinning_attribute(volume_skin_vertex_skinning_weight_value_, volume_vertex_skinning_weight_value_);
+	}
+
 protected:
 	void set_volume_caches_dirty(bool refresh_volume_skin = true)
 	{
@@ -1103,7 +1175,7 @@ protected:
 			ImGui::TextUnformatted("Volume");
 			imgui_mesh_selector(volume_provider_, volume_, "Volume", [&](VOLUME& v) { set_current_volume(&v); });
 
-			if constexpr (SubdivideSkinningWeights)
+			if constexpr (HasSkinningUtility) // HasSkinningWeightsTransfer || SubdivideSkinningWeights
 			{
 				if (volume_)
 				{
@@ -1111,11 +1183,13 @@ protected:
 															   "Skinning weight index##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
 																   volume_vertex_skinning_weight_index_ = attribute;
+																   update_volume_skin_skinning_attributes();
 															   });
 					imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
 															   "Skinning weight value##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
 																   volume_vertex_skinning_weight_value_ = attribute;
+																   update_volume_skin_skinning_attributes();
 															   });
 				}
 			}
@@ -1131,6 +1205,20 @@ protected:
 													   [&](const std::shared_ptr<SurfaceAttribute<Vec3>>& attribute) {
 														   set_current_surface_vertex_position(attribute);
 													   });
+
+			if constexpr (HasSkinningWeightsTransfer)
+			{
+				imgui_combo_attribute<SurfaceVertex, Vec4i>(*surface_, surface_vertex_skinning_weight_index_,
+														"Skinning weight index##surface",
+														[&](const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute) {
+															surface_vertex_skinning_weight_index_ = attribute;
+														});
+				imgui_combo_attribute<SurfaceVertex, Vec4>(*surface_, surface_vertex_skinning_weight_value_,
+														"Skinning weight value##surface",
+														[&](const std::shared_ptr<SurfaceAttribute<Vec4>>& attribute) {
+															surface_vertex_skinning_weight_value_ = attribute;
+														});
+			}
 		}
 
 		ImGui::Separator();
@@ -1195,6 +1283,10 @@ protected:
 											geometry::ProximityPolicy(optimize_vertices_proximity), false);
 
 			ImGui::Separator();
+
+			if constexpr (HasSkinningWeightsTransfer)
+				if (can_transfer_skinning_weights() && ImGui::Button("Skinning weights to skin"))
+					transfer_skinning_weights();
 
 			if (ImGui::Button("Project on surface"))
 				project_on_surface();
@@ -1278,6 +1370,9 @@ public:
 	bool refresh_edge_target_length_ = true;
 
 private:
+	std::shared_ptr<SurfaceAttribute<Vec4i>> surface_vertex_skinning_weight_index_;
+	std::shared_ptr<SurfaceAttribute<Vec4>> surface_vertex_skinning_weight_value_;
+
 	std::shared_ptr<VolumeAttribute<Vec4i>> volume_vertex_skinning_weight_index_;
 	std::shared_ptr<VolumeAttribute<Vec4>> volume_vertex_skinning_weight_value_;
 
@@ -1287,6 +1382,8 @@ private:
 
 	std::shared_ptr<SurfaceAttribute<uint32>> volume_skin_vertex_index_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec3>> volume_skin_vertex_normal_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<Vec4i>> volume_skin_vertex_skinning_weight_index_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<Vec4>> volume_skin_vertex_skinning_weight_value_ = nullptr;
 	bool refresh_volume_skin_ = true;
 
 	Eigen::SparseMatrix<Scalar, Eigen::ColMajor> solver_matrix_;

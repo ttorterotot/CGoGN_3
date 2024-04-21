@@ -36,6 +36,7 @@
 #include <cgogn/geometry/ui_modules/animation_skeleton_controller.h>
 #include <cgogn/rendering/ui_modules/animation_skeleton_render.h>
 #include <cgogn/geometry/ui_modules/skinning_controller.h>
+#include <cgogn/modeling/ui_modules/surface_modeling.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
@@ -161,6 +162,7 @@ int main(int argc, char** argv)
 	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_v_rt(app);
 	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
 	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
+	cgogn::ui::SurfaceModeling<Surface> sm(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::VolumeRender<Volume> vr(app);
 

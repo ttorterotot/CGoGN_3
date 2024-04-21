@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_SKINNING_HELPER_H_
-#define CGOGN_MODULE_SKINNING_HELPER_H_
+#ifndef CGOGN_SKINNING_HELPER_H_
+#define CGOGN_SKINNING_HELPER_H_
 
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
@@ -34,18 +34,13 @@ namespace cgogn
 namespace geometry
 {
 
-template <typename Surface, typename TransformT>
+template <typename TransformT>
 class SkinningHelper
 {
 private:
 	using AffineTransform = Eigen::Transform<Scalar, 3, Eigen::Affine>;
 
 	using Skeleton = AnimationSkeleton;
-
-	template <typename T>
-	using AttributeSf = typename cgogn::mesh_traits<Surface>::template Attribute<T>;
-
-	using Vertex = typename cgogn::mesh_traits<Surface>::Vertex;
 
 	template <typename T>
 	using AttributeSk = AnimationSkeleton::Attribute<T>;
@@ -106,10 +101,10 @@ public:
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
 			const AttributeSk<TransformT>& world_transforms,
-			const AttributeSf<Vec4i>& weight_indices,
-			const AttributeSf<Vec4>& weight_values,
-			const AttributeSf<Vec3>& bind_positions,
-			AttributeSf<Vec3>& positions,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			const typename mesh_traits<MESH>::template Attribute<Vec3>& bind_positions,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& positions,
 			bool normalize_weights = false)
 	{
 		std::vector<TransformT> raw_offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
@@ -121,9 +116,9 @@ public:
 		std::transform(raw_offsets.cbegin(), raw_offsets.cend(), std::back_inserter(offsets),
 				[](const TransformT& world_transform) { return PrecomputedTransform::from(world_transform); });
 
-		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
 		{
-			const auto i = cgogn::index_of(m, v);
+			const auto i = index_of(m, v);
 			Vec3 p = Vec3::Zero();
 			Vec4::Scalar w = 0.0;
 
@@ -173,19 +168,19 @@ public:
 			const AnimationSkeleton& as,
 			const AttributeSk<TransformT>& bind_inv_world_transforms,
 			const AttributeSk<TransformT>& world_transforms,
-			const AttributeSf<Vec4i>& weight_indices,
-			const AttributeSf<Vec4>& weight_values,
-			const AttributeSf<Vec3>& bind_positions,
-			AttributeSf<Vec3>& positions)
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			const typename mesh_traits<MESH>::template Attribute<Vec3>& bind_positions,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& positions)
 	{
 		static_assert(std::is_same_v<TransformT, DualQuaternion>, "transform type unsupported, use LBS");
 
 		std::vector<TransformT> offsets = get_offsets(as, bind_inv_world_transforms, world_transforms);
 		bool res = true;
 
-		cgogn::parallel_foreach_cell(m, [&](typename cgogn::mesh_traits<MESH>::Vertex v)
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
 		{
-			const auto i = cgogn::index_of(m, v);
+			const auto i = index_of(m, v);
 			DualQuaternion t = DualQuaternion::zero();
 
 			for (int j = 0; j < 4; ++j)
@@ -249,4 +244,4 @@ private:
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_SKINNING_HELPER_H_
+#endif // CGOGN_SKINNING_HELPER_H_

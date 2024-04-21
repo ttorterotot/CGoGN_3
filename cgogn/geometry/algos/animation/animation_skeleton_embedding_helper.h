@@ -156,52 +156,28 @@ public:
 			TimePoint time_point,
 			const MESH& as,
 			const Attribute<AnimationT>& anims,
-			TimeT& anims_start_time,
-			TimeT& anims_end_time,
 			Attribute<TransformT>& local_transforms,
 			Attribute<TransformT>& world_transforms,
 			Attribute<Vec3>& positions,
 			bool assume_all_anims_sorted = false)
 	{
-		AnimationT::compute_keyframe_time_extrema(anims, anims_start_time, anims_end_time, assume_all_anims_sorted);
+		auto times = AnimationT::compute_keyframe_time_extrema(anims, assume_all_anims_sorted);
 
-		TimeT time;
-		switch (time_point)
-		{
-		case TimePoint::Start:
-			time = anims_start_time;
-			break;
-		case TimePoint::End:
-			time = anims_end_time;
-			break;
-		default:
-			cgogn_assert_not_reached("Missing time point case");
-		}
+		TimeT time{};
+		if (times)
+			switch (time_point)
+			{
+			case TimePoint::Start:
+				time = times->first;
+				break;
+			case TimePoint::End:
+				time = times->second;
+				break;
+			default:
+				cgogn_assert_not_reached("Missing time point case");
+			}
 
 		compute_everything(time, as, anims, local_transforms, world_transforms, positions);
-	}
-
-	/// @brief Computes transforms and joint positions from an animation at a given time.
-	/// @param time_point the time to compute transforms for from the animations
-	/// @param as the skeleton the attributes are for
-	/// @param anims the animation attribute to get transforms from
-	/// @param local_transforms the bone local transform attribute to update
-	/// @param world_transforms the bone world transform attribute to update
-	/// @param positions the joint position attribute to update
-	/// @param assume_all_anims_sorted whether or not all animations can be assumed to be sorted
-	static void compute_everything(
-			TimePoint time_point,
-			const MESH& as,
-			const Attribute<AnimationT>& anims,
-			Attribute<TransformT>& local_transforms,
-			Attribute<TransformT>& world_transforms,
-			Attribute<Vec3>& positions,
-			bool assume_all_anims_sorted = false)
-	{
-		TimeT anims_start_time, anims_end_time; // times not cached beyond this call
-		compute_everything(time_point, as, anims, anims_start_time, anims_end_time,
-				local_transforms, world_transforms, positions,
-				assume_all_anims_sorted);
 	}
 
 	// Bounding box

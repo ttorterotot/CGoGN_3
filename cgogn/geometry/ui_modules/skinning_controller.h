@@ -47,7 +47,7 @@ template <typename Mesh, typename TransformT>
 class SkinningController : public Module
 {
 public:
-	using Skinning = geometry::SkinningHelper<Mesh, TransformT>;
+	using Skinning = geometry::SkinningHelper<TransformT>;
 
 protected:
 	using Skeleton = AnimationSkeleton;
@@ -200,9 +200,13 @@ protected:
 
 			if (!selected_vertex_weight_index_valid_)
 			{
-				ImGui::Text("Invalid weight indices found");
-				ImGui::Text("Is the right skeleton selected?");
+				ImGui::TextUnformatted("Invalid weight indices found");
+				ImGui::TextUnformatted("Is the right skeleton selected?");
 			}
+
+			if constexpr (USE_LBS_)
+				if (ImGui::Checkbox("Normalize weights", &normalize_weights_))
+					update_embedding();
 		}
 
 		imgui_mesh_selector(skeleton_provider_, selected_skeleton_, "Skeleton", [&](Skeleton& sk) { set_skeleton(&sk); });
@@ -231,31 +235,33 @@ private:
 				|| !selected_bone_world_transform_)
 			return;
 
-		if constexpr (std::is_same_v<TransformT, geometry::DualQuaternion>)
-			selected_vertex_weight_index_valid_ = Skinning::compute_vertex_positions_TBS(
-					*selected_mesh_, *selected_skeleton_,
-					*selected_bind_bone_inv_world_transform_, *selected_bone_world_transform_,
-					*selected_vertex_weight_index_, *selected_vertex_weight_value_,
-					*selected_bind_vertex_position_, *selected_vertex_position_);
-		else
+		if constexpr (USE_LBS_)
 			selected_vertex_weight_index_valid_ = Skinning::compute_vertex_positions_LBS(
 					*selected_mesh_, *selected_skeleton_,
 					*selected_bind_bone_inv_world_transform_, *selected_bone_world_transform_,
 					*selected_vertex_weight_index_, *selected_vertex_weight_value_,
 					*selected_bind_vertex_position_, *selected_vertex_position_,
-					true); // normalize weights
+					normalize_weights_);
+		else
+			selected_vertex_weight_index_valid_ = Skinning::compute_vertex_positions_TBS(
+					*selected_mesh_, *selected_skeleton_,
+					*selected_bind_bone_inv_world_transform_, *selected_bone_world_transform_,
+					*selected_vertex_weight_index_, *selected_vertex_weight_value_,
+					*selected_bind_vertex_position_, *selected_vertex_position_);
 
 		if (mesh_provider_)
 			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());
 	}
 
 private:
+	static constexpr const bool USE_LBS_ = !std::is_same_v<TransformT, geometry::DualQuaternion>;
 	Mesh* selected_mesh_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec3>> selected_vertex_position_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec3>> selected_bind_vertex_position_ = nullptr;
 	bool selected_vertex_weight_index_valid_ = true;
 	std::shared_ptr<AttributeSf<Vec4i>> selected_vertex_weight_index_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec4>> selected_vertex_weight_value_ = nullptr;
+	bool normalize_weights_ = true;
 	std::string bind_vertex_position_attribute_name_;
 	MeshProvider<Mesh>* mesh_provider_ = nullptr;
 	Skeleton* selected_skeleton_ = nullptr;

@@ -95,8 +95,11 @@ public:
 	{
 		selected_animation_ = attribute;
 
-		if (!selected_animation_)
-			return; // animation unset
+		if (!selected_animation_) // animation unset
+		{
+			selected_animation_time_extrema_ = {};
+			return;
+		}
 
 		// Check for empty animations
 		if (check_params == CheckParams::CheckAndWarnInvalid && !AnimationT::are_none_empty(
@@ -112,8 +115,7 @@ public:
 			std::cout << "[AnimationSkeletonController::set_animation] Found unsorted animation, "
 					"skeleton may be animated improperly" << std::endl;
 
-		AnimationT::compute_keyframe_time_extrema(*selected_animation_,
-				selected_animation_start_time_, selected_animation_end_time_, all_sorted);
+		selected_animation_time_extrema_ = AnimationT::compute_keyframe_time_extrema(*selected_animation_, all_sorted);
 	}
 
 	/// @brief Changes the linked joint position attribute, and updates it if it's not null and a skeleton is selected.
@@ -146,13 +148,19 @@ public:
 		if (!selected_animation_)
 			return;
 
+		if (!selected_animation_time_extrema_)
+		{
+			set_time(TimeT{});
+			return;
+		}
+
 		switch (time_point)
 		{
 		case TimePoint::Start:
-			set_time(selected_animation_start_time_);
+			set_time(selected_animation_time_extrema_->first);
 			break;
 		case TimePoint::End:
-			set_time(selected_animation_end_time_);
+			set_time(selected_animation_time_extrema_->second);
 			break;
 		default:
 			cgogn_assert_not_reached("Missing time point case");
@@ -229,13 +237,17 @@ private:
 	// Sets the time according to the play mode if an animation is selected.
 	void advance_play()
 	{
-		if (!selected_animation_ || play_mode_ == PlayMode::Pause)
+		if (!selected_animation_ || play_mode_ == PlayMode::Pause
+				|| !selected_animation_time_extrema_) // no pose
 			return;
 
-		if (selected_animation_start_time_ >= selected_animation_end_time_) // 0-1 pose
+		const auto& [start_time, end_time] = *selected_animation_time_extrema_;
+		cgogn_assert(start_time <= end_time);
+
+		if (start_time == end_time) // single pose
 			return;
 
-		if (play_mode_ == PlayMode::PlayOnce && time_ >= selected_animation_end_time_)
+		if (play_mode_ == PlayMode::PlayOnce && time_ >= end_time)
 		{
 			set_play_mode(PlayMode::Pause); // shouldn't start playing again if the user rewinds
 			return; // end already reached
@@ -245,24 +257,26 @@ private:
 
 		// If the animation changed to one that starts later,
 		// better to fast-forward to its start than to wait to catch up
-		new_time = std::max(new_time, selected_animation_start_time_);
+		new_time = std::max(new_time, start_time);
 
 		if (play_mode_ == PlayMode::PlayLooping)
-			set_time(std::fmod(new_time - selected_animation_start_time_,
-							selected_animation_end_time_ - selected_animation_start_time_)
-					+ selected_animation_start_time_);
+			set_time(std::fmod(new_time - start_time, end_time - start_time) + start_time);
 		else // PlayMode::PlayOnce
-			set_time(std::min(new_time, selected_animation_end_time_));
+			set_time(std::min(new_time, end_time));
 	}
 
 	void show_time_controls()
 	{
-		if (selected_animation_start_time_ > selected_animation_end_time_) // no pose
+		if (!selected_animation_time_extrema_) // no pose
 		{
-				ImGui::Text("Empty animation");
+				ImGui::TextUnformatted("Empty animation");
 				return;
 		}
-		if (selected_animation_start_time_ == selected_animation_end_time_) // single pose
+
+		const auto& [start_time, end_time] = *selected_animation_time_extrema_;
+		cgogn_assert(start_time <= end_time);
+
+		if (start_time == end_time) // single pose
 		{
 			ImGui::LabelText("Time##L", "%.3f", static_cast<float>(time_));
 
@@ -273,7 +287,7 @@ private:
 		}
 
 		float t = static_cast<float>(time_);
-		if (ImGui::SliderFloat("Time", &t, selected_animation_start_time_, selected_animation_end_time_))
+		if (ImGui::SliderFloat("Time", &t, start_time, end_time))
 			set_time(static_cast<TimeT>(t));
 
 		if (ImGui::Button("<<"))
@@ -285,7 +299,7 @@ private:
 		ImGui::SameLine();
 
 		if (play_mode_ == PlayMode::PlayLooping // avoid flashing at end when looping
-				|| time_ < selected_animation_end_time_) // end not reached
+				|| time_ < end_time) // end not reached
 			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
 		else if (show_button_and_tooltip("<>", "Play again"))
 		{
@@ -389,8 +403,7 @@ private:
 	TimeT time_ = TimeT{};
 	MESH* selected_skeleton_ = nullptr;
 	std::shared_ptr<Attribute<AnimationT>> selected_animation_ = nullptr;
-	TimeT selected_animation_start_time_;
-	TimeT selected_animation_end_time_;
+	std::optional<std::pair<TimeT, TimeT>> selected_animation_time_extrema_ = {};
 	std::shared_ptr<Attribute<Vec3>> selected_joint_position_ = nullptr;
 	std::shared_ptr<Attribute<TransformT>> selected_bone_local_transform_ = nullptr;
 	std::shared_ptr<Attribute<TransformT>> selected_bone_world_transform_ = nullptr;

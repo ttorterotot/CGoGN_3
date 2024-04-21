@@ -52,6 +52,7 @@ set(src_list
 		"${CMAKE_CURRENT_LIST_DIR}/algos/invertion.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/animation/animation_skeleton_embedding_helper.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/animation/skinning_helper.h"
+		"${CMAKE_CURRENT_LIST_DIR}/algos/animation/skinning_weight_interpolation.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/registration.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/surface_differential_properties.h"

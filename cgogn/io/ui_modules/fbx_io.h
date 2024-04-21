@@ -96,7 +96,7 @@ protected:
 		if (ImGui::BeginMenu(name_.c_str()))
 		{
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, (bool)open_file_dialog);
-			if (ImGui::MenuItem("Load mesh"))
+			if (ImGui::MenuItem("Load files"))
 				open_file_dialog = std::make_unique<pfd::open_file>("Choose file", ".",
 						supported_files_, pfd::opt::multiselect);
 			ImGui::PopItemFlag();

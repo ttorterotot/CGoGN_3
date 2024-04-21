@@ -110,7 +110,7 @@ auto import_surface_data_map_tmpl(MESH& m, SURFDATA& surface_data, bool reconstr
 				vertices_buffer.push_back(idx);
 			}
 		}
-		if (vertices_buffer.front() == vertices_buffer.back())
+		if (!vertices_buffer.empty() && vertices_buffer.front() == vertices_buffer.back())
 			vertices_buffer.pop_back();
 
 		nbv = uint32(vertices_buffer.size());

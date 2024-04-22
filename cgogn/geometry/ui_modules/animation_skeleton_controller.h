@@ -180,9 +180,9 @@ public:
 	{
 		selected_skeleton_= sk;
 		selected_animation_.reset();
-		selected_joint_position_ = cgogn::get_attribute<Vec3, Joint>(*sk, "position"); // nullptr (equiv. to reset) if not found
-		selected_bone_local_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(*sk, local_transform_attribute_name_);
-		selected_bone_world_transform_ = cgogn::get_or_add_attribute<TransformT, Bone>(*sk, world_transform_attribute_name_);
+		selected_joint_position_ = get_attribute<Vec3, Joint>(*sk, "position"); // nullptr (equiv. to reset) if not found
+		selected_bone_local_transform_ = get_or_add_attribute<TransformT, Bone>(*sk, local_transform_attribute_name_);
+		selected_bone_world_transform_ = get_or_add_attribute<TransformT, Bone>(*sk, world_transform_attribute_name_);
 	}
 
 	/// @return the attribute name for local transforms
@@ -202,7 +202,7 @@ public:
 protected:
 	void init() override
 	{
-		mesh_provider_ = static_cast<ui::MeshProvider<MESH>*>(
+		mesh_provider_ = static_cast<MeshProvider<MESH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		last_frame_time_ = App::frame_time_;
 	}

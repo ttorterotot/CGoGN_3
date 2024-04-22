@@ -58,9 +58,9 @@ protected:
 	using Bone = AnimationSkeleton::Bone;
 
 	template <typename T>
-	using AttributeSf = typename cgogn::mesh_traits<Mesh>::template Attribute<T>;
+	using AttributeSf = typename mesh_traits<Mesh>::template Attribute<T>;
 
-	using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
+	using Vertex = typename mesh_traits<Mesh>::Vertex;
 
 public:
 	SkinningController(const App& app,
@@ -87,7 +87,7 @@ public:
 			return;
 
 		selected_bind_vertex_position_
-				= cgogn::get_or_add_attribute<Vec3, Vertex>(*selected_mesh_, bind_vertex_position_attribute_name_);
+				= get_or_add_attribute<Vec3, Vertex>(*selected_mesh_, bind_vertex_position_attribute_name_);
 
 		if (attribute)
 			selected_bind_vertex_position_->copy(*attribute);
@@ -122,7 +122,7 @@ public:
 			return;
 
 		selected_bind_bone_inv_world_transform_
-				= cgogn::get_or_add_attribute<TransformT, Bone>(*selected_skeleton_, bind_inv_world_transform_attribute_name_);
+				= get_or_add_attribute<TransformT, Bone>(*selected_skeleton_, bind_inv_world_transform_attribute_name_);
 
 		if (attribute)
 		{
@@ -143,7 +143,7 @@ public:
 		selected_vertex_weight_index_valid_ = true;
 		selected_vertex_weight_index_.reset();
 		selected_vertex_weight_value_.reset();
-		set_vertex_position(cgogn::get_attribute<Vec3, Vertex>(*sf, "position")); // nullptr (equiv. to reset) if not found
+		set_vertex_position(get_attribute<Vec3, Vertex>(*sf, "position")); // nullptr (equiv. to reset) if not found
 	}
 
 	/// @brief Changes the linked skeleton, and resets attribute selection for it.
@@ -179,9 +179,9 @@ public:
 protected:
 	void init() override
 	{
-		mesh_provider_ = static_cast<ui::MeshProvider<Mesh>*>(
+		mesh_provider_ = static_cast<MeshProvider<Mesh>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<Mesh>::name} + ")"));
-		skeleton_provider_ = static_cast<ui::MeshProvider<Skeleton>*>(
+		skeleton_provider_ = static_cast<MeshProvider<Skeleton>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<Skeleton>::name} + ")"));
 	}
 

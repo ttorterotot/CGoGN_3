@@ -56,7 +56,7 @@ private:
 	using Joint = AnimationSkeleton::Joint;
 	using Bone = AnimationSkeleton::Bone;
 
-	using AnimationT = geometry::KeyframedAnimation<ContainerT, TimeT, TransformT>;
+	using AnimationT = KeyframedAnimation<ContainerT, TimeT, TransformT>;
 
 public:
 
@@ -263,34 +263,32 @@ public:
 	// Transform-type-dependent methods
 
 	template <typename R, typename T>
-	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
-					geometry::RigidTransformation<R, T>>& anim,
+	static TransformT get_transform(const KeyframedAnimation<ContainerT, TimeT, RigidTransformation<R, T>>& anim,
 			TimeT time)
 	{
-		return anim.get_value(time, identity_c, geometry::RigidTransformation<R, T>::interpolate);
+		return anim.get_value(time, identity_c, RigidTransformation<R, T>::interpolate);
 	}
 
-	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
-					geometry::DualQuaternion>& anim,
+	static TransformT get_transform(const KeyframedAnimation<ContainerT, TimeT, DualQuaternion>& anim,
 			TimeT time, bool shortest_path = true)
 	{
 		if (!shortest_path)
 			return anim.get_value(time).normalized();
 
-		using DQ = geometry::DualQuaternion;
+		using DQ = DualQuaternion;
 		return anim.get_value(time, identity_c,
 				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); })
 						.normalized();
 	}
 
 	template <typename R, typename T>
-	static inline Vec3 get_basis_position(const geometry::RigidTransformation<R, T>& world_transform)
+	static inline Vec3 get_basis_position(const RigidTransformation<R, T>& world_transform)
 	{
-		using RT = geometry::RigidTransformation<R, T>;
+		using RT = RigidTransformation<R, T>;
 		return Eigen::Translation<typename RT::Scalar, RT::Dim>{world_transform.translation()}.translation();
 	}
 
-	static inline Vec3 get_basis_position(const geometry::DualQuaternion& world_transform)
+	static inline Vec3 get_basis_position(const DualQuaternion& world_transform)
 	{
 		return world_transform.translation();
 	}

@@ -29,6 +29,7 @@
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 
+#include <cgogn/core/utils/numerics.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/geometry/algos/animation/animation_skeleton_embedding_helper.h>
 
@@ -221,6 +222,9 @@ protected:
 			if (selected_animation_)
 				show_time_controls();
 
+			if (ImGui::Checkbox("Root motion", &root_motion_))
+				root_motion_iteration_id_ = 0;
+
 			ImGui::Separator();
 
 			if (ImGui::Button("Generate bone colors"))
@@ -260,7 +264,13 @@ private:
 		new_time = std::max(new_time, start_time);
 
 		if (play_mode_ == PlayMode::PlayLooping)
-			set_time(std::fmod(new_time - start_time, end_time - start_time) + start_time);
+		{
+			const auto duration = end_time - start_time;
+			const auto offset = new_time - start_time;
+			if (root_motion_)
+				root_motion_iteration_id_ += offset / duration;
+			set_time(std::fmod(offset, duration) + start_time);
+		}
 		else // PlayMode::PlayOnce
 			set_time(std::min(new_time, end_time));
 	}
@@ -291,7 +301,10 @@ private:
 			set_time(static_cast<TimeT>(t));
 
 		if (ImGui::Button("<<"))
+		{
+			root_motion_iteration_id_ = 0;
 			set_time(TimePoint::Start);
+		}
 		show_tooltip_for_ui_above("Rewind");
 
 		ImGui::SameLine();
@@ -303,6 +316,8 @@ private:
 			show_play_mode_button(">|", "Play once", PlayMode::PlayOnce);
 		else if (show_button_and_tooltip("<>", "Play again"))
 		{
+			if (root_motion_)
+				++root_motion_iteration_id_;
 			set_play_mode(PlayMode::PlayOnce);
 			set_time(TimePoint::Start);
 		}
@@ -353,8 +368,12 @@ private:
 		cgogn_assert(selected_skeleton_ && selected_animation_
 				&& selected_bone_world_transform_ && selected_bone_world_transform_);
 
+		std::optional<Embedding::RootMotionData> root_motion_data{};
+		if (root_motion_ && selected_animation_time_extrema_)
+			root_motion_data = Embedding::RootMotionData{*selected_animation_time_extrema_, root_motion_iteration_id_};
+
 		Embedding::compute_all_transforms(time_, *selected_skeleton_, *selected_animation_,
-				*selected_bone_local_transform_, *selected_bone_world_transform_);
+				*selected_bone_local_transform_, *selected_bone_world_transform_, root_motion_data);
 
 		signal_transform_attribute_changed_no_bb_update(selected_skeleton_, selected_bone_local_transform_.get());
 		signal_transform_attribute_changed_no_bb_update(selected_skeleton_, selected_bone_world_transform_.get());
@@ -401,6 +420,8 @@ private:
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};
+	uint32 root_motion_iteration_id_ = 0;
+	bool root_motion_ = false;
 	MESH* selected_skeleton_ = nullptr;
 	std::shared_ptr<Attribute<AnimationT>> selected_animation_ = nullptr;
 	std::optional<std::pair<TimeT, TimeT>> selected_animation_time_extrema_ = {};

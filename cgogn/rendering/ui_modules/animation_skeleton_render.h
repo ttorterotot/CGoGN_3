@@ -163,8 +163,9 @@ private:
 		return transform.to_transform_matrix();
 	}
 
-	template <>
-	static Mat4 get_transform_matrix(const Mat4& transform)
+	template <typename T>
+	static auto get_transform_matrix(const T& transform)
+			-> std::enable_if_t<std::is_convertible_v<T&, Mat4&>, Mat4>
 	{
 		return transform;
 	}

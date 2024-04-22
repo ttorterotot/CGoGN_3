@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_SKINNING_CONTROLLER_H_
 #define CGOGN_MODULE_SKINNING_CONTROLLER_H_
 
+#include <unordered_map>
+
 #include <boost/core/demangle.hpp>
 
 #include <cgogn/ui/app.h>
@@ -77,10 +79,95 @@ public:
 	{
 	}
 
+	/// @brief Retrieves the corresponding save attribute of the provided one
+	/// @param attribute the attribute to get the save of
+	/// @return a pointer to the corresponding save attribute, or `nullptr` if there isn't any
+	inline std::shared_ptr<AttributeSf<Vec3>> get_saved_vertex_position(
+			const std::shared_ptr<AttributeSf<Vec3>>& attribute)
+	{
+		const auto& it = saved_vertex_positions_.find(attribute.get());
+		return it == saved_vertex_positions_.cend() ? nullptr : it->second;
+	}
+
+	/// @brief Saves the selected vertex position attribute's values to the provided attribute.
+	/// @param save the attribute to save positions to
+	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
+	inline void save_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& save, bool warn_unset = true)
+	{
+		if (selected_vertex_position_)
+		{
+			cgogn_assert(save);
+			save->copy(*selected_vertex_position_);
+			saved_vertex_positions_[selected_vertex_position_.get()] = save;
+		}
+		else if (warn_unset)
+			std::cout << "[SkinningController::save_vertex_position] Vertex position isn't set" << std::endl;
+	}
+
+	/// @brief Saves the selected vertex position attribute's values to a dedicated attribute.
+	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
+	inline void save_vertex_position(bool warn_unset = true)
+	{
+		if (!selected_mesh_)
+		{
+			if (warn_unset)
+				std::cout << "[SkinningController::save_vertex_position] Mesh or vertex position isn't set" << std::endl;
+			return;
+		}
+
+		if (!selected_vertex_position_)
+		{
+			if (warn_unset)
+				std::cout << "[SkinningController::save_vertex_position] Vertex position isn't set" << std::endl;
+			return;
+		}
+
+		save_vertex_position(
+				get_or_add_attribute<Vec3, Vertex>(*selected_mesh_, selected_vertex_position_->name() + "_" + name()),
+				warn_unset);
+	}
+
+	/// @brief Restores the selected vertex position attribute's values to the provided save if it's non-null.
+	/// @param save the save attribute to restore positions from
+	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
+	inline void restore_vertex_position(const std::shared_ptr<const AttributeSf<Vec3>>& save, bool warn_unset = true)
+	{
+		if (!save)
+		{
+			if (warn_unset)
+				std::cout << "[SkinningController::restore_vertex_position] No save for this attribute" << std::endl;
+			return;
+		}
+
+		if (!selected_vertex_position_)
+		{
+			if (warn_unset)
+				std::cout << "[SkinningController::restore_vertex_position] Vertex position isn't set" << std::endl;
+			return;
+		}
+
+		selected_vertex_position_->copy(*save);
+
+		if (mesh_provider_)
+			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());
+	}
+
+	/// @brief Restores the selected vertex position attribute's values to its save if such a save exists.
+	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
+	inline void restore_vertex_position(bool warn_unset = true)
+	{
+		// Emplaces nullptr if no entry for this key, which triggers the intended behavior from the overload above
+		restore_vertex_position(saved_vertex_positions_[selected_vertex_position_.get()], warn_unset);
+	}
+
 	/// @brief Changes the linked vertex position attribute, and updates the mesh if possible.
 	/// @param attribute the new attribute to use as positions
 	void set_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& attribute)
 	{
+		if (restore_vertex_position_on_unbind_ && attribute != selected_vertex_position_)
+			if (const auto& save = get_saved_vertex_position(selected_vertex_position_))
+				restore_vertex_position(save, false);
+
 		selected_vertex_position_ = attribute;
 
 		if (!selected_mesh_)
@@ -91,6 +178,9 @@ public:
 
 		if (attribute)
 			selected_bind_vertex_position_->copy(*attribute);
+
+		if (save_vertex_position_on_first_bind_ && !get_saved_vertex_position(attribute))
+			save_vertex_position(false);
 
 		update_embedding();
 	}
@@ -216,6 +306,22 @@ protected:
 			imgui_combo_attribute<Bone, TransformT>(*selected_skeleton_, selected_bone_world_transform_,
 					"World transform", [&](const std::shared_ptr<AttributeSk<TransformT>>& attribute){ set_bone_world_transform(attribute); });
 		}
+
+		if (ImGui::TreeNode("Embedding saving"))
+		{
+			if (show_button("Save", selected_mesh_ && selected_vertex_position_))
+				save_vertex_position(false);
+			ImGui::SameLine();
+			ImGui::Checkbox("Auto on first bind", &save_vertex_position_on_first_bind_);
+
+			if (show_button("Restore", !!selected_vertex_position_))
+				if (const auto& save = get_saved_vertex_position(selected_vertex_position_))
+					restore_vertex_position(save, false);
+			ImGui::SameLine();
+			ImGui::Checkbox("Auto on unbind", &restore_vertex_position_on_unbind_);
+
+			ImGui::TreePop();
+		}
 	}
 
 private:
@@ -227,6 +333,22 @@ private:
 	static std::string get_demangled_transform_name()
 	{
 		return boost::core::demangle(typeid(TransformT).name());
+	}
+
+	static inline bool show_button(const char* label, bool enabled)
+	{
+		bool res = false;
+
+		if (!enabled)
+			ImGui::BeginDisabled();
+
+		if (ImGui::Button(label))
+			res = true;
+
+		if (!enabled)
+			ImGui::EndDisabled();
+
+		return res;
 	}
 
 	void update_embedding()
@@ -270,6 +392,9 @@ private:
 	std::string bind_inv_world_transform_attribute_name_ = nullptr;
 	std::shared_ptr<boost::synapse::connection> skeleton_connection_ = nullptr;
 	MeshProvider<Skeleton>* skeleton_provider_ = nullptr;
+	bool save_vertex_position_on_first_bind_ = true;
+	bool restore_vertex_position_on_unbind_ = false;
+	std::unordered_map<AttributeSf<Vec3>*, std::shared_ptr<AttributeSf<Vec3>>> saved_vertex_positions_;
 };
 
 } // namespace ui

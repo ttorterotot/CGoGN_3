@@ -41,6 +41,12 @@ template <template <typename> typename ContainerT, typename TimeT, typename Tran
 class AnimationSkeletonEmbeddingHelper
 {
 public:
+	struct RootMotionData
+	{
+		std::pair<TimeT, TimeT> animation_time_extrema; /// the start and end times of the animations
+		uint32 iteration_id; /// how many times the animation has looped over
+	};
+
 	enum class TimePoint
 	{
 		Start,
@@ -56,13 +62,47 @@ private:
 	using Joint = AnimationSkeleton::Joint;
 	using Bone = AnimationSkeleton::Bone;
 
-	using AnimationT = geometry::KeyframedAnimation<ContainerT, TimeT, TransformT>;
+	using AnimationT = KeyframedAnimation<ContainerT, TimeT, TransformT>;
 
 public:
 
 	AnimationSkeletonEmbeddingHelper() = delete;
 
 	// Transforms and positions
+
+	/// @param time the time to compute transforms for from the animations
+	/// @param as the skeleton the attributes are for
+	/// @param anims the animation attribute to get transforms from
+	/// @param transforms the bone transform attribute to update
+	/// @param data a structure with information necessary to compute root motion
+	template <bool WorldSpace>
+	static void update_transforms_for_root_motion(
+			TimeT time,
+			const AnimationSkeleton& as,
+			const Attribute<AnimationT>& anims,
+			const RootMotionData& data,
+			Attribute<TransformT>& transforms)
+	{
+		if (data.iteration_id == 0)
+			return;
+
+		for (const auto& bone : as.bone_traverser_)
+		{
+			Bone parent_bone = bone;
+
+			if constexpr (WorldSpace)
+				for (auto p = bone; p = (*as.bone_parent_)[p], p.is_valid(); parent_bone = p);
+			else if (!is_root(as, bone))
+				continue;
+
+			const AnimationT& anim = anims[parent_bone];
+			TransformT offset_transform = get_transform(anim, data.animation_time_extrema.second)
+					* get_transform(anim, data.animation_time_extrema.first).inverse();
+
+			for (uint32 i = 0; i < data.iteration_id; ++i)
+				transforms[bone] = offset_transform * transforms[bone];
+		}
+	}
 
 	/// @brief Computes local transforms from an animation at a given time.
 	/// To compute world transforms from local ones see `compute_world_transforms`.
@@ -90,14 +130,20 @@ public:
 	/// @param anims the animation attribute to get transforms from
 	/// @param local_transforms the bone local transform attribute to update
 	/// @param world_transforms the bone world transform attribute to update
+	/// @param root_motion_data an optional structure with information necessary to compute root motion
 	static void compute_all_transforms(
 			TimeT time,
 			const AnimationSkeleton& as,
 			const Attribute<AnimationT>& anims,
 			Attribute<TransformT>& local_transforms,
-			Attribute<TransformT>& world_transforms)
+			Attribute<TransformT>& world_transforms,
+			const std::optional<RootMotionData>& root_motion_data = {})
 	{
 		compute_local_transforms(time, as, anims, local_transforms);
+
+		if (root_motion_data)
+			update_transforms_for_root_motion<false>(time, as, anims, *root_motion_data, local_transforms);
+
 		compute_world_transforms(as, local_transforms, world_transforms);
 	}
 
@@ -130,15 +176,17 @@ public:
 	/// @param local_transforms the bone local transform attribute to update
 	/// @param world_transforms the bone world transform attribute to update
 	/// @param positions the joint position attribute to update
+	/// @param root_motion_data an optional structure with information necessary to compute root motion
 	static void compute_everything(
 			TimeT time,
 			const MESH& as,
 			const Attribute<AnimationT>& anims,
 			Attribute<TransformT>& local_transforms,
 			Attribute<TransformT>& world_transforms,
-			Attribute<Vec3>& positions)
+			Attribute<Vec3>& positions,
+			const std::optional<RootMotionData>& root_motion_data = {})
 	{
-		compute_all_transforms(time, as, anims, local_transforms, world_transforms);
+		compute_all_transforms(time, as, anims, local_transforms, world_transforms, root_motion_data);
 		compute_joint_positions(as, world_transforms, positions);
 	}
 
@@ -151,6 +199,7 @@ public:
 	/// @param local_transforms the bone local transform attribute to update
 	/// @param world_transforms the bone world transform attribute to update
 	/// @param positions the joint position attribute to update
+	/// @param root_motion_iteration_id how many times the animation has looped over (`0` to toggle root motion off)
 	/// @param assume_all_anims_sorted whether or not all animations can be assumed to be sorted
 	static void compute_everything(
 			TimePoint time_point,
@@ -159,6 +208,7 @@ public:
 			Attribute<TransformT>& local_transforms,
 			Attribute<TransformT>& world_transforms,
 			Attribute<Vec3>& positions,
+			uint32 root_motion_iteration_id = 0,
 			bool assume_all_anims_sorted = false)
 	{
 		auto times = AnimationT::compute_keyframe_time_extrema(anims, assume_all_anims_sorted);
@@ -177,7 +227,10 @@ public:
 				cgogn_assert_not_reached("Missing time point case");
 			}
 
-		compute_everything(time, as, anims, local_transforms, world_transforms, positions);
+		if (times && root_motion_iteration_id > 0)
+			compute_everything(time, as, anims, local_transforms, world_transforms, positions, RootMotionData{*times, root_motion_iteration_id});
+		else
+			compute_everything(time, as, anims, local_transforms, world_transforms, positions);
 	}
 
 	// Bounding box
@@ -263,34 +316,32 @@ public:
 	// Transform-type-dependent methods
 
 	template <typename R, typename T>
-	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
-					geometry::RigidTransformation<R, T>>& anim,
+	static TransformT get_transform(const KeyframedAnimation<ContainerT, TimeT, RigidTransformation<R, T>>& anim,
 			TimeT time)
 	{
-		return anim.get_value(time, identity_c, geometry::RigidTransformation<R, T>::interpolate);
+		return anim.get_value(time, identity_c, RigidTransformation<R, T>::interpolate);
 	}
 
-	static TransformT get_transform(const geometry::KeyframedAnimation<ContainerT, TimeT,
-					geometry::DualQuaternion>& anim,
+	static TransformT get_transform(const KeyframedAnimation<ContainerT, TimeT, DualQuaternion>& anim,
 			TimeT time, bool shortest_path = true)
 	{
 		if (!shortest_path)
 			return anim.get_value(time).normalized();
 
-		using DQ = geometry::DualQuaternion;
+		using DQ = DualQuaternion;
 		return anim.get_value(time, identity_c,
 				[](const DQ& a, const DQ& b, const Scalar& s){ return DQ::lerp(a, b, s, true); })
 						.normalized();
 	}
 
 	template <typename R, typename T>
-	static inline Vec3 get_basis_position(const geometry::RigidTransformation<R, T>& world_transform)
+	static inline Vec3 get_basis_position(const RigidTransformation<R, T>& world_transform)
 	{
-		using RT = geometry::RigidTransformation<R, T>;
+		using RT = RigidTransformation<R, T>;
 		return Eigen::Translation<typename RT::Scalar, RT::Dim>{world_transform.translation()}.translation();
 	}
 
-	static inline Vec3 get_basis_position(const geometry::DualQuaternion& world_transform)
+	static inline Vec3 get_basis_position(const DualQuaternion& world_transform)
 	{
 		return world_transform.translation();
 	}

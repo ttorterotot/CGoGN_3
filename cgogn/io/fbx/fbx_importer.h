@@ -500,7 +500,13 @@ private:
 
 		associate_animations_to_bones();
 
-		add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
+		auto& attr_joint_position = *add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
+		for (const auto& bone : skeleton.bone_traverser_)
+		{
+			const auto& [first_joint, second_joint] = (*skeleton.bone_joints_)[bone];
+			attr_joint_position[second_joint] = attr_joint_position[first_joint] = Vec3::Zero();
+		}
+
 		auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
 		auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
 

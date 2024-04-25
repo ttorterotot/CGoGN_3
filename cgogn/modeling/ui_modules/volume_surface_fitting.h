@@ -1281,9 +1281,9 @@ protected:
 		if (surface_ && surface_vertex_position_)
 		{
 			static int optimize_vertices_proximity = geometry::NEAREST_POINT;
-			ImGui::RadioButton("Nearest", &optimize_vertices_proximity, geometry::NEAREST_POINT);
+			ImGui::RadioButton("Nearest##optimize_vertices_proximity", &optimize_vertices_proximity, geometry::NEAREST_POINT);
 			ImGui::SameLine();
-			ImGui::RadioButton("Normal ray", &optimize_vertices_proximity, geometry::NORMAL_RAY);
+			ImGui::RadioButton("Normal ray##optimize_vertices_proximity", &optimize_vertices_proximity, geometry::NORMAL_RAY);
 			if (ImGui::Button("Optimize volume vertices"))
 				optimize_volume_vertices(optimize_fit_to_surface, optimize_nb_iter,
 											geometry::ProximityPolicy(optimize_vertices_proximity), false);
@@ -1310,9 +1310,9 @@ protected:
 			static float registration_fit_to_target = 0.05f;
 			ImGui::SliderFloat("Registration - Fit to target", &registration_fit_to_target, 0.01f, 0.5f);
 			static int non_rigid_registration_proximity = geometry::NEAREST_POINT;
-			ImGui::RadioButton("Nearest", &non_rigid_registration_proximity, geometry::NEAREST_POINT);
+			ImGui::RadioButton("Nearest##non_rigid_registration_proximity", &non_rigid_registration_proximity, geometry::NEAREST_POINT);
 			ImGui::SameLine();
-			ImGui::RadioButton("Normal ray", &non_rigid_registration_proximity, geometry::NORMAL_RAY);
+			ImGui::RadioButton("Normal ray##non_rigid_registration_proximity", &non_rigid_registration_proximity, geometry::NORMAL_RAY);
 			if (ImGui::Button("Non-rigid register volume mesh"))
 				non_rigid_register_volume_mesh(registration_fit_to_target, optimize_fit_to_surface, init_steady_pos,
 												geometry::ProximityPolicy(non_rigid_registration_proximity));

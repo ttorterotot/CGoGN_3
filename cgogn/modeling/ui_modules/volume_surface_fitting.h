@@ -1059,6 +1059,12 @@ public:
 		if (!surface_)
 			return;
 
+		if (!is_simplicial(*surface_))
+		{
+			std::cout << "Surface mesh isn't triangulated" << std::endl;
+			return;
+		}
+
 		surface_vertex_position_ = attribute;
 
 		surface_bvh_ = nullptr; // free memory already, recreated later

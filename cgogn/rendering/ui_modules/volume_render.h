@@ -67,6 +67,7 @@ class VolumeRender : public ViewModule
 	enum AttributePerCell
 	{
 		GLOBAL = 0,
+		PER_VERTEX,
 		PER_VOLUME
 	};
 	enum ColorType
@@ -86,15 +87,19 @@ class VolumeRender : public ViewModule
 	{
 		Parameters()
 			: vertex_position_(nullptr), vertex_position_vbo_(nullptr), vertex_clipping_position_(nullptr),
+			  vertex_point_color_(nullptr), vertex_point_color_vbo_(nullptr),
 			  volume_clipping_position_(nullptr), volume_clipping_position_vbo_(nullptr), volume_scalar_(nullptr),
 			  volume_scalar_vbo_(nullptr), volume_color_(nullptr), volume_color_vbo_(nullptr), volume_center_(nullptr),
 			  volume_center_vbo_(nullptr), render_vertices_(false), render_edges_(false), render_volumes_(true),
-			  render_volume_lines_(true), color_per_cell_(GLOBAL), color_type_(SCALAR), vertex_scale_factor_(1.0),
+			  render_volume_lines_(true), color_per_cell_(GLOBAL), color_type_(SCALAR),
+			  point_color_per_cell_(GLOBAL), point_color_type_(VECTOR), vertex_scale_factor_(1.0),
 			  auto_update_volume_scalar_min_max_(true), clipping_plane_(false), clip_only_volumes_(true),
 			  show_frame_manipulator_(false), manipulating_frame_(false)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
 			param_point_sprite_->color_ = rendering::GLColor(1, 0.5f, 0, 1);
+
+			param_point_sprite_color_ = rendering::ShaderPointSpriteColor::generate_param();
 
 			param_bold_line_ = rendering::ShaderBoldLine::generate_param();
 			param_bold_line_->color_ = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -122,6 +127,9 @@ class VolumeRender : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> vertex_clipping_position_;
 		rendering::VBO* vertex_clipping_position_vbo_;
 
+		std::shared_ptr<Attribute<Vec3>> vertex_point_color_;
+		rendering::VBO* vertex_point_color_vbo_;
+
 		std::shared_ptr<Attribute<Vec3>> volume_clipping_position_;
 		rendering::VBO* volume_clipping_position_vbo_;
 
@@ -134,6 +142,7 @@ class VolumeRender : public ViewModule
 		rendering::VBO* volume_center_vbo_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
+		std::unique_ptr<rendering::ShaderPointSpriteColor::Param> param_point_sprite_color_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_bold_line_;
 		std::unique_ptr<rendering::ShaderExplodeVolumes::Param> param_volume_;
 		std::unique_ptr<rendering::ShaderExplodeVolumesLine::Param> param_volume_line_;
@@ -147,6 +156,8 @@ class VolumeRender : public ViewModule
 
 		AttributePerCell color_per_cell_;
 		ColorType color_type_;
+		AttributePerCell point_color_per_cell_;
+		ColorType point_color_type_; // TODO: manage scalar point color
 
 		float32 vertex_scale_factor_;
 		float32 vertex_base_size_;
@@ -258,6 +269,7 @@ public:
 		}
 
 		p.param_point_sprite_->set_vbos({p.vertex_position_vbo_, p.vertex_clipping_position_vbo_});
+		p.param_point_sprite_color_->set_vbos({p.vertex_position_vbo_, p.vertex_point_color_vbo_});
 		p.param_bold_line_->set_vbos({p.vertex_position_vbo_, p.vertex_clipping_position_vbo_});
 
 		p.param_volume_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
@@ -311,6 +323,26 @@ public:
 			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
 		p.param_volume_scalar_->set_vbos(
 			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_, p.volume_clipping_position_vbo_});
+
+		v.request_update();
+	}
+
+	void set_vertex_point_color(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& vertex_point_color)
+	{
+		Parameters& p = parameters_[&v][&m];
+		if (p.vertex_point_color_ == vertex_point_color)
+			return;
+
+		p.vertex_point_color_ = vertex_point_color;
+		if (p.vertex_point_color_)
+		{
+			MeshData<MESH>& md = mesh_provider_->mesh_data(m);
+			p.vertex_point_color_vbo_ = md.update_vbo(p.vertex_point_color_.get(), true);
+		}
+		else
+			p.vertex_point_color_vbo_ = nullptr;
+
+		p.param_point_sprite_color_->set_vbos({p.vertex_position_vbo_, p.vertex_point_color_vbo_});
 
 		v.request_update();
 	}
@@ -477,12 +509,33 @@ protected:
 				p.param_bold_line_->release();
 			}
 
-			if (p.render_vertices_ && p.param_point_sprite_->attributes_initialized())
+			if (p.render_vertices_)
 			{
-				p.param_point_sprite_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
-				p.param_point_sprite_->bind(proj_matrix, view_matrix);
-				md.draw(rendering::POINTS);
-				p.param_point_sprite_->release();
+				switch (p.point_color_per_cell_)
+				{
+				case GLOBAL: {
+					if (p.param_point_sprite_->attributes_initialized())
+					{
+						p.param_point_sprite_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+						p.param_point_sprite_->bind(proj_matrix, view_matrix);
+						md.draw(rendering::POINTS);
+						p.param_point_sprite_->release();
+					}
+				}
+				break;
+				case PER_VERTEX: {
+					if (p.param_point_sprite_color_->attributes_initialized())
+					{
+						p.param_point_sprite_color_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+						p.param_point_sprite_color_->bind(proj_matrix, view_matrix);
+						md.draw(rendering::POINTS);
+						p.param_point_sprite_color_->release();
+					}
+				}
+				break;
+				default:
+					cgogn_assert_not_reached("");
+				}
 			}
 
 			if (p.show_frame_manipulator_)
@@ -603,9 +656,32 @@ protected:
 			need_update |= ImGui::Checkbox("Vertices", &p.render_vertices_);
 			if (p.render_vertices_)
 			{
-				need_update |= ImGui::ColorEdit3("Color##vertices", p.param_point_sprite_->color_.data(),
-												 ImGuiColorEditFlags_NoInputs);
 				need_update |= ImGui::SliderFloat("Size##vertices", &p.vertex_scale_factor_, 0.1f, 2.0f);
+
+				ImGui::TextUnformatted("Colors");
+				ImGui::BeginGroup();
+				if (ImGui::RadioButton("Global##pointcolor", p.point_color_per_cell_ == GLOBAL))
+				{
+					p.point_color_per_cell_ = GLOBAL;
+					need_update = true;
+				}
+				ImGui::SameLine();
+				if (ImGui::RadioButton("Per vertex##pointcolor", p.point_color_per_cell_ == PER_VERTEX))
+				{
+					p.point_color_per_cell_ = PER_VERTEX;
+					need_update = true;
+				}
+				ImGui::EndGroup();
+
+				if (p.point_color_per_cell_ == GLOBAL)
+					need_update |= ImGui::ColorEdit3("Color##vertices", p.param_point_sprite_->color_.data(),
+													ImGuiColorEditFlags_NoInputs);
+				else if (p.point_color_per_cell_ == PER_VERTEX)
+					imgui_combo_attribute<Vertex, Vec3>(
+						*selected_mesh_, p.vertex_point_color_, "Attribute##vectorvertexpointcolor",
+						[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+							set_vertex_point_color(*selected_view_, *selected_mesh_, attribute);
+						});
 			}
 
 			ImGui::Separator();

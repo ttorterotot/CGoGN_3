@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 #define CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 
+#include <cgogn/core/types/maps/cmap/cmap3.h>
+
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
@@ -210,52 +212,43 @@ public:
 									source_vertices, {}, skinning_weight_value_buffer);
 		};
 
-		modeling::primal_cut_all_volumes(
-			cache,
-			[&](VolumeVertex v) {
-				std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-					0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-						   cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+		const auto& on_edge_cut = [&](VolumeVertex v)
+		{
+			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
+			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) =
+				cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
+					cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
+			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
+				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+						cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+			if constexpr (SubdivideSkinningWeights)
+				set_weights(v, av);
+		};
+
+		const auto& on_face_or_vol_cut = [&](VolumeVertex v)
+		{
+			if constexpr (SubdivideSkinningWeights)
+				skinning_weight_source_vertices.resize(0);
+			bool core_mark = true;
+			Vec3 center;
+			center.setZero();
+			uint32 count = 0;
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
+				core_mark &= cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av);
+				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
 				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, av);
-			},
-			[&](VolumeVertex v) {
-				if constexpr (SubdivideSkinningWeights)
-					skinning_weight_source_vertices.resize(0);
-				Vec3 center;
-				center.setZero();
-				uint32 count = 0;
-				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
-					if constexpr (SubdivideSkinningWeights)
-						skinning_weight_source_vertices.push_back(av);
-					++count;
-					return true;
-				});
-				center /= Scalar(count);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
-				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, skinning_weight_source_vertices);
-			},
-			[&](VolumeVertex v) {
-				if constexpr (SubdivideSkinningWeights)
-					skinning_weight_source_vertices.resize(0);
-				Vec3 center;
-				center.setZero();
-				uint32 count = 0;
-				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
-					if constexpr (SubdivideSkinningWeights)
-						skinning_weight_source_vertices.push_back(av);
-					++count;
-					return true;
-				});
-				center /= Scalar(count);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
-				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, skinning_weight_source_vertices);
+					skinning_weight_source_vertices.push_back(av);
+				++count;
+				return true;
 			});
+			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
+			center /= Scalar(count);
+			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+			if constexpr (SubdivideSkinningWeights)
+				set_weights(v, skinning_weight_source_vertices);
+		};
+
+		modeling::primal_cut_all_volumes(cache, on_edge_cut, on_face_or_vol_cut, on_face_or_vol_cut);
 
 		volume_provider_->emit_connectivity_changed(*volume_);
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
@@ -264,6 +257,62 @@ public:
 		refresh_volume_cells_indexing_ = true;
 		refresh_volume_skin_ = true;
 		refresh_solver_ = true;
+	}
+
+	void add_volume_padding(Scalar thickness, DartMarker<CMap3>* face_marker)
+	{
+		modeling::padding(*volume_,
+						  volume_padding_pad_extremities_ ? nullptr : face_marker);
+
+		refresh_volume_skin();
+
+		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			Vec3 n = geometry::normal(*volume_skin_, v, volume_skin_vertex_position_.get());
+			Vec3 p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) + thickness * n;
+			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = p;
+			value<Vec3>(*volume_, volume_vertex_position_,
+						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = p;
+			return true;
+		});
+
+		volume_provider_->emit_connectivity_changed(*volume_);
+		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
+
+		surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
+
+		set_volume_caches_dirty(false);
+	}
+
+	virtual void add_volume_padding(Scalar thickness)
+	{
+		add_volume_padding(thickness, nullptr);
+	}
+
+	void mark_volume_core_vertices()
+	{
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+		{
+			bool is_core = true;
+			foreach_dart_of_orbit(*volume_, v,
+					[&](Dart d){ is_core &= !is_boundary(*volume_, d); return true; });
+			value<bool>(*volume_, volume_vertex_core_mark_, v) = is_core;
+			return true;
+		});
+	}
+
+	void color_volume_vertices_from_core_mark()
+	{
+		if (auto attribute = get_or_add_attribute<Vec3, VolumeVertex>(*volume_, "vertex_core_mark_color"))
+		{
+			parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+			{
+				value<Vec3>(*volume_, attribute, v) = value<bool>(*volume_, volume_vertex_core_mark_, v) ?
+						Vec3{0.125, 1.0, 0.25} : Vec3{0.5, 0.0, 0.0};
+				return true;
+			});
+
+			volume_provider_->emit_attribute_changed(*volume_, attribute.get());
+		}
 	}
 
 	void refresh_volume_cells_indexing()
@@ -1050,6 +1099,7 @@ public:
 		volume_ = v; // do not return if the volume is the same, attributes might not be acquired
 		volume_vertex_position_ = get_attribute<Vec3, VolumeVertex>(*volume_, "position");
 		volume_vertex_index_ = get_or_add_attribute<uint32, VolumeVertex>(*volume_, "vertex_index");
+		volume_vertex_core_mark_ = get_or_add_attribute<bool, VolumeVertex>(*volume_, "vertex_core_mark");
 		volume_edge_index_ = get_or_add_attribute<uint32, VolumeEdge>(*volume_, "edge_index");
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
 	}
@@ -1058,6 +1108,12 @@ public:
 	{
 		if (!surface_)
 			return;
+
+		if (!is_simplicial(*surface_))
+		{
+			std::cout << "Surface mesh isn't triangulated" << std::endl;
+			return;
+		}
 
 		surface_vertex_position_ = attribute;
 
@@ -1239,6 +1295,13 @@ protected:
 			subdivide_volume();
 		// if (ImGui::Button("Subdivide skin"))
 		// 	subdivide_skin();
+
+		// Should remain at end so overrides can add alternate volume padding button (or refactor)
+		static float padding_thickness = 1.0;
+		ImGui::Checkbox("Pad extremities", &volume_padding_pad_extremities_);
+		ImGui::DragFloat("Padding thickness", &padding_thickness, 0.0625, 0.0, std::numeric_limits<Scalar>::max());
+		if (ImGui::Button("Add volume padding"))
+			add_volume_padding(padding_thickness);
 	}
 
 	virtual void left_panel_operations()
@@ -1250,6 +1313,12 @@ protected:
 		// float X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
 
 		ImGui::TextUnformatted("HexMesh Connectivity Ops");
+
+		if (ImGui::Button("Mark volume core vertices"))
+			mark_volume_core_vertices();
+
+		if (ImGui::Button("Color marked volume core vertices"))
+			color_volume_vertices_from_core_mark();
 
 		left_panel_subdivision_operations(md);
 		ImGui::Separator();
@@ -1275,9 +1344,9 @@ protected:
 		if (surface_ && surface_vertex_position_)
 		{
 			static int optimize_vertices_proximity = geometry::NEAREST_POINT;
-			ImGui::RadioButton("Nearest", &optimize_vertices_proximity, geometry::NEAREST_POINT);
+			ImGui::RadioButton("Nearest##optimize_vertices_proximity", &optimize_vertices_proximity, geometry::NEAREST_POINT);
 			ImGui::SameLine();
-			ImGui::RadioButton("Normal ray", &optimize_vertices_proximity, geometry::NORMAL_RAY);
+			ImGui::RadioButton("Normal ray##optimize_vertices_proximity", &optimize_vertices_proximity, geometry::NORMAL_RAY);
 			if (ImGui::Button("Optimize volume vertices"))
 				optimize_volume_vertices(optimize_fit_to_surface, optimize_nb_iter,
 											geometry::ProximityPolicy(optimize_vertices_proximity), false);
@@ -1304,9 +1373,9 @@ protected:
 			static float registration_fit_to_target = 0.05f;
 			ImGui::SliderFloat("Registration - Fit to target", &registration_fit_to_target, 0.01f, 0.5f);
 			static int non_rigid_registration_proximity = geometry::NEAREST_POINT;
-			ImGui::RadioButton("Nearest", &non_rigid_registration_proximity, geometry::NEAREST_POINT);
+			ImGui::RadioButton("Nearest##non_rigid_registration_proximity", &non_rigid_registration_proximity, geometry::NEAREST_POINT);
 			ImGui::SameLine();
-			ImGui::RadioButton("Normal ray", &non_rigid_registration_proximity, geometry::NORMAL_RAY);
+			ImGui::RadioButton("Normal ray##non_rigid_registration_proximity", &non_rigid_registration_proximity, geometry::NORMAL_RAY);
 			if (ImGui::Button("Non-rigid register volume mesh"))
 				non_rigid_register_volume_mesh(registration_fit_to_target, optimize_fit_to_surface, init_steady_pos,
 												geometry::ProximityPolicy(non_rigid_registration_proximity));
@@ -1355,6 +1424,7 @@ protected:
 	VOLUME* volume_ = nullptr;
 	std::shared_ptr<VolumeAttribute<Vec3>> volume_vertex_position_ = nullptr;
 	std::shared_ptr<VolumeAttribute<uint32>> volume_vertex_index_ = nullptr;
+	std::shared_ptr<VolumeAttribute<bool>> volume_vertex_core_mark_ = nullptr;
 	std::shared_ptr<VolumeAttribute<uint32>> volume_edge_index_ = nullptr;
 	std::shared_ptr<VolumeAttribute<Scalar>> volume_edge_target_length_ = nullptr;
 
@@ -1385,6 +1455,7 @@ private:
 	std::shared_ptr<SurfaceAttribute<Vec4i>> volume_skin_vertex_skinning_weight_index_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec4>> volume_skin_vertex_skinning_weight_value_ = nullptr;
 	bool refresh_volume_skin_ = true;
+	bool volume_padding_pad_extremities_ = true;
 
 	Eigen::SparseMatrix<Scalar, Eigen::ColMajor> solver_matrix_;
 	std::unique_ptr<Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>> solver_;

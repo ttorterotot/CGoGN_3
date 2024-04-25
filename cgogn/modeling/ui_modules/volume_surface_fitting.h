@@ -266,6 +266,35 @@ public:
 		refresh_solver_ = true;
 	}
 
+	void add_volume_padding(Scalar thickness, DartMarker<CMap3>* face_marker)
+	{
+		modeling::padding(*volume_,
+						  volume_padding_pad_extremities_ ? nullptr : face_marker);
+
+		refresh_volume_skin();
+
+		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			Vec3 n = geometry::normal(*volume_skin_, v, volume_skin_vertex_position_.get());
+			Vec3 p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) + thickness * n;
+			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = p;
+			value<Vec3>(*volume_, volume_vertex_position_,
+						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = p;
+			return true;
+		});
+
+		volume_provider_->emit_connectivity_changed(*volume_);
+		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
+
+		surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
+
+		set_volume_caches_dirty(false);
+	}
+
+	virtual void add_volume_padding(Scalar thickness)
+	{
+		add_volume_padding(thickness, nullptr);
+	}
+
 	void refresh_volume_cells_indexing()
 	{
 		// std::cout << "refresh_volume_cells_indexing" << std::endl;
@@ -1245,6 +1274,13 @@ protected:
 			subdivide_volume();
 		// if (ImGui::Button("Subdivide skin"))
 		// 	subdivide_skin();
+
+		// Should remain at end so overrides can add alternate volume padding button (or refactor)
+		static float padding_thickness = 1.0;
+		ImGui::Checkbox("Pad extremities", &volume_padding_pad_extremities_);
+		ImGui::DragFloat("Padding thickness", &padding_thickness, 0.0625, 0.0, std::numeric_limits<Scalar>::max());
+		if (ImGui::Button("Add volume padding"))
+			add_volume_padding(padding_thickness);
 	}
 
 	virtual void left_panel_operations()
@@ -1391,6 +1427,7 @@ private:
 	std::shared_ptr<SurfaceAttribute<Vec4i>> volume_skin_vertex_skinning_weight_index_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec4>> volume_skin_vertex_skinning_weight_value_ = nullptr;
 	bool refresh_volume_skin_ = true;
+	bool volume_padding_pad_extremities_ = true;
 
 	Eigen::SparseMatrix<Scalar, Eigen::ColMajor> solver_matrix_;
 	std::unique_ptr<Eigen::SimplicialLDLT<Eigen::SparseMatrix<Scalar, Eigen::ColMajor>>> solver_;

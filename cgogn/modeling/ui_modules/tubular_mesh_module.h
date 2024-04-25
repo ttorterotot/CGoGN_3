@@ -82,6 +82,7 @@ class TubularMesh : public VolumeSurfaceFitting<SURFACE, VOLUME, false>
 	using VolumeFace = typename mesh_traits<VOLUME>::Face;
 
 public:
+	using Base::add_volume_padding;
 	using Base::closest_surface_point;
 	using Base::closest_surface_face_and_point;
 	using Base::set_current_volume;
@@ -290,33 +291,13 @@ public:
 		return volume_;
 	}
 
-	void add_volume_padding(bool pad_extremities)
+	void add_volume_padding(Scalar thickness) override
 	{
 		if constexpr (std::is_same_v<GRAPH, Graph>)
-			modeling::padding(*volume_, nullptr);
+			Base::add_volume_padding(thickness);
 
 		if constexpr (std::is_same_v<GRAPH, IncidenceGraph>)
-			modeling::padding(*volume_,
-							  pad_extremities ? nullptr : std::get<2>(hex_building_attributes_ig_).extremity_faces);
-
-		refresh_volume_skin();
-
-		Scalar l = geometry::mean_edge_length(*graph_, graph_vertex_position_.get());
-		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
-			Vec3 n = geometry::normal(*volume_skin_, v, volume_skin_vertex_position_.get());
-			Vec3 p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) + (0.2 * l) * n;
-			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = p;
-			value<Vec3>(*volume_, volume_vertex_position_,
-						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = p;
-			return true;
-		});
-
-		volume_provider_->emit_connectivity_changed(*volume_);
-		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
-
-		surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
-
-		set_volume_caches_dirty(false);
+			Base::add_volume_padding(thickness, std::get<2>(hex_building_attributes_ig_).extremity_faces);
 	}
 
 	void subdivide_slice()
@@ -417,10 +398,9 @@ protected:
 	{
 		Base::left_panel_subdivision_operations(md);
 
-		static bool pad_extremities = true;
-		ImGui::Checkbox("Pad extremities", &pad_extremities);
-		if (ImGui::Button("Add volume padding"))
-			add_volume_padding(pad_extremities);
+		// Continuation of volume padding UI
+		if (ImGui::Button("Add volume padding (auto thickness)"))
+			add_volume_padding(0.2 * geometry::mean_edge_length(*graph_, graph_vertex_position_.get()));
 
 		imgui_combo_cells_set(md, selected_volume_faces_set_, "Faces",
 								[&](CellsSet<VOLUME, VolumeFace>* cs) { selected_volume_faces_set_ = cs; });

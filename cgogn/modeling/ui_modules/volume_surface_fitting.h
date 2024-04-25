@@ -215,6 +215,9 @@ public:
 		const auto& on_edge_cut = [&](VolumeVertex v)
 		{
 			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
+			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) =
+				cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
+					cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
 				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
 						cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
@@ -226,16 +229,19 @@ public:
 		{
 			if constexpr (SubdivideSkinningWeights)
 				skinning_weight_source_vertices.resize(0);
+			bool core_mark = true;
 			Vec3 center;
 			center.setZero();
 			uint32 count = 0;
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
+				core_mark &= cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av);
 				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
 				if constexpr (SubdivideSkinningWeights)
 					skinning_weight_source_vertices.push_back(av);
 				++count;
 				return true;
 			});
+			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
 			center /= Scalar(count);
 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 			if constexpr (SubdivideSkinningWeights)
@@ -280,6 +286,33 @@ public:
 	virtual void add_volume_padding(Scalar thickness)
 	{
 		add_volume_padding(thickness, nullptr);
+	}
+
+	void mark_volume_core_vertices()
+	{
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+		{
+			bool is_core = true;
+			foreach_dart_of_orbit(*volume_, v,
+					[&](Dart d){ is_core &= !is_boundary(*volume_, d); return true; });
+			value<bool>(*volume_, volume_vertex_core_mark_, v) = is_core;
+			return true;
+		});
+	}
+
+	void color_volume_vertices_from_core_mark()
+	{
+		if (auto attribute = get_or_add_attribute<Vec3, VolumeVertex>(*volume_, "vertex_core_mark_color"))
+		{
+			parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+			{
+				value<Vec3>(*volume_, attribute, v) = value<bool>(*volume_, volume_vertex_core_mark_, v) ?
+						Vec3{0.125, 1.0, 0.25} : Vec3{0.5, 0.0, 0.0};
+				return true;
+			});
+
+			volume_provider_->emit_attribute_changed(*volume_, attribute.get());
+		}
 	}
 
 	void refresh_volume_cells_indexing()
@@ -1066,6 +1099,7 @@ public:
 		volume_ = v; // do not return if the volume is the same, attributes might not be acquired
 		volume_vertex_position_ = get_attribute<Vec3, VolumeVertex>(*volume_, "position");
 		volume_vertex_index_ = get_or_add_attribute<uint32, VolumeVertex>(*volume_, "vertex_index");
+		volume_vertex_core_mark_ = get_or_add_attribute<bool, VolumeVertex>(*volume_, "vertex_core_mark");
 		volume_edge_index_ = get_or_add_attribute<uint32, VolumeEdge>(*volume_, "edge_index");
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
 	}
@@ -1280,6 +1314,12 @@ protected:
 
 		ImGui::TextUnformatted("HexMesh Connectivity Ops");
 
+		if (ImGui::Button("Mark volume core vertices"))
+			mark_volume_core_vertices();
+
+		if (ImGui::Button("Color marked volume core vertices"))
+			color_volume_vertices_from_core_mark();
+
 		left_panel_subdivision_operations(md);
 		ImGui::Separator();
 
@@ -1384,6 +1424,7 @@ protected:
 	VOLUME* volume_ = nullptr;
 	std::shared_ptr<VolumeAttribute<Vec3>> volume_vertex_position_ = nullptr;
 	std::shared_ptr<VolumeAttribute<uint32>> volume_vertex_index_ = nullptr;
+	std::shared_ptr<VolumeAttribute<bool>> volume_vertex_core_mark_ = nullptr;
 	std::shared_ptr<VolumeAttribute<uint32>> volume_edge_index_ = nullptr;
 	std::shared_ptr<VolumeAttribute<Scalar>> volume_edge_target_length_ = nullptr;
 

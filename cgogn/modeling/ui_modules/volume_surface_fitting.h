@@ -210,52 +210,37 @@ public:
 									source_vertices, {}, skinning_weight_value_buffer);
 		};
 
-		modeling::primal_cut_all_volumes(
-			cache,
-			[&](VolumeVertex v) {
-				std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-					0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-						   cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+		const auto& on_edge_cut = [&](VolumeVertex v)
+		{
+			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
+			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
+				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+						cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+			if constexpr (SubdivideSkinningWeights)
+				set_weights(v, av);
+		};
+
+		const auto& on_face_or_vol_cut = [&](VolumeVertex v)
+		{
+			if constexpr (SubdivideSkinningWeights)
+				skinning_weight_source_vertices.resize(0);
+			Vec3 center;
+			center.setZero();
+			uint32 count = 0;
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
+				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
 				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, av);
-			},
-			[&](VolumeVertex v) {
-				if constexpr (SubdivideSkinningWeights)
-					skinning_weight_source_vertices.resize(0);
-				Vec3 center;
-				center.setZero();
-				uint32 count = 0;
-				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
-					if constexpr (SubdivideSkinningWeights)
-						skinning_weight_source_vertices.push_back(av);
-					++count;
-					return true;
-				});
-				center /= Scalar(count);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
-				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, skinning_weight_source_vertices);
-			},
-			[&](VolumeVertex v) {
-				if constexpr (SubdivideSkinningWeights)
-					skinning_weight_source_vertices.resize(0);
-				Vec3 center;
-				center.setZero();
-				uint32 count = 0;
-				foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-					center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
-					if constexpr (SubdivideSkinningWeights)
-						skinning_weight_source_vertices.push_back(av);
-					++count;
-					return true;
-				});
-				center /= Scalar(count);
-				cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
-				if constexpr (SubdivideSkinningWeights)
-					set_weights(v, skinning_weight_source_vertices);
+					skinning_weight_source_vertices.push_back(av);
+				++count;
+				return true;
 			});
+			center /= Scalar(count);
+			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+			if constexpr (SubdivideSkinningWeights)
+				set_weights(v, skinning_weight_source_vertices);
+		};
+
+		modeling::primal_cut_all_volumes(cache, on_edge_cut, on_face_or_vol_cut, on_face_or_vol_cut);
 
 		volume_provider_->emit_connectivity_changed(*volume_);
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());

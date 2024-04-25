@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 #define CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 
+#include <cgogn/core/types/maps/cmap/cmap3.h>
+
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>

@@ -63,6 +63,7 @@ public:
 
 	using Embedding = geometry::AnimationSkeletonEmbeddingHelper<ContainerT, TimeT, TransformT>;
 	using TimePoint = typename Embedding::TimePoint;
+	using RootMotionData = typename Embedding::RootMotionData;
 
 private:
 	using MESH = AnimationSkeleton;
@@ -368,9 +369,9 @@ private:
 		cgogn_assert(selected_skeleton_ && selected_animation_
 				&& selected_bone_world_transform_ && selected_bone_world_transform_);
 
-		std::optional<Embedding::RootMotionData> root_motion_data{};
+		std::optional<RootMotionData> root_motion_data{};
 		if (root_motion_ && selected_animation_time_extrema_)
-			root_motion_data = Embedding::RootMotionData{*selected_animation_time_extrema_, root_motion_iteration_id_};
+			root_motion_data = RootMotionData{*selected_animation_time_extrema_, root_motion_iteration_id_};
 
 		Embedding::compute_all_transforms(time_, *selected_skeleton_, *selected_animation_,
 				*selected_bone_local_transform_, *selected_bone_world_transform_, root_motion_data);

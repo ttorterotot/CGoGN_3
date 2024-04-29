@@ -98,7 +98,7 @@ protected:
 	void init() override
 	{
 		Base::init();
-		graph_provider_ = static_cast<ui::MeshProvider<GRAPH>*>(
+		graph_provider_ = static_cast<MeshProvider<GRAPH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<GRAPH>::name} + ")"));
 	}
 
@@ -167,7 +167,7 @@ public:
 
 		graph_provider_->emit_attribute_changed(*graph_, graph_vertex_position_.get());
 		graph_provider_->emit_attribute_changed(*graph_, graph_vertex_radius_.get());
-		// cgogn::io::export_CGR(*graph_, graph_vertex_position_.get(), graph_vertex_radius_.get(), "export.cgr");
+		// io::export_CGR(*graph_, graph_vertex_position_.get(), graph_vertex_radius_.get(), "export.cgr");
 	}
 
 	void init_graph_radius_from_surface()
@@ -179,12 +179,12 @@ public:
 			return true;
 		});
 		graph_provider_->emit_attribute_changed(*graph_, graph_vertex_radius_.get());
-		// cgogn::io::export_CGR(*graph_, graph_vertex_position_.get(), graph_vertex_radius_.get(), "export.cgr");
+		// io::export_CGR(*graph_, graph_vertex_position_.get(), graph_vertex_radius_.get(), "export.cgr");
 	}
 
 	GRAPH* resample_graph(Scalar density)
 	{
-		if constexpr (std::is_same_v<GRAPH, cgogn::Graph>)
+		if constexpr (std::is_same_v<GRAPH, Graph>)
 		{
 			static uint32 count = 0;
 			GRAPH* resampled_graph = graph_provider_->add_mesh("resampled_" + std::to_string(count++));
@@ -211,28 +211,28 @@ public:
 
 	void subdivide_leaflets()
 	{
-		if constexpr (has_face<GRAPH>::value) // std::is_same_v<GRAPH, cgogn::IncidenceGraph>)
+		if constexpr (has_face<GRAPH>::value) // std::is_same_v<GRAPH, IncidenceGraph>)
 		{
 			using Vertex = IncidenceGraph::Vertex;
 			modeling::quadrangulate_all_faces(
 				*graph_,
 				[&](Vertex v) {
 					std::vector<Vertex> av = adjacent_vertices_through_edge(*graph_, v);
-					cgogn::value<Vec3>(*graph_, graph_vertex_position_, v) =
-						0.5 * (cgogn::value<Vec3>(*graph_, graph_vertex_position_, av[0]) +
-							   cgogn::value<Vec3>(*graph_, graph_vertex_position_, av[1]));
+					value<Vec3>(*graph_, graph_vertex_position_, v) =
+						0.5 * (value<Vec3>(*graph_, graph_vertex_position_, av[0]) +
+							   value<Vec3>(*graph_, graph_vertex_position_, av[1]));
 				},
 				[&](Vertex v) {
 					Vec3 center;
 					center.setZero();
 					uint32 count = 0;
 					foreach_adjacent_vertex_through_edge(*graph_, v, [&](Vertex av) -> bool {
-						center += cgogn::value<Vec3>(*graph_, graph_vertex_position_, av);
+						center += value<Vec3>(*graph_, graph_vertex_position_, av);
 						++count;
 						return true;
 					});
 					center /= Scalar(count);
-					cgogn::value<Vec3>(*graph_, graph_vertex_position_, v) = center;
+					value<Vec3>(*graph_, graph_vertex_position_, v) = center;
 				});
 
 			graph_provider_->emit_connectivity_changed(*graph_);

@@ -95,9 +95,9 @@ public:
 protected:
 	virtual void init() override
 	{
-		surface_provider_ = static_cast<ui::MeshProvider<SURFACE>*>(
+		surface_provider_ = static_cast<MeshProvider<SURFACE>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<SURFACE>::name} + ")"));
-		volume_provider_ = static_cast<ui::MeshProvider<VOLUME>*>(
+		volume_provider_ = static_cast<MeshProvider<VOLUME>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<VOLUME>::name} + ")"));
 
 		timer_connection_ = boost::synapse::connect<App::timer_tick>(&app_, [this]() { animate_volume(); });
@@ -157,33 +157,33 @@ public:
 	// 		skin_cells,
 	// 		[&](VolumeVertex v) {
 	// 			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-	// 				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-	// 					   cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) =
+	// 				0.5 * (value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+	// 					   value<Vec3>(*volume_, volume_vertex_position_, av[1]));
 	// 		},
 	// 		[&](VolumeVertex v) {
 	// 			Vec3 center;
 	// 			center.setZero();
 	// 			uint32 count = 0;
 	// 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-	// 				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+	// 				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 	// 				++count;
 	// 				return true;
 	// 			});
 	// 			center /= Scalar(count);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 	// 		},
 	// 		[&](VolumeVertex v) {
 	// 			Vec3 center;
 	// 			center.setZero();
 	// 			uint32 count = 0;
 	// 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-	// 				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+	// 				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 	// 				++count;
 	// 				return true;
 	// 			});
 	// 			center /= Scalar(count);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 	// 		});
 
 	// 	volume_provider_->emit_connectivity_changed(*volume_);
@@ -215,12 +215,12 @@ public:
 		const auto& on_edge_cut = [&](VolumeVertex v)
 		{
 			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) =
-				cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
-					cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
-			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-						cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+			value<bool>(*volume_, volume_vertex_core_mark_, v) =
+				value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
+					value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
+			value<Vec3>(*volume_, volume_vertex_position_, v) =
+				0.5 * (value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+						value<Vec3>(*volume_, volume_vertex_position_, av[1]));
 			if constexpr (SubdivideSkinningWeights)
 				set_weights(v, av);
 		};
@@ -234,16 +234,16 @@ public:
 			center.setZero();
 			uint32 count = 0;
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-				core_mark &= cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av);
-				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+				core_mark &= value<bool>(*volume_, volume_vertex_core_mark_, av);
+				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 				if constexpr (SubdivideSkinningWeights)
 					skinning_weight_source_vertices.push_back(av);
 				++count;
 				return true;
 			});
-			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
+			value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
 			center /= Scalar(count);
-			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 			if constexpr (SubdivideSkinningWeights)
 				set_weights(v, skinning_weight_source_vertices);
 		};

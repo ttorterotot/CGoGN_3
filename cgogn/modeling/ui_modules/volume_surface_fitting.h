@@ -253,10 +253,7 @@ public:
 		volume_provider_->emit_connectivity_changed(*volume_);
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 
-		refresh_edge_target_length_ = true;
-		refresh_volume_cells_indexing_ = true;
-		refresh_volume_skin_ = true;
-		refresh_solver_ = true;
+		set_volume_caches_dirty(true);
 	}
 
 	void add_volume_padding(Scalar thickness, DartMarker<CMap3>* face_marker)

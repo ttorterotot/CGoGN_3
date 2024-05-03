@@ -240,7 +240,7 @@ auto import_volume_data_map_tmpl(MESH& m, VolumeImportData& volume_data)
 					stop1 = (it1 == d);
 					it2 = phi_1(m, it2);
 					stop2 = (it2 == good_dart);
-				} while (stop1 || stop2);
+				} while (!stop1 && !stop2);
 
 				if (stop1 && stop2) // normal case : the two opposite faces have the same degree
 				{

@@ -607,7 +607,8 @@ public:
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
 			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
-			const auto [face_id, proj] = closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
+			const auto [face_id, proj] =
+					closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
 
 			// Get barycentric coordinates of projected point
 			const auto source_vertices = first_incident_vertices<3>(*surface_, surface_faces_.at(face_id));

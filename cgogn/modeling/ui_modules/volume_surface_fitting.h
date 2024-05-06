@@ -1211,6 +1211,12 @@ public:
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
 	}
 
+	void set_current_animation_skeleton_joint_position(const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute)
+	{
+		static_assert(HandlesAnimationSkeleton);
+		animation_skeleton_joint_position_ = attribute;
+	}
+
 	void set_current_surface_vertex_position(const std::shared_ptr<SurfaceAttribute<Vec3>>& attribute)
 	{
 		if (!surface_)
@@ -1258,6 +1264,32 @@ public:
 
 		surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, vertex_position);
 		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
+	}
+
+	void set_current_surface_vertex_skinning_weight_index(const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute)
+	{
+		surface_vertex_skinning_weight_index_ = attribute;
+	}
+
+	void set_current_surface_vertex_skinning_weight_value(const std::shared_ptr<SurfaceAttribute<Vec4>>& attribute)
+	{
+		surface_vertex_skinning_weight_value_ = attribute;
+	}
+
+	void set_current_volume_vertex_skinning_weight_index(const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute,
+			const bool& update_volume_skin_attributes = true)
+	{
+		volume_vertex_skinning_weight_index_ = attribute;
+		if (update_volume_skin_attributes)
+			update_volume_skin_skinning_attributes();
+	}
+
+	void set_current_volume_vertex_skinning_weight_value(const std::shared_ptr<VolumeAttribute<Vec4>>& attribute,
+			const bool& update_volume_skin_attributes = true)
+	{
+		volume_vertex_skinning_weight_value_ = attribute;
+		if (update_volume_skin_attributes)
+			update_volume_skin_skinning_attributes();
 	}
 
 	template <typename T>
@@ -1345,14 +1377,12 @@ protected:
 					imgui_combo_attribute<VolumeVertex, Vec4i>(*volume_, volume_vertex_skinning_weight_index_,
 															   "Skinning weight index##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
-																   volume_vertex_skinning_weight_index_ = attribute;
-																   update_volume_skin_skinning_attributes();
+																   set_current_volume_vertex_skinning_weight_index(attribute);
 															   });
 					imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
 															   "Skinning weight value##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
-																   volume_vertex_skinning_weight_value_ = attribute;
-																   update_volume_skin_skinning_attributes();
+																   set_current_volume_vertex_skinning_weight_value(attribute);
 															   });
 				}
 			}
@@ -1374,12 +1404,12 @@ protected:
 				imgui_combo_attribute<SurfaceVertex, Vec4i>(*surface_, surface_vertex_skinning_weight_index_,
 														"Skinning weight index##surface",
 														[&](const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute) {
-															surface_vertex_skinning_weight_index_ = attribute;
+															set_current_surface_vertex_skinning_weight_index(attribute);
 														});
 				imgui_combo_attribute<SurfaceVertex, Vec4>(*surface_, surface_vertex_skinning_weight_value_,
 														"Skinning weight value##surface",
 														[&](const std::shared_ptr<SurfaceAttribute<Vec4>>& attribute) {
-															surface_vertex_skinning_weight_value_ = attribute;
+															set_current_surface_vertex_skinning_weight_value(attribute);
 														});
 			}
 		}
@@ -1392,7 +1422,7 @@ protected:
 			if (animation_skeleton_)
 				imgui_combo_attribute<Joint, Vec3>(*animation_skeleton_, animation_skeleton_joint_position_, "Position#skeleton",
 												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {
-													   animation_skeleton_joint_position_ = attribute;
+													   set_current_animation_skeleton_joint_position(attribute);
 												   });
 		}
 	}

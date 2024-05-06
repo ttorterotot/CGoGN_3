@@ -162,9 +162,9 @@ int main(int argc, char** argv)
 	cgogn::ui::SkinningController<Surface, DualQuaternion> skc_s_dq(app);
 	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_v_rt(app);
 	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
-	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 	cgogn::ui::SurfaceModeling<Surface> sm(app);
 	cgogn::ui::SkinnedVolumeSurfaceFitting<Surface, Volume> vsf(app);
+	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::VolumeRender<Volume> vr(app);
 
@@ -174,8 +174,8 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&mp_sf);
 	v1->link_module(&mp_as);
-	v1->link_module(&asr);
 	v1->link_module(&vsf);
+	v1->link_module(&asr);
 	v1->link_module(&sr);
 	v1->link_module(&vr);
 

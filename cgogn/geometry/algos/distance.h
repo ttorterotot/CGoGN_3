@@ -24,6 +24,8 @@
 #ifndef CGOGN_GEOMETRY_ALGOS_DISTANCE_H_
 #define CGOGN_GEOMETRY_ALGOS_DISTANCE_H_
 
+#include <utility>
+
 #include <cgogn/core/types/cells_set.h>
 
 #include <cgogn/geometry/algos/area.h>
@@ -110,6 +112,71 @@ Vec3 closest_point_on_surface(const MESH& m,
 	});
 
 	return closest;
+}
+
+template <typename MESH>
+inline Vec3 closest_point_on_edge(const MESH& m,
+								   const typename mesh_traits<MESH>::Edge& e,
+								   const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+								   const Vec3& p)
+{
+	auto vertices = first_incident_vertices<2>(m, e);
+	const Vec3& p0 = value<Vec3>(m, vertex_position, vertices[0]);
+	const Vec3& p1 = value<Vec3>(m, vertex_position, vertices[1]);
+	const Vec3 u = p - p0;
+	const Vec3 v = p1 - p0;
+
+	const auto vv = v.squaredNorm();
+	if (vv == 0.0) // zero-length edge, pick one of the points (which are equal +- floating point precision)
+		return p0;
+
+	const auto t = std::clamp(u.dot(v) / vv, 0.0, 1.0);
+	return (1.0 - t) * p0 + t * p1;
+	// We could also return p0 + t * v, but it wouldn't ensure we get exactly p1 for t := 1; (1 - t) * p0 + t * p1 does
+	// (we consider floating point inaccuracies to be OK on the strict interval, but may not prefer any at extremities)
+}
+
+template <typename MESH>
+std::pair<typename mesh_traits<MESH>::Edge, Vec3> closest_edge_and_point_on_edges(const MESH& m,
+							const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+							const Vec3& p)
+{
+	using Vertex = typename mesh_traits<MESH>::Vertex;
+	using Edge = typename mesh_traits<MESH>::Edge;
+
+	Edge closest_edge = INVALID_INDEX;
+	Vec3 closest_pos = Vec3::Zero();
+	Scalar min_dist = std::numeric_limits<Scalar>::max();
+
+	foreach_cell(m, [&](Edge e) -> bool {
+		const Vec3 pos = closest_point_on_edge(m, e, vertex_position, p);
+		const Scalar dist = (pos - p).squaredNorm();
+		if (dist < min_dist)
+		{
+			closest_edge = e;
+			closest_pos = pos;
+			min_dist = dist;
+		}
+		return true;
+	});
+
+	return std::make_pair(closest_edge, closest_pos);
+}
+
+template <typename MESH>
+typename mesh_traits<MESH>::Edge closest_edge(const MESH& m,
+							const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+							const Vec3& p)
+{
+	return closest_edge_and_point_on_edges(m, vertex_position, p).first;
+}
+
+template <typename MESH>
+Vec3 closest_point_on_edges(const MESH& m,
+							const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+							const Vec3& p)
+{
+	return closest_edge_and_point_on_edges(m, vertex_position, p).second;
 }
 
 template <typename MESH>

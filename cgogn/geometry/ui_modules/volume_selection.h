@@ -494,7 +494,7 @@ protected:
 						ImGui::Text("(nb elements: %d)", p.selected_faces_set_->size());
 						if (ImGui::Button("Clear##faces_set"))
 						{
-							p.selected_vertices_set_->clear();
+							p.selected_faces_set_->clear();
 							mesh_provider_->emit_cells_set_changed(*selected_mesh_, p.selected_faces_set_);
 						}
 					}

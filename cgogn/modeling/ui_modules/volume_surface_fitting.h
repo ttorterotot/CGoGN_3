@@ -24,6 +24,9 @@
 #ifndef CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 #define CGOGN_MODULE_VOLUME_SURFACE_FITTING_H_
 
+#include <unordered_map>
+
+#include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/core/types/maps/cmap/cmap3.h>
 
 #include <cgogn/core/ui_modules/mesh_provider.h>
@@ -70,10 +73,17 @@ using geometry::Vec4i;
 template <typename SURFACE, typename VOLUME, bool HasVolumeSelector = true, bool HasSkinningUtility = false>
 class VolumeSurfaceFitting : public ViewModule
 {
+	using Skeleton = AnimationSkeleton;
+
+	template <typename T>
+	using SkeletonAttribute = typename mesh_traits<Skeleton>::Attribute<T>;
 	template <typename T>
 	using SurfaceAttribute = typename mesh_traits<SURFACE>::template Attribute<T>;
 	template <typename T>
 	using VolumeAttribute = typename mesh_traits<VOLUME>::template Attribute<T>;
+
+	using Joint = Skeleton::Joint;
+	using Bone = Skeleton::Bone;
 
 	using SurfaceVertex = typename mesh_traits<SURFACE>::Vertex;
 	using SurfaceFace = typename mesh_traits<SURFACE>::Face;
@@ -86,6 +96,15 @@ class VolumeSurfaceFitting : public ViewModule
 
 	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
 	static constexpr const bool HasSkinningWeightsTransfer = HasSkinningUtility;
+	static constexpr const bool HandlesAnimationSkeleton = HasSkinningUtility;
+
+public:
+	enum class VertexToSkeletonProjectionMode
+	{
+		PositionOnly,
+		SkinningWeightOnly,
+		PositionAndSkinningWeight,
+	};
 
 public:
 	VolumeSurfaceFitting(const App& app, const std::string& name = "VolumeSurfaceFitting") : ViewModule(app, name)
@@ -95,9 +114,11 @@ public:
 protected:
 	virtual void init() override
 	{
-		surface_provider_ = static_cast<ui::MeshProvider<SURFACE>*>(
+		animation_skeleton_provider_ = static_cast<MeshProvider<Skeleton>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<Skeleton>::name} + ")"));
+		surface_provider_ = static_cast<MeshProvider<SURFACE>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<SURFACE>::name} + ")"));
-		volume_provider_ = static_cast<ui::MeshProvider<VOLUME>*>(
+		volume_provider_ = static_cast<MeshProvider<VOLUME>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<VOLUME>::name} + ")"));
 
 		timer_connection_ = boost::synapse::connect<App::timer_tick>(&app_, [this]() { animate_volume(); });
@@ -157,33 +178,33 @@ public:
 	// 		skin_cells,
 	// 		[&](VolumeVertex v) {
 	// 			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-	// 				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-	// 					   cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) =
+	// 				0.5 * (value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+	// 					   value<Vec3>(*volume_, volume_vertex_position_, av[1]));
 	// 		},
 	// 		[&](VolumeVertex v) {
 	// 			Vec3 center;
 	// 			center.setZero();
 	// 			uint32 count = 0;
 	// 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-	// 				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+	// 				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 	// 				++count;
 	// 				return true;
 	// 			});
 	// 			center /= Scalar(count);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 	// 		},
 	// 		[&](VolumeVertex v) {
 	// 			Vec3 center;
 	// 			center.setZero();
 	// 			uint32 count = 0;
 	// 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-	// 				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+	// 				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 	// 				++count;
 	// 				return true;
 	// 			});
 	// 			center /= Scalar(count);
-	// 			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+	// 			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 	// 		});
 
 	// 	volume_provider_->emit_connectivity_changed(*volume_);
@@ -215,12 +236,12 @@ public:
 		const auto& on_edge_cut = [&](VolumeVertex v)
 		{
 			std::vector<VolumeVertex> av = adjacent_vertices_through_edge(*volume_, v);
-			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) =
-				cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
-					cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
-			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) =
-				0.5 * (cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
-						cgogn::value<Vec3>(*volume_, volume_vertex_position_, av[1]));
+			value<bool>(*volume_, volume_vertex_core_mark_, v) =
+				value<bool>(*volume_, volume_vertex_core_mark_, av[0]) &&
+					value<bool>(*volume_, volume_vertex_core_mark_, av[1]);
+			value<Vec3>(*volume_, volume_vertex_position_, v) =
+				0.5 * (value<Vec3>(*volume_, volume_vertex_position_, av[0]) +
+						value<Vec3>(*volume_, volume_vertex_position_, av[1]));
 			if constexpr (SubdivideSkinningWeights)
 				set_weights(v, av);
 		};
@@ -234,16 +255,16 @@ public:
 			center.setZero();
 			uint32 count = 0;
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex av) -> bool {
-				core_mark &= cgogn::value<bool>(*volume_, volume_vertex_core_mark_, av);
-				center += cgogn::value<Vec3>(*volume_, volume_vertex_position_, av);
+				core_mark &= value<bool>(*volume_, volume_vertex_core_mark_, av);
+				center += value<Vec3>(*volume_, volume_vertex_position_, av);
 				if constexpr (SubdivideSkinningWeights)
 					skinning_weight_source_vertices.push_back(av);
 				++count;
 				return true;
 			});
-			cgogn::value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
+			value<bool>(*volume_, volume_vertex_core_mark_, v) = core_mark;
 			center /= Scalar(count);
-			cgogn::value<Vec3>(*volume_, volume_vertex_position_, v) = center;
+			value<Vec3>(*volume_, volume_vertex_position_, v) = center;
 			if constexpr (SubdivideSkinningWeights)
 				set_weights(v, skinning_weight_source_vertices);
 		};
@@ -253,10 +274,7 @@ public:
 		volume_provider_->emit_connectivity_changed(*volume_);
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 
-		refresh_edge_target_length_ = true;
-		refresh_volume_cells_indexing_ = true;
-		refresh_volume_skin_ = true;
-		refresh_solver_ = true;
+		set_volume_caches_dirty(true);
 	}
 
 	void add_volume_padding(Scalar thickness, DartMarker<CMap3>* face_marker)
@@ -300,6 +318,13 @@ public:
 		});
 	}
 
+	void select_volume_vertices_from_core_mark()
+	{
+		auto& cs = volume_provider_->mesh_data(*volume_).template
+				get_or_add_cells_set<VolumeVertex>("vertex_core_mark");
+		cs.select_if([&](VolumeVertex v) { return value<bool>(*volume_, volume_vertex_core_mark_, v); });
+	}
+
 	void color_volume_vertices_from_core_mark()
 	{
 		if (auto attribute = get_or_add_attribute<Vec3, VolumeVertex>(*volume_, "vertex_core_mark_color"))
@@ -312,6 +337,74 @@ public:
 			});
 
 			volume_provider_->emit_attribute_changed(*volume_, attribute.get());
+		}
+	}
+
+	void project_cells_set_to_skeleton(const CellsSet<VOLUME, VolumeVertex>& cs,
+			const VertexToSkeletonProjectionMode& mode)
+	{
+		cgogn_assert(volume_);
+		cgogn_assert(animation_skeleton_);
+		cgogn_assert(volume_vertex_position_);
+		cgogn_assert(animation_skeleton_joint_position_);
+
+		const auto& skeleton = *animation_skeleton_;
+		const auto set_weights = [&](const VolumeVertex& v, Bone bone) {
+			auto& indices = value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v);
+			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
+			if (bone.is_valid())
+			{
+				const auto& p = (*skeleton.bone_parent_)[bone];
+				if (p.is_valid())
+					bone = p; // get parent unless already root
+				indices = {static_cast<Vec4i::Scalar>(index_of(skeleton, bone)), -1, -1, -1};
+				values = {1.0, 0.0, 0.0, 0.0};
+			}
+			else
+			{
+				indices = {-1, -1, -1, -1};
+				values = Vec4::Zero();
+			}
+		};
+
+		// @TODO: implement and use parallel_foreach_cell for CellsSet
+
+		switch (mode)
+		{
+		case VertexToSkeletonProjectionMode::PositionOnly:
+			cs.foreach_cell([&](VolumeVertex v) {
+				auto& p = value<Vec3>(*volume_, volume_vertex_position_, v);
+				p = geometry::closest_point_on_edges(skeleton, animation_skeleton_joint_position_.get(), p);
+			});
+			break;
+		case VertexToSkeletonProjectionMode::SkinningWeightOnly:
+			cgogn_assert(volume_vertex_skinning_weight_index_);
+			cgogn_assert(volume_vertex_skinning_weight_value_);
+			cs.foreach_cell([&](VolumeVertex v) {
+				const auto& p = value<Vec3>(*volume_, volume_vertex_position_, v);
+				const auto& bone = geometry::closest_edge(skeleton, animation_skeleton_joint_position_.get(), p);
+				set_weights(v, bone);
+			});
+			break;
+		case VertexToSkeletonProjectionMode::PositionAndSkinningWeight:
+			cgogn_assert(volume_vertex_skinning_weight_index_);
+			cgogn_assert(volume_vertex_skinning_weight_value_);
+			cs.foreach_cell([&](VolumeVertex v) {
+				auto& p = value<Vec3>(*volume_, volume_vertex_position_, v);
+				const auto& [bone, proj]
+					= geometry::closest_edge_and_point_on_edges(skeleton, animation_skeleton_joint_position_.get(), p);
+				p = proj;
+				set_weights(v, bone);
+			});
+			break;
+		default:
+			cgogn_assert_not_reached("Missing vertex to skeleton projection mode case");
+		}
+
+		if (mode != VertexToSkeletonProjectionMode::SkinningWeightOnly)
+		{
+			volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
+			set_volume_caches_dirty(true);
 		}
 	}
 
@@ -606,11 +699,25 @@ public:
 			refresh_volume_skin(); // already updates skin skinning attributes
 
 		std::array<Scalar, 3> source_vertex_weights{};
-		std::vector<Vec4::Scalar> skinning_weight_value_buffer;
+
+		// Avoid O(n_vertex) allocations in favor of O(n_threads * log(n_bones)), at the cost of some mutex overhead
+		// The map mutations are synchronized, and don't relocate the vectors themselves, which aren't shared
+		// unique_ptr is fine because we access through raw vectors (we know what we're doing)
+		// and the map goes out of scope freeing the vectors only after we're done using them
+		using WeightVector = std::vector<Vec4::Scalar>;
+		std::unordered_map<std::thread::id, std::unique_ptr<WeightVector>> skinning_weight_value_buffers;
+		std::mutex swvb_mutex{};
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			WeightVector* skinning_weight_value_buffer = nullptr;
+			{
+				std::lock_guard<std::mutex> lock(swvb_mutex);
+				auto& p = skinning_weight_value_buffers[std::this_thread::get_id()];
+				skinning_weight_value_buffer = (p ? p : (p = std::make_unique<WeightVector>())).get();
+			}
 			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
-			const auto [face_id, proj] = closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
+			const auto [face_id, proj] =
+					closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
 
 			// Get barycentric coordinates of projected point
 			const auto source_vertices = first_incident_vertices<3>(*surface_, surface_faces_.at(face_id));
@@ -623,7 +730,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
+					source_vertices, std::optional{source_vertex_weights}, *skinning_weight_value_buffer);
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;
@@ -1278,6 +1385,16 @@ protected:
 		}
 
 		ImGui::Separator();
+
+		if constexpr (HandlesAnimationSkeleton)
+		{
+			imgui_mesh_selector(animation_skeleton_provider_, animation_skeleton_, "Skeleton", [&](Skeleton& s) { animation_skeleton_ = &s; });
+			if (animation_skeleton_)
+				imgui_combo_attribute<Joint, Vec3>(*animation_skeleton_, animation_skeleton_joint_position_, "Position#skeleton",
+												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {
+													   animation_skeleton_joint_position_ = attribute;
+												   });
+		}
 	}
 
 	virtual void left_panel_subdivision_operations(MeshData<VOLUME>& md)
@@ -1317,6 +1434,9 @@ protected:
 		if (ImGui::Button("Mark volume core vertices"))
 			mark_volume_core_vertices();
 
+		if (ImGui::Button("Select marked volume core vertices"))
+			select_volume_vertices_from_core_mark();
+
 		if (ImGui::Button("Color marked volume core vertices"))
 			color_volume_vertices_from_core_mark();
 
@@ -1327,6 +1447,38 @@ protected:
 
 		imgui_combo_cells_set(md, selected_frozen_vertices_set_, "Frozen vertices",
 								[&](CellsSet<VOLUME, VolumeVertex>* cs) { selected_frozen_vertices_set_ = cs; });
+
+		if constexpr (HandlesAnimationSkeleton)
+		{
+			if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
+			{
+				auto& cs = *selected_frozen_vertices_set_;
+				if constexpr (HasSkinningUtility)
+				{
+					const bool skinning_attributes_set =
+							volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_;
+
+					if (!skinning_attributes_set)
+						ImGui::BeginDisabled();
+					if (ImGui::Button("Project and bind frozen vertices to skeleton"))
+						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
+					if (!skinning_attributes_set)
+						ImGui::EndDisabled();
+
+					if (ImGui::Button("Project only"))
+						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+					ImGui::SameLine();
+					if (!skinning_attributes_set)
+						ImGui::BeginDisabled();
+					if (ImGui::Button("Bind only"))
+						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
+					if (!skinning_attributes_set)
+						ImGui::EndDisabled();
+				}
+				else if (ImGui::Button("Project frozen vertices to skeleton"))
+					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+			}
+		}
 
 		if (ImGui::Button("Relocate interior vertices"))
 			relocate_interior_vertices();
@@ -1410,8 +1562,12 @@ protected:
 	}
 
 protected:
+	MeshProvider<AnimationSkeleton>* animation_skeleton_provider_ = nullptr;
 	MeshProvider<SURFACE>* surface_provider_ = nullptr;
 	MeshProvider<VOLUME>* volume_provider_ = nullptr;
+
+	Skeleton* animation_skeleton_ = nullptr;
+	std::shared_ptr<SkeletonAttribute<Vec3>> animation_skeleton_joint_position_ = nullptr;
 
 	SURFACE* surface_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec3>> surface_vertex_position_ = nullptr;

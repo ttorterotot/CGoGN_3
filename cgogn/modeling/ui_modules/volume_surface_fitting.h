@@ -1461,6 +1461,39 @@ protected:
 
 		ImGui::TextUnformatted("HexMesh Connectivity Ops");
 
+		static float fcf[3] = {0.00390625f, 0.00390625f, 0.00390625f}; // 1/256
+		static CellsSet<VOLUME, VolumeFace>* fscs = nullptr;
+		imgui_combo_cells_set(md, fscs, "Fiber start", [&](CellsSet<VOLUME, VolumeFace>* cs) { fscs = cs; });
+		ImGui::ColorEdit3("Color factor", fcf);
+		if (ImGui::Button("Spread"))
+		{
+			auto color_attr = get_or_add_attribute<Vec3, VolumeVertex>(*volume_, "Fiber spread");
+			uint8 i = 0;
+			fscs->foreach_cell([&](VolumeFace f){
+				VolumeEdge e = modeling::find_fiber_dir(*volume_, f);
+				uint8 j = 0;
+				foreach_cell(modeling::surface_fiber_spread(*volume_, e), [&](VolumeEdge e){
+					uint8 k = 0;
+					foreach_cell(modeling::get_slice(*volume_, e), [&](VolumeEdge e){
+						auto vertices = first_incident_vertices<2>(*volume_, e);
+						Vec3 color{i * fcf[0], j * fcf[1], k * fcf[2]};
+						for (auto& c : color)
+							c = std::fmod(c, Vec3::Scalar(1));
+						if (vertices[0].is_valid())
+							value<Vec3>(*volume_, color_attr, vertices[0]) = color;
+						if (vertices[1].is_valid())
+							value<Vec3>(*volume_, color_attr, vertices[1]) = color;
+						++k;
+						return true;
+					});
+					++j;
+					return true;
+				});
+				++i;
+			});
+			volume_provider_->emit_attribute_changed(*volume_, color_attr.get());
+		}
+
 		if (ImGui::Button("Mark volume core vertices"))
 			mark_volume_core_vertices();
 

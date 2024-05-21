@@ -38,6 +38,7 @@
 #include <cgogn/geometry/ui_modules/skinning_controller.h>
 #include <cgogn/modeling/ui_modules/volume_surface_fitting.h>
 #include <cgogn/modeling/ui_modules/surface_modeling.h>
+#include <cgogn/geometry/ui_modules/volume_selection.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
@@ -163,6 +164,7 @@ int main(int argc, char** argv)
 	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_v_rt(app);
 	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
 	cgogn::ui::SurfaceModeling<Surface> sm(app);
+	cgogn::ui::VolumeSelection<Volume> vs(app);
 	cgogn::ui::SkinnedVolumeSurfaceFitting<Surface, Volume> vsf(app);
 	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
@@ -176,6 +178,7 @@ int main(int argc, char** argv)
 	v1->link_module(&mp_as);
 	v1->link_module(&vsf);
 	v1->link_module(&asr);
+	v1->link_module(&vs);
 	v1->link_module(&sr);
 	v1->link_module(&vr);
 

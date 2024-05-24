@@ -686,14 +686,14 @@ public:
 		refresh_edge_target_length_ = true;
 	}
 
-	bool can_transfer_skinning_weights()
+	bool can_transfer_skinning_weights_to_skin()
 	{
 		return volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_
 				&& surface_vertex_skinning_weight_index_ && surface_vertex_skinning_weight_value_
 				&& surface_vertex_position_ && surface_bvh_;
 	}
 
-	void transfer_skinning_weights()
+	void transfer_skinning_weights_to_skin()
 	{
 		if (refresh_volume_skin_)
 			refresh_volume_skin(); // already updates skin skinning attributes
@@ -1535,8 +1535,8 @@ protected:
 			ImGui::Separator();
 
 			if constexpr (HasSkinningWeightsTransfer)
-				if (can_transfer_skinning_weights() && ImGui::Button("Skinning weights to skin"))
-					transfer_skinning_weights();
+				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
+					transfer_skinning_weights_to_skin();
 
 			if (ImGui::Button("Project on surface"))
 				project_on_surface();

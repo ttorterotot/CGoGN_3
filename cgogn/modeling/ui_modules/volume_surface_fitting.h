@@ -698,8 +698,6 @@ public:
 		if (refresh_volume_skin_)
 			refresh_volume_skin(); // already updates skin skinning attributes
 
-		std::array<Scalar, 3> source_vertex_weights{};
-
 		// Avoid O(n_vertex) allocations in favor of O(n_threads * log(n_bones)), at the cost of some mutex overhead
 		// The map mutations are synchronized, and don't relocate the vectors themselves, which aren't shared
 		// unique_ptr is fine because we access through raw vectors (we know what we're doing)
@@ -722,6 +720,7 @@ public:
 			// Get barycentric coordinates of projected point
 			const auto source_vertices = first_incident_vertices<3>(*surface_, surface_faces_.at(face_id));
 			cgogn_assert(source_vertices[2].is_valid());
+			std::array<Scalar, 3> source_vertex_weights{};
 			geometry::closest_point_in_triangle(proj,
 					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[0]),
 					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[1]),

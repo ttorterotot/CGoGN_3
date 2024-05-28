@@ -698,21 +698,11 @@ public:
 		if (refresh_volume_skin_)
 			refresh_volume_skin(); // already updates skin skinning attributes
 
-		// Avoid O(n_vertex) allocations in favor of O(n_threads * log(n_bones)), at the cost of some mutex overhead
-		// The map mutations are synchronized, and don't relocate the vectors themselves, which aren't shared
-		// unique_ptr is fine because we access through raw vectors (we know what we're doing)
-		// and the map goes out of scope freeing the vectors only after we're done using them
-		using WeightVector = std::vector<Vec4::Scalar>;
-		std::unordered_map<std::thread::id, std::unique_ptr<WeightVector>> skinning_weight_value_buffers;
-		std::mutex swvb_mutex{};
-
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
-			WeightVector* skinning_weight_value_buffer = nullptr;
-			{
-				std::lock_guard<std::mutex> lock(swvb_mutex);
-				auto& p = skinning_weight_value_buffers[std::this_thread::get_id()];
-				skinning_weight_value_buffer = (p ? p : (p = std::make_unique<WeightVector>())).get();
-			}
+			// Buffer to avoid reallocations;
+			// constructed on first lambda call of thread, destructed when thread finishes
+			static thread_local std::vector<Vec4::Scalar> skinning_weight_value_buffer;
+
 			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
 			const auto [face_id, proj] =
 					closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
@@ -729,7 +719,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					source_vertices, std::optional{source_vertex_weights}, *skinning_weight_value_buffer);
+					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;

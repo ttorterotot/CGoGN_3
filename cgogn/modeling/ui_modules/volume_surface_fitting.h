@@ -249,7 +249,7 @@ public:
 		const auto& on_face_or_vol_cut = [&](VolumeVertex v)
 		{
 			if constexpr (SubdivideSkinningWeights)
-				skinning_weight_source_vertices.resize(0);
+				skinning_weight_source_vertices.clear();
 			bool core_mark = true;
 			Vec3 center;
 			center.setZero();

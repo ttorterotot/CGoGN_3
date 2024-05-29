@@ -150,6 +150,32 @@ protected:
 	}
 
 public:
+	template <typename CELL, typename FUNC_V>
+	static int32 propagate(std::vector<CELL>&& queued_cells, const FUNC_V& visit)
+	{
+		// void visit(CELL v, uint32 depth, std::vector<CELL>& cells_to_visit_next)
+		static_assert(is_ith_func_parameter_same<FUNC_V, 0, CELL>::value,
+				"Given function should take a CELL as its first parameter");
+		static_assert(is_ith_func_parameter_same<FUNC_V, 1, uint32>::value,
+				"Given function should take a uint32 as its second parameter");
+		static_assert(is_ith_func_parameter_same<FUNC_V, 2, std::vector<CELL>&>::value,
+				"Given function should take a std::vector<CELL>& as its third parameter");
+
+		int32 depth = -1;
+		std::vector<CELL> queueing_cells;
+
+		while (!queued_cells.empty())
+		{
+			++depth;
+			for (const auto& v : queued_cells)
+				visit(v, depth, queueing_cells);
+			std::swap(queueing_cells, queued_cells);
+			queueing_cells.clear();
+		}
+
+		return depth;
+	}
+
 	// void subdivide_skin()
 	// {
 	// 	CellMarker<VOLUME, VolumeFace> visited_faces(*volume_);
@@ -249,7 +275,7 @@ public:
 		const auto& on_face_or_vol_cut = [&](VolumeVertex v)
 		{
 			if constexpr (SubdivideSkinningWeights)
-				skinning_weight_source_vertices.resize(0);
+				skinning_weight_source_vertices.clear();
 			bool core_mark = true;
 			Vec3 center;
 			center.setZero();
@@ -406,6 +432,45 @@ public:
 			volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 			set_volume_caches_dirty(true);
 		}
+	}
+
+	void refresh_volume_vertex_distance_from_boundary()
+	{
+		if (refresh_volume_skin_)
+			refresh_volume_skin();
+
+		constexpr const auto SENTINEL = std::numeric_limits<uint32>::max();
+		std::vector<VolumeVertex> source_vertices;
+
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+		{
+			value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) = SENTINEL;
+			return true;
+		});
+
+		foreach_cell(*volume_skin_, [&](SurfaceVertex v)
+		{
+			auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
+			value<uint32>(*volume_, volume_vertex_distance_from_boundary_, vv) = 0;
+			source_vertices.push_back(vv);
+			return true;
+		});
+
+		volume_vertex_max_distance_from_boundary_ = propagate(std::move(source_vertices),
+				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
+		{
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+				auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_);
+				if (d == SENTINEL)
+				{
+					d = depth + 1;
+					cells_to_visit_next.push_back(v_);
+				}
+				return true;
+			});
+		});
+
+		refresh_volume_vertex_distance_from_boundary_ = false;
 	}
 
 	void refresh_volume_cells_indexing()
@@ -686,35 +751,23 @@ public:
 		refresh_edge_target_length_ = true;
 	}
 
-	bool can_transfer_skinning_weights()
+	bool can_transfer_skinning_weights_to_skin()
 	{
 		return volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_
 				&& surface_vertex_skinning_weight_index_ && surface_vertex_skinning_weight_value_
 				&& surface_vertex_position_ && surface_bvh_;
 	}
 
-	void transfer_skinning_weights()
+	void transfer_skinning_weights_to_skin()
 	{
 		if (refresh_volume_skin_)
 			refresh_volume_skin(); // already updates skin skinning attributes
 
-		std::array<Scalar, 3> source_vertex_weights{};
-
-		// Avoid O(n_vertex) allocations in favor of O(n_threads * log(n_bones)), at the cost of some mutex overhead
-		// The map mutations are synchronized, and don't relocate the vectors themselves, which aren't shared
-		// unique_ptr is fine because we access through raw vectors (we know what we're doing)
-		// and the map goes out of scope freeing the vectors only after we're done using them
-		using WeightVector = std::vector<Vec4::Scalar>;
-		std::unordered_map<std::thread::id, std::unique_ptr<WeightVector>> skinning_weight_value_buffers;
-		std::mutex swvb_mutex{};
-
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
-			WeightVector* skinning_weight_value_buffer = nullptr;
-			{
-				std::lock_guard<std::mutex> lock(swvb_mutex);
-				auto& p = skinning_weight_value_buffers[std::this_thread::get_id()];
-				skinning_weight_value_buffer = (p ? p : (p = std::make_unique<WeightVector>())).get();
-			}
+			// Buffer to avoid reallocations;
+			// constructed on first lambda call of thread, destructed when thread finishes
+			static thread_local std::vector<Vec4::Scalar> skinning_weight_value_buffer;
+
 			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
 			const auto [face_id, proj] =
 					closest_surface_face_and_point(value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v));
@@ -722,6 +775,7 @@ public:
 			// Get barycentric coordinates of projected point
 			const auto source_vertices = first_incident_vertices<3>(*surface_, surface_faces_.at(face_id));
 			cgogn_assert(source_vertices[2].is_valid());
+			std::array<Scalar, 3> source_vertex_weights{};
 			geometry::closest_point_in_triangle(proj,
 					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[0]),
 					value<Vec3>(*surface_, surface_vertex_position_, source_vertices[1]),
@@ -730,7 +784,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					source_vertices, std::optional{source_vertex_weights}, *skinning_weight_value_buffer);
+					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;
@@ -738,6 +792,105 @@ public:
 			value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, vv) = values;
 			return true;
 		});
+	}
+
+	void set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
+			const VolumeVertex& v, uint32 distance_from_boundary,
+			std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>& buffers = {})
+	{
+		auto& source_vertices = buffers.first; // i -> ith source vertex
+		auto& weight_value_buffer = buffers.second; // i -> ith bone accumulated weight buffer
+
+		source_vertices.clear();
+		foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_) == distance_from_boundary)
+				source_vertices.push_back(v_);
+			return true;
+		});
+
+		std::tie(
+				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
+				value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
+		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
+				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
+				source_vertices, {}, weight_value_buffer);
+	}
+
+	void propagate_skin_skinning_weights_iterative()
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		if (refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
+
+		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
+
+		for (uint32 d = 1; d <= volume_vertex_max_distance_from_boundary_; ++d)
+			parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
+				if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) != d)
+					return true; // continue, don't break
+				// Buffer to avoid reallocations;
+				// constructed on first lambda call of thread, destructed when thread finishes
+				static thread_local VertexBufferSet vertex_buffers;
+				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(v, d - 1, vertex_buffers);
+				return true;
+			});
+
+		update_volume_skin_skinning_attributes();
+	}
+
+	void propagate_skin_skinning_weights_repropagation()
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		if (refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
+
+		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
+
+		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
+		std::vector<VolumeVertex> source_vertices;
+		VertexBufferSet vertex_buffers;
+
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+		{
+			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) > 0)
+				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] = SENTINEL;
+			return true;
+		});
+
+		foreach_cell(*volume_skin_, [&](SurfaceVertex v)
+		{
+			source_vertices.push_back(value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
+			return true;
+		});
+
+		propagate(std::move(source_vertices),
+				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
+		{
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
+				{
+					set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
+							v_, depth, vertex_buffers);
+					cells_to_visit_next.push_back(v_);
+				}
+				return true;
+			});
+		});
+
+		update_volume_skin_skinning_attributes();
+	}
+
+	void propagate_skin_skinning_weights()
+	{
+		if (refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary();
+
+		if (volume_vertex_max_distance_from_boundary_ < 8)
+			propagate_skin_skinning_weights_iterative(); // fastest one at low maximum depths
+		else
+			propagate_skin_skinning_weights_repropagation(); // fastest one at high maximum depths
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)
@@ -1207,8 +1360,16 @@ public:
 		volume_vertex_position_ = get_attribute<Vec3, VolumeVertex>(*volume_, "position");
 		volume_vertex_index_ = get_or_add_attribute<uint32, VolumeVertex>(*volume_, "vertex_index");
 		volume_vertex_core_mark_ = get_or_add_attribute<bool, VolumeVertex>(*volume_, "vertex_core_mark");
+		volume_vertex_distance_from_boundary_ =
+				get_or_add_attribute<uint32, VolumeVertex>(*volume_, "vertex_boundary_distance");
 		volume_edge_index_ = get_or_add_attribute<uint32, VolumeEdge>(*volume_, "edge_index");
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
+	}
+
+	void set_current_animation_skeleton_joint_position(const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute)
+	{
+		static_assert(HandlesAnimationSkeleton);
+		animation_skeleton_joint_position_ = attribute;
 	}
 
 	void set_current_surface_vertex_position(const std::shared_ptr<SurfaceAttribute<Vec3>>& attribute)
@@ -1260,6 +1421,32 @@ public:
 		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
 	}
 
+	void set_current_surface_vertex_skinning_weight_index(const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute)
+	{
+		surface_vertex_skinning_weight_index_ = attribute;
+	}
+
+	void set_current_surface_vertex_skinning_weight_value(const std::shared_ptr<SurfaceAttribute<Vec4>>& attribute)
+	{
+		surface_vertex_skinning_weight_value_ = attribute;
+	}
+
+	void set_current_volume_vertex_skinning_weight_index(const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute,
+			const bool& update_volume_skin_attributes = true)
+	{
+		volume_vertex_skinning_weight_index_ = attribute;
+		if (update_volume_skin_attributes)
+			update_volume_skin_skinning_attributes();
+	}
+
+	void set_current_volume_vertex_skinning_weight_value(const std::shared_ptr<VolumeAttribute<Vec4>>& attribute,
+			const bool& update_volume_skin_attributes = true)
+	{
+		volume_vertex_skinning_weight_value_ = attribute;
+		if (update_volume_skin_attributes)
+			update_volume_skin_skinning_attributes();
+	}
+
 	template <typename T>
 	void update_volume_skin_skinning_attribute(
 			std::shared_ptr<SurfaceAttribute<T>>& skin_attribute,
@@ -1290,6 +1477,7 @@ public:
 protected:
 	void set_volume_caches_dirty(bool refresh_volume_skin = true)
 	{
+		refresh_volume_vertex_distance_from_boundary_ = true;
 		refresh_edge_target_length_ = true;
 		refresh_volume_cells_indexing_ = true;
 		refresh_volume_skin_ = refresh_volume_skin;
@@ -1331,6 +1519,12 @@ protected:
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 	}
 
+	void show_tooltip_for_ui_above(const char* tooltip_text)
+	{
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security
+	}
+
 	virtual void left_panel_meshes()
 	{
 		if constexpr (HasVolumeSelector)
@@ -1345,14 +1539,12 @@ protected:
 					imgui_combo_attribute<VolumeVertex, Vec4i>(*volume_, volume_vertex_skinning_weight_index_,
 															   "Skinning weight index##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4i>>& attribute) {
-																   volume_vertex_skinning_weight_index_ = attribute;
-																   update_volume_skin_skinning_attributes();
+																   set_current_volume_vertex_skinning_weight_index(attribute);
 															   });
 					imgui_combo_attribute<VolumeVertex, Vec4>(*volume_, volume_vertex_skinning_weight_value_,
 															   "Skinning weight value##volume",
 															   [&](const std::shared_ptr<VolumeAttribute<Vec4>>& attribute) {
-																   volume_vertex_skinning_weight_value_ = attribute;
-																   update_volume_skin_skinning_attributes();
+																   set_current_volume_vertex_skinning_weight_value(attribute);
 															   });
 				}
 			}
@@ -1374,12 +1566,12 @@ protected:
 				imgui_combo_attribute<SurfaceVertex, Vec4i>(*surface_, surface_vertex_skinning_weight_index_,
 														"Skinning weight index##surface",
 														[&](const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute) {
-															surface_vertex_skinning_weight_index_ = attribute;
+															set_current_surface_vertex_skinning_weight_index(attribute);
 														});
 				imgui_combo_attribute<SurfaceVertex, Vec4>(*surface_, surface_vertex_skinning_weight_value_,
 														"Skinning weight value##surface",
 														[&](const std::shared_ptr<SurfaceAttribute<Vec4>>& attribute) {
-															surface_vertex_skinning_weight_value_ = attribute;
+															set_current_surface_vertex_skinning_weight_value(attribute);
 														});
 			}
 		}
@@ -1392,7 +1584,7 @@ protected:
 			if (animation_skeleton_)
 				imgui_combo_attribute<Joint, Vec3>(*animation_skeleton_, animation_skeleton_joint_position_, "Position#skeleton",
 												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {
-													   animation_skeleton_joint_position_ = attribute;
+													   set_current_animation_skeleton_joint_position(attribute);
 												   });
 		}
 	}
@@ -1506,8 +1698,32 @@ protected:
 			ImGui::Separator();
 
 			if constexpr (HasSkinningWeightsTransfer)
-				if (can_transfer_skinning_weights() && ImGui::Button("Skinning weights to skin"))
-					transfer_skinning_weights();
+			{
+				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
+					transfer_skinning_weights_to_skin();
+
+				static int skinning_weights_propagation_method = 0;
+				ImGui::RadioButton("Auto##skinning_weights_propagation_method", &skinning_weights_propagation_method, 0);
+				show_tooltip_for_ui_above("Automatically picks the supposed fastest method between iterative and repropagation");
+				ImGui::SameLine();
+				ImGui::RadioButton("Iterative##skinning_weights_propagation_method", &skinning_weights_propagation_method, 1);
+				show_tooltip_for_ui_above("Best suited for meshes where all vertices are topologically close (<8 edges) to the boundary");
+				ImGui::SameLine();
+				ImGui::RadioButton("Repropagation##skinning_weights_propagation_method", &skinning_weights_propagation_method, 2);
+				show_tooltip_for_ui_above("Best suited for meshes where some vertices are topologically far away (>8 edges) from the boundary");
+				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_
+						&& ImGui::Button("Propagate skin's skinning weights"))
+					switch (skinning_weights_propagation_method){
+					case 1:
+						propagate_skin_skinning_weights_iterative();
+						break;
+					case 2:
+						propagate_skin_skinning_weights_repropagation();
+						break;
+					default:
+						propagate_skin_skinning_weights();
+					}
+			}
 
 			if (ImGui::Button("Project on surface"))
 				project_on_surface();
@@ -1601,6 +1817,10 @@ private:
 
 	std::shared_ptr<VolumeAttribute<Vec4i>> volume_vertex_skinning_weight_index_;
 	std::shared_ptr<VolumeAttribute<Vec4>> volume_vertex_skinning_weight_value_;
+
+	std::shared_ptr<VolumeAttribute<uint32>> volume_vertex_distance_from_boundary_ = nullptr;
+	int32 volume_vertex_max_distance_from_boundary_ = -1;
+	bool refresh_volume_vertex_distance_from_boundary_ = true;
 
 	bool refresh_volume_cells_indexing_ = true;
 

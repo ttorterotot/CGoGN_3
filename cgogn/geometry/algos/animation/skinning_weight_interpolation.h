@@ -64,7 +64,7 @@ public:
 	{
 		Vec4i indices{ -1, -1, -1, -1 };
 		Vec4 values = Vec4::Zero();
-		weight_value_buffer.resize(0);
+		weight_value_buffer.clear();
 
 		if (source_cells.empty())
 			return std::make_pair(indices, values);

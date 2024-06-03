@@ -1463,6 +1463,11 @@ public:
 		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
 	}
 
+	void set_frozen_vertices(CellsSet<VOLUME, VolumeVertex>* cs)
+	{
+		selected_frozen_vertices_set_ = cs;
+	}
+
 	void set_current_surface_vertex_skinning_weight_index(const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute)
 	{
 		surface_vertex_skinning_weight_index_ = attribute;
@@ -1680,7 +1685,7 @@ protected:
 		ImGui::TextUnformatted("HexMesh Geometry Ops");
 
 		imgui_combo_cells_set(md, selected_frozen_vertices_set_, "Frozen vertices",
-								[&](CellsSet<VOLUME, VolumeVertex>* cs) { selected_frozen_vertices_set_ = cs; });
+								[&](CellsSet<VOLUME, VolumeVertex>* cs) { set_frozen_vertices(cs); });
 
 		if constexpr (HandlesAnimationSkeleton)
 		{

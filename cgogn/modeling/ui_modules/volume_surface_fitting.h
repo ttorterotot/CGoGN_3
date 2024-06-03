@@ -816,7 +816,7 @@ public:
 				source_vertices, {}, weight_value_buffer);
 	}
 
-	void propagate_skin_skinning_weights()
+	void propagate_skinning_weights_from_boundary()
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -1662,7 +1662,7 @@ protected:
 
 				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_
 						&& ImGui::Button("Propagate skin's skinning weights"))
-					propagate_skin_skinning_weights();
+					propagate_skinning_weights_from_boundary();
 			}
 
 			if (ImGui::Button("Project on surface"))

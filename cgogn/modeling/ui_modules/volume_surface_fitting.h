@@ -317,11 +317,12 @@ public:
 		refresh_volume_skin();
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
 			Vec3 n = geometry::normal(*volume_skin_, v, volume_skin_vertex_position_.get());
 			Vec3 p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) + thickness * n;
 			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = p;
-			value<Vec3>(*volume_, volume_vertex_position_,
-						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = p;
+			value<Vec3>(*volume_, volume_vertex_position_, vv) = p;
+			value<bool>(*volume_, volume_vertex_core_mark_, vv) = false;
 			return true;
 		});
 

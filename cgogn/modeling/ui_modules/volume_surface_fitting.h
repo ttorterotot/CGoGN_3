@@ -874,6 +874,67 @@ public:
 		update_volume_skin_skinning_attributes();
 	}
 
+	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, bool widen_source = false)
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		if (refresh_volume_skin_)
+			refresh_volume_skin();
+
+		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
+		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertices;
+		std::vector<Vec4::Scalar> weight_value_buffer;
+
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
+		{
+			if (!cs.contains(v))
+				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] = SENTINEL;
+			return true;
+		});
+
+		cs.foreach_cell([&](VolumeVertex v) {
+			propagation_source_vertices.push_back(v);
+		});
+
+		const auto add_potential_interpolation_source_vertex = [&](VolumeVertex v_) {
+			if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] != SENTINEL)
+				interpolation_source_vertices.push_back(v_);
+			return true;
+		};
+
+		const auto set_weights = [&](const VolumeVertex& v) {
+
+			interpolation_source_vertices.clear();
+			foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_interpolation_source_vertex);
+
+			if (widen_source) // add adjacents, purposefully not checking for duplicates
+				for (const auto& v_ : interpolation_source_vertices)
+					foreach_adjacent_vertex_through_edge(*volume_, v_, add_potential_interpolation_source_vertex);
+
+			std::tie(
+					value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
+					value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
+			) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
+					*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
+					interpolation_source_vertices, {}, weight_value_buffer);
+		};
+
+		propagate(std::move(propagation_source_vertices),
+				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
+		{
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) {
+				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
+				{
+					set_weights(v_);
+					cells_to_visit_next.push_back(v_);
+				}
+				return true;
+			});
+		});
+
+		update_volume_skin_skinning_attributes();
+	}
+
 	void regularize_surface_vertices(Scalar fit_to_data)
 	{
 		if (refresh_volume_skin_)
@@ -1692,6 +1753,8 @@ protected:
 						propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(widen_skinning_weight_source);
 					if (ImGui::Button("Propagate center's skinning weights"))
 						propagate_skinning_weights<PropagationDirection::CenterToBoundary>(widen_skinning_weight_source);
+					if (selected_frozen_vertices_set_ && ImGui::Button("Propagate frozen set's skinning weights"))
+						propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, widen_skinning_weight_source);
 				}
 			}
 

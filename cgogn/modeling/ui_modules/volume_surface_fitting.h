@@ -106,6 +106,12 @@ public:
 		PositionAndSkinningWeight,
 	};
 
+	enum class PropagationDirection
+	{
+		BoundaryToCenter,
+		CenterToBoundary,
+	};
+
 public:
 	VolumeSurfaceFitting(const App& app, const std::string& name = "VolumeSurfaceFitting") : ViewModule(app, name)
 	{
@@ -795,18 +801,24 @@ public:
 	}
 
 	void set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-			const VolumeVertex& v, uint32 distance_from_boundary,
+			const VolumeVertex& v, uint32 distance_from_boundary, bool widen_source = false,
 			std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>& buffers = {})
 	{
 		auto& source_vertices = buffers.first; // i -> ith source vertex
 		auto& weight_value_buffer = buffers.second; // i -> ith bone accumulated weight buffer
 
-		source_vertices.clear();
-		foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+		const auto add_potential_source_vertex = [&](VolumeVertex v_){
 			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_) == distance_from_boundary)
 				source_vertices.push_back(v_);
 			return true;
-		});
+		};
+
+		source_vertices.clear();
+		foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_source_vertex);
+
+		if (widen_source) // add adjacents, purposefully not checking for duplicates
+			for (const auto& v_ : source_vertices)
+				foreach_adjacent_vertex_through_edge(*volume_, v_, add_potential_source_vertex);
 
 		std::tie(
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
@@ -816,7 +828,8 @@ public:
 				source_vertices, {}, weight_value_buffer);
 	}
 
-	void propagate_skinning_weights_from_boundary()
+	template <PropagationDirection Direction>
+	void propagate_skinning_weights(bool widen_source = false)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -834,19 +847,29 @@ public:
 		foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
 			const auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v);
 			cgogn_assert(static_cast<int32>(d) <= volume_vertex_max_distance_from_boundary_);
-			if (d > 0)
-				layers[d - 1].add(v);
+			if constexpr (Direction == PropagationDirection::BoundaryToCenter)
+				if (d > 0)
+					layers[d - 1].add(v);
+			if constexpr (Direction == PropagationDirection::CenterToBoundary)
+				if (static_cast<int32>(d) < volume_vertex_max_distance_from_boundary_)
+					layers[d].add(v);
 			return true;
 		});
 
 		for (int32 i = 0; i < volume_vertex_max_distance_from_boundary_; ++i)
-			parallel_foreach_cell(layers[i], [&](VolumeVertex v) -> bool {
+		{
+			static constexpr const bool outside_in = Direction == PropagationDirection::BoundaryToCenter;
+			const uint32 l = outside_in ? i : layers.size() - 1 - i;
+			parallel_foreach_cell(layers[l], [&](VolumeVertex v) -> bool {
 				// Buffer to avoid reallocations;
 				// constructed on first lambda call of thread, destructed when thread finishes
 				static thread_local VertexBufferSet vertex_buffers;
-				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(v, i, vertex_buffers);
+				static constexpr const uint32 offset = outside_in ? 0u : 1u;
+				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
+						v, l + offset, widen_source, vertex_buffers);
 				return true;
 			});
+		}
 
 		update_volume_skin_skinning_attributes();
 	}
@@ -1660,9 +1683,16 @@ protected:
 				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
 					transfer_skinning_weights_to_skin();
 
-				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_
-						&& ImGui::Button("Propagate skin's skinning weights"))
-					propagate_skinning_weights_from_boundary();
+				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_)
+				{
+					static bool widen_skinning_weight_source = false;
+					ImGui::Checkbox("Wider source", &widen_skinning_weight_source);
+
+					if (ImGui::Button("Propagate skin's skinning weights"))
+						propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(widen_skinning_weight_source);
+					if (ImGui::Button("Propagate center's skinning weights"))
+						propagate_skinning_weights<PropagationDirection::CenterToBoundary>(widen_skinning_weight_source);
+				}
 			}
 
 			if (ImGui::Button("Project on surface"))

@@ -839,6 +839,41 @@ public:
 		update_volume_skin_skinning_attributes();
 	}
 
+	void propagate_skin_skinning_weights_iterative_cached()
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		if (refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
+
+		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
+
+		std::vector<CellCache<VOLUME>> layers;
+		layers.reserve(volume_vertex_max_distance_from_boundary_);
+
+		for (int32 i = 0; i < volume_vertex_max_distance_from_boundary_; ++i)
+			layers.emplace_back(*volume_);
+
+		foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
+			const auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v);
+			cgogn_assert(static_cast<int32>(d) <= volume_vertex_max_distance_from_boundary_);
+			if (d > 0)
+				layers[d - 1].add(v);
+			return true;
+		});
+
+		for (int32 i = 0; i < volume_vertex_max_distance_from_boundary_; ++i)
+			parallel_foreach_cell(layers[i], [&](VolumeVertex v) -> bool {
+				// Buffer to avoid reallocations;
+				// constructed on first lambda call of thread, destructed when thread finishes
+				static thread_local VertexBufferSet vertex_buffers;
+				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(v, i, vertex_buffers);
+				return true;
+			});
+
+		update_volume_skin_skinning_attributes();
+	}
+
 	void propagate_skin_skinning_weights_repropagation()
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
@@ -884,13 +919,7 @@ public:
 
 	void propagate_skin_skinning_weights()
 	{
-		if (refresh_volume_vertex_distance_from_boundary_)
-			refresh_volume_vertex_distance_from_boundary();
-
-		if (volume_vertex_max_distance_from_boundary_ < 8)
-			propagate_skin_skinning_weights_iterative(); // fastest one at low maximum depths
-		else
-			propagate_skin_skinning_weights_repropagation(); // fastest one at high maximum depths
+		propagate_skin_skinning_weights_iterative_cached();
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)

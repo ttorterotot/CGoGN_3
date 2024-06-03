@@ -353,7 +353,7 @@ public:
 	void select_volume_vertices_from_core_mark()
 	{
 		auto& cs = volume_provider_->mesh_data(*volume_).template
-				get_or_add_cells_set<VolumeVertex>("vertex_core_mark");
+				get_or_add_cells_set<VolumeVertex>(CORE_VERTEX_SET_NAME);
 		cs.select_if([&](VolumeVertex v) { return value<bool>(*volume_, volume_vertex_core_mark_, v); });
 	}
 
@@ -1809,6 +1809,9 @@ protected:
 		left_panel_meshes();
 		left_panel_operations();
 	}
+
+public:
+	static constexpr const char* CORE_VERTEX_SET_NAME = "vertex_core_mark";
 
 protected:
 	MeshProvider<AnimationSkeleton>* animation_skeleton_provider_ = nullptr;

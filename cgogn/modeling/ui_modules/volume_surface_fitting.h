@@ -816,30 +816,7 @@ public:
 				source_vertices, {}, weight_value_buffer);
 	}
 
-	void propagate_skin_skinning_weights_iterative()
-	{
-		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
-
-		if (refresh_volume_vertex_distance_from_boundary_)
-			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
-
-		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
-
-		for (uint32 d = 1; d <= volume_vertex_max_distance_from_boundary_; ++d)
-			parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
-				if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) != d)
-					return true; // continue, don't break
-				// Buffer to avoid reallocations;
-				// constructed on first lambda call of thread, destructed when thread finishes
-				static thread_local VertexBufferSet vertex_buffers;
-				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(v, d - 1, vertex_buffers);
-				return true;
-			});
-
-		update_volume_skin_skinning_attributes();
-	}
-
-	void propagate_skin_skinning_weights_iterative_cached()
+	void propagate_skin_skinning_weights()
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -872,54 +849,6 @@ public:
 			});
 
 		update_volume_skin_skinning_attributes();
-	}
-
-	void propagate_skin_skinning_weights_repropagation()
-	{
-		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
-
-		if (refresh_volume_vertex_distance_from_boundary_)
-			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
-
-		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
-
-		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
-		std::vector<VolumeVertex> source_vertices;
-		VertexBufferSet vertex_buffers;
-
-		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
-		{
-			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) > 0)
-				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] = SENTINEL;
-			return true;
-		});
-
-		foreach_cell(*volume_skin_, [&](SurfaceVertex v)
-		{
-			source_vertices.push_back(value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
-			return true;
-		});
-
-		propagate(std::move(source_vertices),
-				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
-		{
-			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
-				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
-				{
-					set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-							v_, depth, vertex_buffers);
-					cells_to_visit_next.push_back(v_);
-				}
-				return true;
-			});
-		});
-
-		update_volume_skin_skinning_attributes();
-	}
-
-	void propagate_skin_skinning_weights()
-	{
-		propagate_skin_skinning_weights_iterative_cached();
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)
@@ -1731,27 +1660,9 @@ protected:
 				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
 					transfer_skinning_weights_to_skin();
 
-				static int skinning_weights_propagation_method = 0;
-				ImGui::RadioButton("Auto##skinning_weights_propagation_method", &skinning_weights_propagation_method, 0);
-				show_tooltip_for_ui_above("Automatically picks the supposed fastest method between iterative and repropagation");
-				ImGui::SameLine();
-				ImGui::RadioButton("Iterative##skinning_weights_propagation_method", &skinning_weights_propagation_method, 1);
-				show_tooltip_for_ui_above("Best suited for meshes where all vertices are topologically close (<8 edges) to the boundary");
-				ImGui::SameLine();
-				ImGui::RadioButton("Repropagation##skinning_weights_propagation_method", &skinning_weights_propagation_method, 2);
-				show_tooltip_for_ui_above("Best suited for meshes where some vertices are topologically far away (>8 edges) from the boundary");
 				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_
 						&& ImGui::Button("Propagate skin's skinning weights"))
-					switch (skinning_weights_propagation_method){
-					case 1:
-						propagate_skin_skinning_weights_iterative();
-						break;
-					case 2:
-						propagate_skin_skinning_weights_repropagation();
-						break;
-					default:
-						propagate_skin_skinning_weights();
-					}
+					propagate_skin_skinning_weights();
 			}
 
 			if (ImGui::Button("Project on surface"))

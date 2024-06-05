@@ -173,6 +173,9 @@ public:
 		while (!queued_cells.empty())
 		{
 			++depth;
+			cgogn_message_assert(depth >= 0,
+					"Propagation depth overflowed: "
+					"visit implementation is incorrect or mesh is exceedingly linear");
 			for (const auto& v : queued_cells)
 				visit(v, depth, queueing_cells);
 			std::swap(queueing_cells, queued_cells);

@@ -138,7 +138,7 @@ public:
 				w += wv;
 			}
 
-			if (normalize_weights)
+			if (normalize_weights && w != 0.0)
 				p /= w;
 
 			positions[i] = p;

@@ -804,24 +804,31 @@ public:
 		});
 	}
 
-	void set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-			const VolumeVertex& v, uint32 distance_from_boundary, bool widen_source = false,
-			std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>& buffers = {})
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_neighborhood(
+			const VolumeVertex& v,
+			const FUNC& is_vertex_source,
+			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& weight_value_buffer, // i -> ith bone accumulated weight buffer
+			bool fetch_extra_candidates_in_selection_neighborhood = false)
 	{
-		auto& source_vertices = buffers.first; // i -> ith source vertex
-		auto& weight_value_buffer = buffers.second; // i -> ith bone accumulated weight buffer
+		// bool is_vertex_source(VolumeVertex v)
+		static_assert(is_func_parameter_same<FUNC, VolumeVertex>::value,
+				"Given function should take a VolumeVertex as parameter");
+		static_assert(is_func_return_same<FUNC, bool>::value,
+				"Given function should return a bool");
 
 		const auto add_potential_source_vertex = [&](VolumeVertex v_){
-			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_) == distance_from_boundary)
-				source_vertices.push_back(v_);
+			if (is_vertex_source(v_))
+				source_vertex_buffer.push_back(v_);
 			return true;
 		};
 
-		source_vertices.clear();
+		source_vertex_buffer.clear();
 		foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_source_vertex);
 
-		if (widen_source) // add adjacents, purposefully not checking for duplicates
-			for (const auto& v_ : source_vertices)
+		if (fetch_extra_candidates_in_selection_neighborhood) // add adjacents purposefully not checking for duplicates
+			for (const auto& v_ : source_vertex_buffer)
 				foreach_adjacent_vertex_through_edge(*volume_, v_, add_potential_source_vertex);
 
 		std::tie(
@@ -829,7 +836,19 @@ public:
 				value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
 		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-				source_vertices, {}, weight_value_buffer);
+				source_vertex_buffer, {}, weight_value_buffer);
+	}
+
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_neighborhood(
+			const VolumeVertex& v,
+			const FUNC& is_vertex_source,
+			bool fetch_extra_candidates_in_selection_neighborhood = false)
+	{
+		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		set_vertex_skinning_weights_from_neighborhood(v, is_vertex_source, source_vertex_buffer, weight_value_buffer,
+				fetch_extra_candidates_in_selection_neighborhood);
 	}
 
 	template <PropagationDirection Direction>
@@ -839,8 +858,6 @@ public:
 
 		if (refresh_volume_vertex_distance_from_boundary_)
 			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
-
-		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
 
 		std::vector<CellCache<VOLUME>> layers;
 		layers.reserve(volume_vertex_max_distance_from_boundary_);
@@ -864,13 +881,17 @@ public:
 		{
 			static constexpr const bool outside_in = Direction == PropagationDirection::BoundaryToCenter;
 			const uint32 l = outside_in ? i : layers.size() - 1 - i;
+			static constexpr const uint32 offset = outside_in ? 0u : 1u;
+			const uint32 d = l + offset;
+			const auto is_vertex_interpolation_source = [&](VolumeVertex v) -> bool {
+				return value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) == d; };
 			parallel_foreach_cell(layers[l], [&](VolumeVertex v) -> bool {
-				// Buffer to avoid reallocations;
+				// Buffers to avoid reallocations;
 				// constructed on first lambda call of thread, destructed when thread finishes
-				static thread_local VertexBufferSet vertex_buffers;
-				static constexpr const uint32 offset = outside_in ? 0u : 1u;
-				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-						v, l + offset, widen_source, vertex_buffers);
+				static thread_local std::vector<VolumeVertex> source_vertex_buffer;
+				static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
+				set_vertex_skinning_weights_from_neighborhood(v, is_vertex_interpolation_source,
+						source_vertex_buffer, weight_value_buffer, widen_source);
 				return true;
 			});
 		}
@@ -886,7 +907,7 @@ public:
 			refresh_volume_skin();
 
 		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
-		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertices;
+		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertex_buffer;
 		std::vector<Vec4::Scalar> weight_value_buffer;
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
@@ -900,27 +921,8 @@ public:
 			propagation_source_vertices.push_back(v);
 		});
 
-		const auto add_potential_interpolation_source_vertex = [&](VolumeVertex v_) {
-			if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] != SENTINEL)
-				interpolation_source_vertices.push_back(v_);
-			return true;
-		};
-
-		const auto set_weights = [&](const VolumeVertex& v) {
-
-			interpolation_source_vertices.clear();
-			foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_interpolation_source_vertex);
-
-			if (widen_source) // add adjacents, purposefully not checking for duplicates
-				for (const auto& v_ : interpolation_source_vertices)
-					foreach_adjacent_vertex_through_edge(*volume_, v_, add_potential_interpolation_source_vertex);
-
-			std::tie(
-					value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
-					value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
-			) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
-					*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-					interpolation_source_vertices, {}, weight_value_buffer);
+		const auto is_vertex_interpolation_source = [&](VolumeVertex v) -> bool {
+			return value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] != SENTINEL;
 		};
 
 		propagate(std::move(propagation_source_vertices),
@@ -929,7 +931,8 @@ public:
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) {
 				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
 				{
-					set_weights(v_);
+					set_vertex_skinning_weights_from_neighborhood(v_, is_vertex_interpolation_source,
+							interpolation_source_vertex_buffer, weight_value_buffer, widen_source);
 					cells_to_visit_next.push_back(v_);
 				}
 				return true;

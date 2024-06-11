@@ -827,9 +827,15 @@ public:
 		source_vertex_buffer.clear();
 		foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_source_vertex);
 
-		if (fetch_extra_candidates_in_selection_neighborhood) // add adjacents purposefully not checking for duplicates
-			for (const auto& v_ : source_vertex_buffer)
-				foreach_adjacent_vertex_through_edge(*volume_, v_, add_potential_source_vertex);
+		if (fetch_extra_candidates_in_selection_neighborhood)
+		{
+			const auto size_before_extra = source_vertex_buffer.size();
+			for (size_t i = 0; i < size_before_extra; ++i) // reallocations invalidate iterators but not ids
+				foreach_adjacent_vertex_through_edge(*volume_, source_vertex_buffer[i], [&](VolumeVertex v_) {
+					const auto& e = source_vertex_buffer.cend(); // only add if not already in vector
+					return std::find(source_vertex_buffer.cbegin(), e, v_) != e || add_potential_source_vertex(v_);
+				});
+		}
 
 		std::tie(
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),

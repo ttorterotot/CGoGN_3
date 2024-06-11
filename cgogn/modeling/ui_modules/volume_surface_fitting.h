@@ -805,12 +805,12 @@ public:
 	}
 
 	template <typename FUNC>
-	void set_vertex_skinning_weights_from_neighborhood(
+	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
 			const VolumeVertex& v,
+			const uint32& k,
 			const FUNC& is_vertex_source,
 			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
-			std::vector<Vec4::Scalar>& weight_value_buffer, // i -> ith bone accumulated weight buffer
-			bool fetch_extra_candidates_in_selection_neighborhood = false)
+			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
 	{
 		// bool is_vertex_source(VolumeVertex v)
 		static_assert(is_func_parameter_same<FUNC, VolumeVertex>::value,
@@ -818,24 +818,18 @@ public:
 		static_assert(is_func_return_same<FUNC, bool>::value,
 				"Given function should return a bool");
 
-		const auto add_potential_source_vertex = [&](VolumeVertex v_){
-			if (is_vertex_source(v_))
-				source_vertex_buffer.push_back(v_);
-			return true;
-		};
+		const auto is_vertex_not_source = [&](VolumeVertex v_){ return !is_vertex_source(v_); };
 
-		source_vertex_buffer.clear();
-		foreach_adjacent_vertex_through_edge(*volume_, v, add_potential_source_vertex);
+		cgogn_assert(k > 0);
 
-		if (fetch_extra_candidates_in_selection_neighborhood)
-		{
-			const auto size_before_extra = source_vertex_buffer.size();
-			for (size_t i = 0; i < size_before_extra; ++i) // reallocations invalidate iterators but not ids
-				foreach_adjacent_vertex_through_edge(*volume_, source_vertex_buffer[i], [&](VolumeVertex v_) {
-					const auto& e = source_vertex_buffer.cend(); // only add if not already in vector
-					return std::find(source_vertex_buffer.cbegin(), e, v_) != e || add_potential_source_vertex(v_);
-				});
-		}
+		vertex_k_neighborhood(*volume_, v, k, source_vertex_buffer, false);
+		size_t k_neighborhood_size = source_vertex_buffer.size();
+
+		// Filter k-neighborhood based on criterion
+		// std::remove_if doesn't resize the collection but returns an iterator to its first dirty element
+		source_vertex_buffer.resize(
+				std::remove_if(source_vertex_buffer.begin(), source_vertex_buffer.end(), is_vertex_not_source)
+						- source_vertex_buffer.begin());
 
 		std::tie(
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
@@ -843,22 +837,59 @@ public:
 		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
 				weight_value_buffer, source_vertex_buffer);
+
+		return std::make_pair(k_neighborhood_size, source_vertex_buffer.size());
 	}
 
 	template <typename FUNC>
-	void set_vertex_skinning_weights_from_neighborhood(
+	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
 			const VolumeVertex& v,
-			const FUNC& is_vertex_source,
-			bool fetch_extra_candidates_in_selection_neighborhood = false)
+			const uint32& k,
+			const FUNC& is_vertex_source)
 	{
 		std::vector<VolumeVertex> source_vertex_buffer;
 		std::vector<Vec4::Scalar> weight_value_buffer;
-		set_vertex_skinning_weights_from_neighborhood(v, is_vertex_source, source_vertex_buffer, weight_value_buffer,
-				fetch_extra_candidates_in_selection_neighborhood);
+		return set_vertex_skinning_weights_from_k_neighborhood(v, k, is_vertex_source,
+				source_vertex_buffer, weight_value_buffer);
+	}
+
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_min_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& min_k,
+			const FUNC& is_vertex_source,
+			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
+	{
+		// @TODO: could try narrowing faster with doubling then binary search,
+		// but k shouldn't realistically need to go above 2 or 3
+		auto k = min_k;
+		size_t previous_neighborhood_size, neighborhood_size = 0, source_vertices_size;
+		do {
+			// We have to keep track of previous neighborhood size because it not increasing
+			// means we are stuck without any source vertex in the connected component
+			// (otherwise we would be increasing k forever)
+			previous_neighborhood_size = neighborhood_size;
+			std::tie(neighborhood_size, source_vertices_size) =
+					set_vertex_skinning_weights_from_k_neighborhood(
+							v, k++, is_vertex_source, source_vertex_buffer, weight_value_buffer);
+		} while (source_vertices_size == 0 && neighborhood_size > previous_neighborhood_size);
+	}
+
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_min_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& min_k,
+			const FUNC& is_vertex_source)
+	{
+		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		set_vertex_skinning_weights_from_min_k_neighborhood(v, min_k, is_vertex_source,
+				source_vertex_buffer, weight_value_buffer);
 	}
 
 	template <PropagationDirection Direction>
-	void propagate_skinning_weights(bool widen_source = false)
+	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -896,8 +927,9 @@ public:
 				// constructed on first lambda call of thread, destructed when thread finishes
 				static thread_local std::vector<VolumeVertex> source_vertex_buffer;
 				static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
-				set_vertex_skinning_weights_from_neighborhood(v, is_vertex_interpolation_source,
-						source_vertex_buffer, weight_value_buffer, widen_source);
+				set_vertex_skinning_weights_from_min_k_neighborhood(
+						v, neighborhood_min_k, is_vertex_interpolation_source,
+						source_vertex_buffer, weight_value_buffer);
 				return true;
 			});
 		}
@@ -905,7 +937,7 @@ public:
 		update_volume_skin_skinning_attributes();
 	}
 
-	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, bool widen_source = false)
+	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -937,8 +969,9 @@ public:
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) {
 				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
 				{
-					set_vertex_skinning_weights_from_neighborhood(v_, is_vertex_interpolation_source,
-							interpolation_source_vertex_buffer, weight_value_buffer, widen_source);
+					set_vertex_skinning_weights_from_min_k_neighborhood(
+							v_, neighborhood_min_k, is_vertex_interpolation_source,
+							interpolation_source_vertex_buffer, weight_value_buffer);
 					cells_to_visit_next.push_back(v_);
 				}
 				return true;
@@ -1771,15 +1804,16 @@ protected:
 
 				if (volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_)
 				{
-					static bool widen_skinning_weight_source = false;
-					ImGui::Checkbox("Wider source", &widen_skinning_weight_source);
+					static int k = 1;
+					ImGui::SliderInt("Source minimum neighborhood k", &k, 1, 8);
+					cgogn_assert(k > 0);
 
 					if (ImGui::Button("Propagate skin's skinning weights"))
-						propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(widen_skinning_weight_source);
+						propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(static_cast<uint32>(k));
 					if (ImGui::Button("Propagate center's skinning weights"))
-						propagate_skinning_weights<PropagationDirection::CenterToBoundary>(widen_skinning_weight_source);
+						propagate_skinning_weights<PropagationDirection::CenterToBoundary>(static_cast<uint32>(k));
 					if (selected_frozen_vertices_set_ && ImGui::Button("Propagate frozen set's skinning weights"))
-						propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, widen_skinning_weight_source);
+						propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, static_cast<uint32>(k));
 				}
 			}
 

@@ -265,7 +265,7 @@ public:
 						value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)) =
 					geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 									*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-									source_vertices, {}, skinning_weight_value_buffer);
+									skinning_weight_value_buffer, source_vertices);
 		};
 
 		const auto& on_edge_cut = [&](VolumeVertex v)
@@ -794,7 +794,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
+					skinning_weight_value_buffer, source_vertices, std::optional{source_vertex_weights});
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;
@@ -842,7 +842,7 @@ public:
 				value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
 		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-				source_vertex_buffer, {}, weight_value_buffer);
+				weight_value_buffer, source_vertex_buffer);
 	}
 
 	template <typename FUNC>

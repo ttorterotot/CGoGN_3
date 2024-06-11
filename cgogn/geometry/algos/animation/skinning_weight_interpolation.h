@@ -57,9 +57,9 @@ public:
 	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
 			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
 			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
+			std::vector<Vec4::Scalar>& weight_value_buffer,
 			const CONT_C& source_cells,
 			const std::optional<CONT_W> source_cell_weights = {},
-			std::vector<Vec4::Scalar>& weight_value_buffer = {},
 			const NormalizationType& normalization = NormalizationType::AbsSum)
 	{
 		Vec4i indices{ -1, -1, -1, -1 };
@@ -133,6 +133,19 @@ public:
 		}
 
 		return std::make_pair(indices, values);
+	}
+
+	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
+	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
+			const CONT_C& source_cells,
+			const std::optional<CONT_W> source_cell_weights = {},
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		return compute_weights(m, weight_index, weight_value, weight_value_buffer,
+				source_cells, source_cell_weights, normalization);
 	}
 };
 

@@ -1807,38 +1807,6 @@ protected:
 		imgui_combo_cells_set(md, selected_frozen_vertices_set_, "Frozen vertices",
 								[&](CellsSet<VOLUME, VolumeVertex>* cs) { set_frozen_vertices(cs); });
 
-		if constexpr (HandlesAnimationSkeleton)
-		{
-			if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
-			{
-				auto& cs = *selected_frozen_vertices_set_;
-				if constexpr (HasSkinningUtility)
-				{
-					const bool skinning_attributes_set =
-							volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
-
-					if (!skinning_attributes_set)
-						ImGui::BeginDisabled();
-					if (ImGui::Button("Project and bind frozen vertices to skeleton"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
-					if (!skinning_attributes_set)
-						ImGui::EndDisabled();
-
-					if (ImGui::Button("Project only"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-					ImGui::SameLine();
-					if (!skinning_attributes_set)
-						ImGui::BeginDisabled();
-					if (ImGui::Button("Bind only"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
-					if (!skinning_attributes_set)
-						ImGui::EndDisabled();
-				}
-				else if (ImGui::Button("Project frozen vertices to skeleton"))
-					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-			}
-		}
-
 		if (ImGui::Button("Relocate interior vertices"))
 			relocate_interior_vertices();
 		ImGui::Checkbox("Refresh edge target length", &refresh_edge_target_length_);
@@ -1863,6 +1831,38 @@ protected:
 											geometry::ProximityPolicy(optimize_vertices_proximity), false);
 
 			ImGui::Separator();
+
+			if constexpr (HandlesAnimationSkeleton)
+			{
+				if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
+				{
+					auto& cs = *selected_frozen_vertices_set_;
+					if constexpr (HasSkinningUtility)
+					{
+						const bool skinning_attributes_set =
+								volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
+
+						if (!skinning_attributes_set)
+							ImGui::BeginDisabled();
+						if (ImGui::Button("Project and bind frozen vertices to skeleton"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
+						if (!skinning_attributes_set)
+							ImGui::EndDisabled();
+
+						if (ImGui::Button("Project only"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+						ImGui::SameLine();
+						if (!skinning_attributes_set)
+							ImGui::BeginDisabled();
+						if (ImGui::Button("Bind only"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
+						if (!skinning_attributes_set)
+							ImGui::EndDisabled();
+					}
+					else if (ImGui::Button("Project frozen vertices to skeleton"))
+						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+				}
+			}
 
 			if constexpr (HasSkinningWeightsTransfer)
 			{

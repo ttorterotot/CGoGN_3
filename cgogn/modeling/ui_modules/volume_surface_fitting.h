@@ -348,7 +348,7 @@ public:
 		{
 			bool is_core = true;
 			foreach_dart_of_orbit(*volume_, v,
-					[&](Dart d){ is_core &= !is_boundary(*volume_, d); return true; });
+					[&](Dart d) -> bool { is_core &= !is_boundary(*volume_, d); return true; });
 			value<bool>(*volume_, volume_vertex_core_mark_, v) = is_core;
 			return true;
 		});
@@ -469,7 +469,7 @@ public:
 		volume_vertex_max_distance_from_boundary_ = propagate(std::move(source_vertices),
 				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
 		{
-			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) -> bool {
 				auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_);
 				if (d == SENTINEL)
 				{
@@ -818,7 +818,7 @@ public:
 		static_assert(is_func_return_same<FUNC, bool>::value,
 				"Given function should return a bool");
 
-		const auto is_vertex_not_source = [&](VolumeVertex v_){ return !is_vertex_source(v_); };
+		const auto is_vertex_not_source = [&](VolumeVertex v_) -> bool { return !is_vertex_source(v_); };
 
 		cgogn_assert(k > 0);
 
@@ -966,7 +966,7 @@ public:
 		propagate(std::move(propagation_source_vertices),
 				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
 		{
-			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) {
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) -> bool {
 				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
 				{
 					set_vertex_skinning_weights_from_min_k_neighborhood(

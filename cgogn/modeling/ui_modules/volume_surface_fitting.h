@@ -1408,6 +1408,12 @@ public:
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
 	}
 
+	void set_current_animation_skeleton(Skeleton& s)
+	{
+		static_assert(HandlesAnimationSkeleton);
+		animation_skeleton_ = &s;
+	}
+
 	void set_current_animation_skeleton_joint_position(const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute)
 	{
 		static_assert(HandlesAnimationSkeleton);
@@ -1627,7 +1633,8 @@ protected:
 
 		if constexpr (HandlesAnimationSkeleton)
 		{
-			imgui_mesh_selector(animation_skeleton_provider_, animation_skeleton_, "Skeleton", [&](Skeleton& s) { animation_skeleton_ = &s; });
+			imgui_mesh_selector(animation_skeleton_provider_, animation_skeleton_,
+								"Skeleton", [&](Skeleton& s) { set_current_animation_skeleton(s); });
 			if (animation_skeleton_)
 				imgui_combo_attribute<Joint, Vec3>(*animation_skeleton_, animation_skeleton_joint_position_, "Position#skeleton",
 												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {

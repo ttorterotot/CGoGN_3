@@ -1684,7 +1684,7 @@ protected:
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 	}
 
-	void show_tooltip_for_ui_above(const char* tooltip_text)
+	static void show_tooltip_for_ui_above(const char* tooltip_text)
 	{
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security

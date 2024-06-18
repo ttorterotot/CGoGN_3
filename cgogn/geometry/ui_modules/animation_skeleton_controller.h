@@ -356,7 +356,7 @@ private:
 			set_play_mode(play_mode);
 	}
 
-	void show_tooltip_for_ui_above(const char* tooltip_text)
+	static void show_tooltip_for_ui_above(const char* tooltip_text)
 	{
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security

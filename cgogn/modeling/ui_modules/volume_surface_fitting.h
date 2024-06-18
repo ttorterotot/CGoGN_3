@@ -1748,6 +1748,7 @@ protected:
 												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {
 													   set_current_animation_skeleton_joint_position(attribute);
 												   });
+			ImGui::Separator();
 		}
 	}
 

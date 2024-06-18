@@ -997,7 +997,8 @@ public:
 
 	template <typename FUNC_PA, typename FUNC_PB, typename FUNC_I>
 	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
-			const FUNC_I& get_interpolation_weight)
+			const FUNC_I& get_interpolation_weight,
+			bool refresh_volume_vertex_distance_from_boundary_before_interpolation = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -1006,9 +1007,6 @@ public:
 				"Given function should take a VolumeVertex as parameter");
 		static_assert(!std::is_integral_v<func_return_type<FUNC_I>>,
 				"Given function should return a value between 0.0 and 1.0");
-
-		if (refresh_volume_vertex_distance_from_boundary_)
-			refresh_volume_vertex_distance_from_boundary();
 
 		auto temp_vvswi = get_buffer_attribute<Vec4i, VolumeVertex>(*volume_, volume_vertex_skinning_weight_index_);
 		auto temp_vvswv = get_buffer_attribute<Vec4, VolumeVertex>(*volume_, volume_vertex_skinning_weight_value_);
@@ -1025,6 +1023,10 @@ public:
 		std::swap(temp_vvswv, volume_vertex_skinning_weight_value_);
 
 		propagate_b(); // main attributes will hold b during interpolation
+
+		if (refresh_volume_vertex_distance_from_boundary_before_interpolation
+				&& refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary();
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
 			static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
@@ -1900,13 +1902,13 @@ protected:
 							interpolate_skinning_weights(
 								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
 								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_); },
-								boundary_to_center_interpolation);
+								boundary_to_center_interpolation, false); // refresh already done by both propagations
 							break;
 						case SOURCE_SKIN_FROZEN:
 							interpolate_skinning_weights(
 								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
 								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_); },
-								boundary_to_center_interpolation);
+								boundary_to_center_interpolation, false); // refresh already done by first propagation
 							break;
 						default:
 							cgogn_assert_not_reached("Missing propagation source case");

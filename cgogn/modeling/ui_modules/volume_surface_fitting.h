@@ -1842,12 +1842,18 @@ protected:
 						const bool skinning_attributes_set =
 								volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
 
+						const auto ui_warn_skinning_attributes_not_set =
+								[]{ show_tooltip_for_ui_above("Volume skinning attributes must be set to bind"); };
+
 						if (!skinning_attributes_set)
 							ImGui::BeginDisabled();
 						if (ImGui::Button("Project and bind frozen vertices to skeleton"))
 							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
 						if (!skinning_attributes_set)
+						{
+							ui_warn_skinning_attributes_not_set();
 							ImGui::EndDisabled();
+						}
 
 						if (ImGui::Button("Project only"))
 							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
@@ -1857,7 +1863,10 @@ protected:
 						if (ImGui::Button("Bind only"))
 							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
 						if (!skinning_attributes_set)
+						{
+							ui_warn_skinning_attributes_not_set();
 							ImGui::EndDisabled();
+						}
 					}
 					else if (ImGui::Button("Project frozen vertices to skeleton"))
 						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);

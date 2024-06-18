@@ -225,6 +225,9 @@ protected:
 
 			if (ImGui::TreeNode("Advanced"))
 			{
+				if (selected_animation_)
+					show_advanced_time_controls();
+
 				if (ImGui::Checkbox("Root motion", &root_motion_))
 					root_motion_iteration_id_ = 0;
 
@@ -264,7 +267,7 @@ private:
 			return; // end already reached
 		}
 
-		TimeT new_time = time_ + static_cast<TimeT>(App::frame_time_ - last_frame_time_);
+		TimeT new_time = time_ + time_ratio_ * static_cast<TimeT>(App::frame_time_ - last_frame_time_);
 
 		// If the animation changed to one that starts later,
 		// better to fast-forward to its start than to wait to catch up
@@ -336,6 +339,19 @@ private:
 		if (ImGui::Button(">>"))
 			set_time(TimePoint::End);
 		show_tooltip_for_ui_above("Fast-forward");
+	}
+
+	void show_advanced_time_controls()
+	{
+		const auto& [start_time, end_time] = selected_animation_time_extrema_
+				.value_or(std::make_pair(TimeT{}, TimeT{}));
+
+		if (start_time < end_time)
+		{
+			float tr = static_cast<float>(time_ratio_);
+			if (ImGui::DragFloat("Ratio", &tr, 0.0625f, 0.0f, std::numeric_limits<float>::max()))
+				time_ratio_ = static_cast<TimeT>(tr);
+		}
 	}
 
 	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
@@ -427,6 +443,7 @@ private:
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};
+	TimeT time_ratio_ = 1.0;
 	uint32 root_motion_iteration_id_ = 0;
 	bool root_motion_ = false;
 	MESH* selected_skeleton_ = nullptr;

@@ -25,6 +25,7 @@
 #define CGOGN_SKINNING_WEIGHT_INTERPOLATION_H_
 
 #include <optional>
+#include <array>
 #include <vector>
 
 #include <cgogn/geometry/types/vector_traits.h>
@@ -155,6 +156,45 @@ public:
 		std::vector<Vec4::Scalar> weight_value_buffer;
 		return compute_weights(m, weight_index, weight_value, weight_value_buffer,
 				source_cells, source_cell_weights, normalization);
+	}
+
+	static std::pair<Vec4i, Vec4> lerp(
+			const std::array<Vec4i, 2>& indices,
+			const std::array<Vec4, 2>& values,
+			const Vec4::Scalar& t,
+			std::vector<Vec4::Scalar>& weight_value_buffer,
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		weight_value_buffer.clear();
+
+		const Vec4::Scalar w[2] = { 1.0 - t, t };
+
+		// Sum up all weight contributions per-bone into the buffer
+		for (size_t i = 0; i < 2; ++i)
+		{
+			for (size_t j = 0; j < 4; ++j)
+			{
+				const int wi = indices[i][j];
+				const double wv = w[i] * values[i][j];
+				if (wi < 0 || wv == 0.0)
+					continue;
+				if (weight_value_buffer.size() <= wi)
+					weight_value_buffer.resize(wi + 1, 0.0);
+				weight_value_buffer[wi] += wv;
+			}
+		}
+
+		return compute_weights(weight_value_buffer, normalization, 2);
+	}
+
+	static std::pair<Vec4i, Vec4> lerp(
+			const std::array<Vec4i, 2>& indices,
+			const std::array<Vec4, 2>& values,
+			const Vec4::Scalar& t,
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		return lerp(indices, values, t, weight_value_buffer, normalization);
 	}
 };
 

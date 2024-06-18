@@ -1702,7 +1702,7 @@ protected:
 				if constexpr (HasSkinningUtility)
 				{
 					const bool skinning_attributes_set =
-							volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_;
+							volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
 
 					if (!skinning_attributes_set)
 						ImGui::BeginDisabled();
@@ -1756,7 +1756,7 @@ protected:
 				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
 					transfer_skinning_weights_to_skin();
 
-				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_)
+				if (volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_)
 				{
 					static bool widen_skinning_weight_source = false;
 					ImGui::Checkbox("Wider source", &widen_skinning_weight_source);

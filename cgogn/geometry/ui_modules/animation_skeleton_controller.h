@@ -223,8 +223,14 @@ protected:
 			if (selected_animation_)
 				show_time_controls();
 
-			if (ImGui::Checkbox("Root motion", &root_motion_))
-				root_motion_iteration_id_ = 0;
+			if (ImGui::TreeNode("Advanced"))
+			{
+				if (ImGui::Checkbox("Root motion", &root_motion_))
+					root_motion_iteration_id_ = 0;
+
+				ImGui::TreePop();
+			}
+
 
 			ImGui::Separator();
 

@@ -1807,13 +1807,37 @@ protected:
 					static int k = 1;
 					ImGui::SliderInt("Source minimum neighborhood k", &k, 1, 8);
 					cgogn_assert(k > 0);
+					const auto k_ = static_cast<uint32>(k);
 
-					if (ImGui::Button("Propagate skin's skinning weights"))
-						propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(static_cast<uint32>(k));
-					if (ImGui::Button("Propagate center's skinning weights"))
-						propagate_skinning_weights<PropagationDirection::CenterToBoundary>(static_cast<uint32>(k));
-					if (selected_frozen_vertices_set_ && ImGui::Button("Propagate frozen set's skinning weights"))
-						propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, static_cast<uint32>(k));
+					enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN };
+					static int i = SOURCE_SKIN;
+					ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0");
+
+					const bool can_propagate = i != SOURCE_FROZEN || selected_frozen_vertices_set_;
+
+					if (!can_propagate)
+						ImGui::BeginDisabled();
+
+					if (ImGui::Button("Propagate skinning weights") && can_propagate)
+					{
+						switch (i)
+						{
+						case SOURCE_SKIN:
+							propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_);
+							break;
+						case SOURCE_CENTER:
+							propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_);
+							break;
+						case SOURCE_FROZEN:
+							propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
+							break;
+						default:
+							cgogn_assert_not_reached("Missing propagation source case");
+						}
+					}
+
+					if (!can_propagate)
+						ImGui::EndDisabled();
 				}
 			}
 

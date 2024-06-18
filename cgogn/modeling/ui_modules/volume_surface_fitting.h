@@ -889,7 +889,8 @@ public:
 	}
 
 	template <PropagationDirection Direction>
-	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u)
+	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u,
+			bool update_volume_skin_skinning_attributes_once_done = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -934,10 +935,12 @@ public:
 			});
 		}
 
-		update_volume_skin_skinning_attributes();
+		if (update_volume_skin_skinning_attributes_once_done)
+			update_volume_skin_skinning_attributes();
 	}
 
-	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u)
+	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u,
+			bool update_volume_skin_skinning_attributes_once_done = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -978,7 +981,8 @@ public:
 			});
 		});
 
-		update_volume_skin_skinning_attributes();
+		if (update_volume_skin_skinning_attributes_once_done)
+			update_volume_skin_skinning_attributes();
 	}
 
 	template <typename T, typename CELL, typename MESH>
@@ -1881,6 +1885,13 @@ protected:
 								/ volume_vertex_max_distance_from_boundary_;
 					};
 
+					// propagate_skinning_weights(_from_set) calls from interpolate_skinning_weights
+					// don't need to update the volume skin's skinning attributes from the volume's
+					// because interpolate_skinning_weights needs to do so at the end anyway
+					// (IPU stands for "Interpolate_skinning_weights calling Propagate_skinning_weights
+					// with Update_volume_skin_skinning_attributes_once_done set to this value")
+					static constexpr const bool IPU = false;
+
 					const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
 
 					if (!can_propagate)
@@ -1901,14 +1912,14 @@ protected:
 							break;
 						case SOURCE_SKIN_CENTER:
 							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
-								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_); },
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
+								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, IPU); },
 								boundary_to_center_interpolation, false); // refresh already done by both propagations
 							break;
 						case SOURCE_SKIN_FROZEN:
 							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
-								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_); },
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
+								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, IPU); },
 								boundary_to_center_interpolation, false); // refresh already done by first propagation
 							break;
 						default:

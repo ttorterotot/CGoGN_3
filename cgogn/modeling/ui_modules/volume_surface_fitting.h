@@ -981,6 +981,66 @@ public:
 		update_volume_skin_skinning_attributes();
 	}
 
+	template <typename T, typename CELL, typename MESH>
+	std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>> get_buffer_attribute(MESH& m,
+			const std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>>& attribute)
+	{
+		if (!attribute)
+			return nullptr;
+
+		auto buffer = get_or_add_attribute<T, CELL>(
+				m, attribute->name() + "_VSF_buffer");
+		buffer->copy(*attribute);
+
+		return buffer;
+	}
+
+	template <typename FUNC_PA, typename FUNC_PB, typename FUNC_I>
+	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
+			const FUNC_I& get_interpolation_weight)
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		// Vec4::Scalar get_interpolation_weight(VolumeVertex v)
+		static_assert(is_func_parameter_same<FUNC_I, VolumeVertex>::value,
+				"Given function should take a VolumeVertex as parameter");
+		static_assert(!std::is_integral_v<func_return_type<FUNC_I>>,
+				"Given function should return a value between 0.0 and 1.0");
+
+		if (refresh_volume_vertex_distance_from_boundary_)
+			refresh_volume_vertex_distance_from_boundary();
+
+		auto temp_vvswi = get_buffer_attribute<Vec4i, VolumeVertex>(*volume_, volume_vertex_skinning_weight_index_);
+		auto temp_vvswv = get_buffer_attribute<Vec4, VolumeVertex>(*volume_, volume_vertex_skinning_weight_value_);
+
+		// Set main attributes aside to propagate on temporaries
+		// (this is the fastest way to swap cleanly: https://godbolt.org/z/8xsbc7vYf)
+		std::swap(temp_vvswi, volume_vertex_skinning_weight_index_);
+		std::swap(temp_vvswv, volume_vertex_skinning_weight_value_);
+
+		propagate_a(); // temporary attributes will hold a during interpolation
+
+		// Restore main attributes
+		std::swap(temp_vvswi, volume_vertex_skinning_weight_index_);
+		std::swap(temp_vvswv, volume_vertex_skinning_weight_value_);
+
+		propagate_b(); // main attributes will hold b during interpolation
+
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
+			static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
+			auto& indices = value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v);
+			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
+			std::tie(indices, values) = geometry::SkinningWeightInterpolation::lerp(
+				{value<Vec4i>(*volume_, temp_vvswi, v), indices},
+				{value<Vec4>(*volume_, temp_vvswv, v), values},
+				get_interpolation_weight(v),
+				weight_value_buffer);
+			return true;
+		});
+
+		update_volume_skin_skinning_attributes();
+	}
+
 	void regularize_surface_vertices(Scalar fit_to_data)
 	{
 		if (refresh_volume_skin_)
@@ -1809,11 +1869,16 @@ protected:
 					cgogn_assert(k > 0);
 					const auto k_ = static_cast<uint32>(k);
 
-					enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN };
+					enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN, SOURCE_SKIN_CENTER, SOURCE_SKIN_FROZEN };
 					static int i = SOURCE_SKIN;
-					ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0");
+					ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0Skin and center\0Skin and frozen set\0");
 
-					const bool can_propagate = i != SOURCE_FROZEN || selected_frozen_vertices_set_;
+					const auto boundary_to_center_interpolation = [&](VolumeVertex v) {
+						return static_cast<Vec4::Scalar>(value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v))
+								/ volume_vertex_max_distance_from_boundary_;
+					};
+
+					const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
 
 					if (!can_propagate)
 						ImGui::BeginDisabled();
@@ -1830,6 +1895,18 @@ protected:
 							break;
 						case SOURCE_FROZEN:
 							propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
+							break;
+						case SOURCE_SKIN_CENTER:
+							interpolate_skinning_weights(
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
+								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_); },
+								boundary_to_center_interpolation);
+							break;
+						case SOURCE_SKIN_FROZEN:
+							interpolate_skinning_weights(
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_); },
+								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_); },
+								boundary_to_center_interpolation);
 							break;
 						default:
 							cgogn_assert_not_reached("Missing propagation source case");

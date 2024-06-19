@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 #define CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 
+#include <set>
+
 #include <boost/core/demangle.hpp>
 
 #include <cgogn/ui/app.h>
@@ -285,6 +287,45 @@ private:
 			set_time(std::min(new_time, end_time));
 	}
 
+	// Fast-forwards towards the next pose if an animation is selected.
+	void advance_towards_next_pose(const TimeT& prec = Eigen::NumTraits<TimeT>::dummy_precision())
+	{
+		if (!selected_animation_ || !selected_animation_time_extrema_)
+			return;
+
+		const auto& [start_time, end_time] = *selected_animation_time_extrema_;
+		cgogn_assert(start_time <= end_time);
+
+		if (start_time == end_time || time_ < start_time || time_ >= end_time)
+		{
+			set_time(TimePoint::Start);
+			return;
+		}
+
+		const std::set<TimeT> times = AnimationT::get_unique_keyframe_times(*selected_animation_);
+
+		const auto next_pose_it = times.upper_bound(time_);
+		cgogn_message_assert(next_pose_it != times.cbegin(), "Animation unique times incoherent with time bounds");
+
+		if (!advance_pose_time_ratio_dependence_ || time_ratio_ >= 1.0)
+		{
+			set_time(*next_pose_it);
+			return;
+		}
+
+		auto previous_pose_it = next_pose_it;
+		--previous_pose_it;
+
+		const TimeT& previous_pose_time = *previous_pose_it;
+		const TimeT& next_pose_time = *next_pose_it;
+		cgogn_message_assert(previous_pose_time >= start_time && next_pose_time <= end_time,
+				"Animation unique times incoherent with time bounds");
+
+		// Contrarily to advance_play in looping mode, overshooting is clamped
+		const auto t = std::min(time_ + time_ratio_ * (next_pose_time - previous_pose_time), end_time);
+		set_time(std::abs(next_pose_time - t) <= prec ? next_pose_time : t);
+	}
+
 	void show_time_controls()
 	{
 		if (!selected_animation_time_extrema_) // no pose
@@ -343,15 +384,19 @@ private:
 
 	void show_advanced_time_controls()
 	{
-		const auto& [start_time, end_time] = selected_animation_time_extrema_
-				.value_or(std::make_pair(TimeT{}, TimeT{}));
+		if (!selected_animation_time_extrema_ // no pose
+				|| selected_animation_time_extrema_->first >= selected_animation_time_extrema_->second) // single pose
+			return;
 
-		if (start_time < end_time)
-		{
-			float tr = static_cast<float>(time_ratio_);
-			if (ImGui::DragFloat("Ratio", &tr, 0.0625f, 0.0f, std::numeric_limits<float>::max()))
-				time_ratio_ = static_cast<TimeT>(tr);
-		}
+		float tr = static_cast<float>(time_ratio_);
+		if (ImGui::DragFloat("Ratio", &tr, 0.0625f, 0.0f, std::numeric_limits<float>::max()))
+			time_ratio_ = static_cast<TimeT>(tr);
+
+		if (ImGui::Button(">"))
+			advance_towards_next_pose();
+		show_tooltip_for_ui_above("Next pose");
+		ImGui::SameLine();
+		ImGui::Checkbox("Ratio-dependent", &advance_pose_time_ratio_dependence_);
 	}
 
 	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
@@ -444,6 +489,7 @@ private:
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};
 	TimeT time_ratio_ = 1.0;
+	bool advance_pose_time_ratio_dependence_ = false;
 	uint32 root_motion_iteration_id_ = 0;
 	bool root_motion_ = false;
 	MESH* selected_skeleton_ = nullptr;

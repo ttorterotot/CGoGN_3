@@ -397,6 +397,8 @@ private:
 		show_tooltip_for_ui_above("Next pose");
 		ImGui::SameLine();
 		ImGui::Checkbox("Ratio-dependent", &advance_pose_time_ratio_dependence_);
+
+		ImGui::Separator();
 	}
 
 	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)

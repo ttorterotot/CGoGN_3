@@ -1057,7 +1057,7 @@ void FbxImporter::load_animations(Skeleton& skeleton)
 	auto& attr_joint_position = *add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
 	for (const auto& bone : skeleton.bone_traverser_)
 	{
-		const auto& [first_joint, second_joint] = (*skeleton.bone_joints_)[bone];
+		const auto& [first_joint, second_joint] = (*skeleton.bone_joints_)[index_of(skeleton, bone)];
 		attr_joint_position[second_joint] = attr_joint_position[first_joint] = Vec3::Zero();
 	}
 
@@ -1131,10 +1131,11 @@ void FbxImporter::load_animations(Skeleton& skeleton)
 			anim_dq = anim_dq_b;
 		}
 
-		attr_anim_rt[m.bone] = anim_rt;
-		attr_anim_rt_b[m.bone] = anim_rt_b;
-		attr_anim_dq[m.bone] = anim_dq;
-		attr_anim_dq_b[m.bone] = anim_dq_b;
+		const auto& bone_index = index_of(skeleton, m.bone);
+		attr_anim_rt[bone_index] = anim_rt;
+		attr_anim_rt_b[bone_index] = anim_rt_b;
+		attr_anim_dq[bone_index] = anim_dq;
+		attr_anim_dq_b[bone_index] = anim_dq_b;
 	}
 }
 

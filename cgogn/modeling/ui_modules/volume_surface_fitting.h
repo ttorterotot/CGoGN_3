@@ -403,10 +403,10 @@ public:
 			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
 			if (bone.is_valid())
 			{
-				const auto& p = (*skeleton.bone_parent_)[bone];
+				const auto& p = (*skeleton.bone_parent_)[index_of(skeleton, bone)];
 				if (p.is_valid())
 					bone = p; // get parent unless already root
-				indices = {static_cast<Vec4i::Scalar>(index_of(skeleton, bone)), -1, -1, -1};
+				indices = {static_cast<Vec4i::Scalar>(bone), -1, -1, -1};
 				values = {1.0, 0.0, 0.0, 0.0};
 			}
 			else

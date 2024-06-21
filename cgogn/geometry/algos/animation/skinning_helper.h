@@ -124,9 +124,11 @@ public:
 
 			for (int j = 0; j < 4; ++j)
 			{
-				auto wi = weight_indices[i][j];
-				if (wi < 0)
+				const auto& wb = weight_indices[i][j];
+				if (wb < 0)
 					continue;
+
+				const auto wi = index_of(as, static_cast<Bone>(wb));
 				if (wi >= offsets.size())
 				{
 					res = false;
@@ -185,10 +187,11 @@ public:
 
 			for (int j = 0; j < 4; ++j)
 			{
-				auto wi = weight_indices[i][j];
-				if (wi < 0)
+				const auto& wb = weight_indices[i][j];
+				if (wb < 0)
 					continue;
 
+				const auto wi = index_of(as, static_cast<Bone>(wb));
 				if (wi < offsets.size())
 					t += weight_values[i][j] * offsets[wi];
 				else
@@ -221,7 +224,10 @@ private:
 		std::vector<TransformT> offsets(world_transforms.maximum_index());
 
 		for (const auto& bone : as.bone_traverser_)
-			offsets[bone] = world_transforms[bone] * bind_inv_world_transforms[bone];
+		{
+			const auto& bone_index = index_of(as, bone);
+			offsets[bone_index] = world_transforms[bone_index] * bind_inv_world_transforms[bone_index];
+		}
 
 		return offsets;
 	}

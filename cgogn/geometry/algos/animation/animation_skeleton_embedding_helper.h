@@ -88,6 +88,7 @@ public:
 
 		for (const auto& bone : as.bone_traverser_)
 		{
+			const auto& bone_index = index_of(as, bone);
 			Bone parent_bone = bone;
 
 			if constexpr (WorldSpace)
@@ -95,12 +96,12 @@ public:
 			else if (!is_root(as, bone))
 				continue;
 
-			const AnimationT& anim = anims[parent_bone];
+			const AnimationT& anim = anims[index_of(as, parent_bone)];
 			TransformT offset_transform = get_transform(anim, data.animation_time_extrema.second)
 					* get_transform(anim, data.animation_time_extrema.first).inverse();
 
 			for (uint32 i = 0; i < data.iteration_id; ++i)
-				transforms[bone] = offset_transform * transforms[bone];
+				transforms[bone_index] = offset_transform * transforms[bone_index];
 		}
 	}
 
@@ -118,7 +119,10 @@ public:
 			Attribute<TransformT>& local_transforms)
 	{
 		for (const auto& bone : as.bone_traverser_)
-			local_transforms[bone] = get_transform(anims[bone], time);
+		{
+			const auto& bone_index = index_of(as, bone);
+			local_transforms[bone_index] = get_transform(anims[bone_index], time);
+		}
 	}
 
 	/// @brief Computes local transforms from an animation at a given time.
@@ -160,8 +164,9 @@ public:
 		for (auto i = static_cast<std::make_signed_t<size_t>>(as.nb_bones()) - 1; i >= 0; --i)
 		{
 			const auto& bone = as.bone_traverser_[i];
-			Vec3 pos = get_basis_position(world_transforms[bone]);
-			const auto& joints = (*as.bone_joints_)[bone];
+			const auto& bone_index = index_of(as, bone);
+			Vec3 pos = get_basis_position(world_transforms[bone_index]);
+			const auto& joints = (*as.bone_joints_)[bone_index];
 			// Set position for the base joint of the bone
 			positions[joints.first] = pos;
 			// Set position for the tip joint of the bone, will be overwritten if the bone isn't a root
@@ -310,7 +315,11 @@ public:
 	{
 		constexpr const Vec3::Scalar decay_factor = 0.75;
 		for (const auto& bone : as.bone_traverser_)
-			bone_color[bone] = is_root(as, bone) ? Vec3::Ones() : Vec3{decay_factor * bone_color[(*as.bone_parent_)[bone]]};
+		{
+			const auto& bone_index = index_of(as, bone);
+			bone_color[bone_index] = is_root(as, bone) ? Vec3::Ones() :
+					Vec3{decay_factor * bone_color[(*as.bone_parent_)[bone_index]]};
+		}
 	}
 
 	// Transform-type-dependent methods

@@ -292,13 +292,13 @@ uint32 new_index(const AnimationSkeleton& as)
 template <typename CELL>
 uint32 index_of(const AnimationSkeleton& /*as*/, CELL c)
 {
-	return c.index_;
+	return c.index_; // (*)
 }
 
 template <typename CELL>
 CELL of_index(const AnimationSkeleton& /*as*/, uint32 index)
 {
-	return CELL(index);
+	return CELL(index); // (*)
 }
 
 template <typename CELL>
@@ -306,6 +306,9 @@ bool is_indexed(const AnimationSkeleton& /*as*/)
 {
 	return true;
 }
+
+// (*) Note: the implementation of this structure assumes that these two functions are equivalent to simple casts;
+//     if this were to change, add necessary calls to either of them where needed
 
 /*************************************************************************/
 // Global cells traversals

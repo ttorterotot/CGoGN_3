@@ -290,19 +290,19 @@ uint32 new_index(const AnimationSkeleton& as)
 }
 
 template <typename CELL>
-uint32 index_of(const AnimationSkeleton& /*as*/, CELL c)
+inline constexpr uint32 index_of(const AnimationSkeleton& /*as*/, CELL c)
 {
 	return c.index_; // (*)
 }
 
 template <typename CELL>
-CELL of_index(const AnimationSkeleton& /*as*/, uint32 index)
+inline constexpr CELL of_index(const AnimationSkeleton& /*as*/, uint32 index)
 {
 	return CELL(index); // (*)
 }
 
 template <typename CELL>
-bool is_indexed(const AnimationSkeleton& /*as*/)
+inline constexpr bool is_indexed(const AnimationSkeleton& /*as*/)
 {
 	return true;
 }

@@ -240,8 +240,12 @@ protected:
 			ImGui::Separator();
 
 			if (ImGui::Button("Generate bone colors"))
-				Embedding::generate_bone_colors(*selected_skeleton_,
-						*get_or_add_attribute<Vec3, Bone>(*selected_skeleton_, GENERATED_BONE_COLOR_ATTRIBUTE_NAME));
+			{
+				const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+						GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
+				Embedding::generate_bone_colors(*selected_skeleton_, *attribute);
+				mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+			}
 		}
 
 		advance_play();

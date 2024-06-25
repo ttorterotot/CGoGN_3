@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 #define CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 
+#include <functional>
+#include <array>
 #include <set>
 
 #include <boost/core/demangle.hpp>
@@ -239,11 +241,28 @@ protected:
 
 			ImGui::Separator();
 
+			ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
+			ImGui::SameLine();
+			ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
+			ImGui::SameLine();
+			ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
+
 			if (ImGui::Button("Generate bone colors"))
 			{
 				const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
 						GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
-				Embedding::generate_bone_colors(*selected_skeleton_, *attribute);
+				const std::array<std::function<void()>, 3> generators
+				{
+					[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
+					[&]{
+						if (selected_joint_position_)
+							Embedding::generate_bone_colors_from_position(
+									*selected_skeleton_, *selected_joint_position_, *attribute);
+					},
+					[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
+				};
+				cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
+				generators[color_generation_mode_]();
 				mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
 			}
 		}
@@ -498,6 +517,7 @@ private:
 	bool advance_pose_time_ratio_dependence_ = false;
 	uint32 root_motion_iteration_id_ = 0;
 	bool root_motion_ = false;
+	int color_generation_mode_ = 0;
 	MESH* selected_skeleton_ = nullptr;
 	std::shared_ptr<Attribute<AnimationT>> selected_animation_ = nullptr;
 	std::optional<std::pair<TimeT, TimeT>> selected_animation_time_extrema_ = {};

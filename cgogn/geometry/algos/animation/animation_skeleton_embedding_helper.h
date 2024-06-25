@@ -24,10 +24,13 @@
 #ifndef CGOGN_GEOMETRY_ANIMATION_SKELETON_EMBEDDING_H_
 #define CGOGN_GEOMETRY_ANIMATION_SKELETON_EMBEDDING_H_
 
+#include <random>
+
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/animation/keyframed_animation.h>
 #include <cgogn/geometry/types/rigid_transformation.h>
 #include <cgogn/geometry/types/dual_quaternion.h>
+#include <cgogn/geometry/functions/bounding_box.h>
 
 namespace cgogn
 {
@@ -308,10 +311,22 @@ public:
 
 	// Color
 
-	/// @brief Generates colors loosely based on the skeleton's topology
+	/// @brief Generates random colors for the skeleton's bones
 	/// @param as the skeleton the attribute is for
 	/// @param bone_color the bone color attribute to write to
-	static void generate_bone_colors(const MESH& as, Attribute<Vec3>& bone_color)
+	static void generate_bone_colors_random(const MESH& as, Attribute<Vec3>& bone_color)
+	{
+		static thread_local std::uniform_real_distribution<Vec3::Scalar> distrib(0.0, 1.0);
+		static thread_local std::minstd_rand rng;
+
+		for (const auto& bone : as.bone_traverser_)
+			bone_color[index_of(as, bone)] = {distrib(rng), distrib(rng), distrib(rng)};
+	}
+
+	/// @brief Generates colors for the skeleton's bones loosely based on its topology
+	/// @param as the skeleton the attribute is for
+	/// @param bone_color the bone color attribute to write to
+	static void generate_bone_colors_from_topological_depth(const MESH& as, Attribute<Vec3>& bone_color)
 	{
 		constexpr const Vec3::Scalar decay_factor = 0.75;
 		for (const auto& bone : as.bone_traverser_)
@@ -319,6 +334,29 @@ public:
 			const auto& bone_index = index_of(as, bone);
 			bone_color[bone_index] = is_root(as, bone) ? Vec3::Ones() :
 					Vec3{decay_factor * bone_color[(*as.bone_parent_)[bone_index]]};
+		}
+	}
+
+	/// @brief Generates colors for the skeleton's bones based on their position
+	/// @param as the skeleton the attribute is for
+	/// @param joint_position the joint position attribute to get base/tip joint positions for each bone from
+	/// @param bone_color the bone color attribute to write to
+	/// @param from_tip_joint whether or not to use the bone's tip joint's position instead of the base joint's
+	static void generate_bone_colors_from_position(const MESH& as,
+			const Attribute<Vec3>& joint_position,
+			Attribute<Vec3>& bone_color,
+			bool from_tip_joint = true)
+	{
+		const auto bb = geometry::bounding_box(joint_position);
+		const auto& offset = bb.first;
+		const auto inv_delta = (bb.second - bb.first).cwiseInverse().eval();
+
+		for (const auto& bone : as.bone_traverser_)
+		{
+			const auto& bone_index = index_of(as, bone);
+			const auto& joints = (*as.bone_joints_)[bone_index];
+			const auto& joint_index = index_of(as, from_tip_joint ? joints.second : joints.first);
+			bone_color[bone_index] = (joint_position[joint_index] - offset).cwiseProduct(inv_delta);
 		}
 	}
 

@@ -308,6 +308,15 @@ protected:
 					"World transform", [&](const std::shared_ptr<AttributeSk<TransformT>>& attribute){ set_bone_world_transform(attribute); });
 		}
 
+		{
+			// Bypass the need for the embedding to have been detected as dirty by pressing a shift key (should not be needed)
+			const bool enable_button_if_possible = embedding_dirty_ || (ImGui::GetIO().KeyMods & ImGuiModFlags_Shift) != ImGuiModFlags_None;
+			if (show_button("Update", enable_button_if_possible && can_update_embedding()))
+				update_embedding(true);
+			ImGui::SameLine();
+			ImGui::Checkbox("Auto##update", &auto_update_embedding_);
+		}
+
 		if (ImGui::TreeNode("Bone influence visualization"))
 		{
 			ImGui::Checkbox("Global##influence", &global_bone_influence_computation_);
@@ -402,10 +411,17 @@ private:
 		return res;
 	}
 
-	void update_embedding()
+	bool can_update_embedding()
 	{
-		if (!selected_vertex_position_ || !selected_vertex_weight_index_ || !selected_vertex_weight_value_
-				|| !selected_bone_world_transform_)
+		return selected_vertex_position_ && selected_vertex_weight_index_ && selected_vertex_weight_value_
+				&& selected_bone_world_transform_;
+	}
+
+	void update_embedding(bool force_update = false)
+	{
+		embedding_dirty_ = true;
+
+		if (!can_update_embedding() || !auto_update_embedding_ && !force_update)
 			return;
 
 		if constexpr (USE_LBS_)
@@ -424,6 +440,8 @@ private:
 
 		if (mesh_provider_)
 			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());
+
+		embedding_dirty_ = false;
 	}
 
 public:
@@ -431,6 +449,8 @@ public:
 
 private:
 	static constexpr const bool USE_LBS_ = !std::is_same_v<TransformT, geometry::DualQuaternion>;
+	bool auto_update_embedding_ = true;
+	bool embedding_dirty_ = true;
 	Mesh* selected_mesh_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec3>> selected_vertex_position_ = nullptr;
 	std::shared_ptr<AttributeSf<Vec3>> selected_bind_vertex_position_ = nullptr;

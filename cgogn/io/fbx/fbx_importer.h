@@ -186,7 +186,28 @@ private:
 	static constexpr const AnimTimeT ANIM_TIME_RATIO = 1.0 / 46186158000l;
 
 public:
-	static const RotationOrder& get_rotation_order(const size_t& id);
+	template <bool WarnUnsupported = true, int DefaultId = -1>
+	static std::conditional_t<DefaultId >= 0, const RotationOrder&, std::optional<RotationOrder>> get_rotation_order(
+			const size_t& id)
+	{
+		if (id < ID_TO_ROTATION_ORDER.size())
+			return ID_TO_ROTATION_ORDER[id];
+
+		if constexpr (WarnUnsupported)
+		{
+			if (id == ID_TO_ROTATION_ORDER.size())
+				std::cout << "Warning: spheric rotation order is unsupported" << std::endl;
+			else
+				std::cout << "Warning: unrecognized rotation order ID " << id << std::endl;
+		}
+
+		static_assert(DefaultId < 0 || DefaultId < ID_TO_ROTATION_ORDER.size());
+
+		if constexpr (DefaultId >= 0)
+			return ID_TO_ROTATION_ORDER[DefaultId];
+		else
+			return std::optional<RotationOrder>{};
+	}
 
 protected:
 
@@ -540,7 +561,8 @@ private:
 			}
 
 			const auto& rotation_order = m.properties.rotation_order() ?
-					get_rotation_order(static_cast<size_t>(*m.properties.rotation_order())) : default_rotation_order;
+					get_rotation_order(static_cast<size_t>(*m.properties.rotation_order()))
+							.value_or(default_rotation_order) : default_rotation_order;
 
 			const auto rotation_d = [&](const std::array<std::optional<AnimScalar>, 3>& values,
 					geometry::Quaternion default_value)

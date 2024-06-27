@@ -851,19 +851,6 @@ std::string FbxImporterBase::resolve_name(const std::string& name_with_escape_se
 	return name_with_escape_sequences; // ignore escape sequences for now
 }
 
-const FbxImporterBase::RotationOrder& FbxImporterBase::get_rotation_order(const size_t& id)
-{
-	if (id < ID_TO_ROTATION_ORDER.size())
-		return ID_TO_ROTATION_ORDER[id];
-
-	if (id == ID_TO_ROTATION_ORDER.size())
-		std::cout << "Warning: spheric rotation order is unsupported" << std::endl;
-	else
-		std::cout << "Warning: unrecognized rotation order ID " << id << std::endl;
-
-	return ID_TO_ROTATION_ORDER[0];
-}
-
 geometry::Quaternion FbxImporterBase::from_euler(const std::array<std::optional<AnimScalar>, 3>& xyz,
 		const RotationOrder& rotation_order)
 {
@@ -909,7 +896,7 @@ const geometry::Quaternion FbxImporterBase::get_default_rotation(
 const FbxImporterBase::RotationOrder& FbxImporterBase::get_default_rotation_order(const std::string& template_key) const
 {
 	const auto template_it = property_templates_.find(template_key);
-	return get_rotation_order(static_cast<size_t>(template_it != property_templates_.cend() ?
+	return get_rotation_order<true, 0>(static_cast<size_t>(template_it != property_templates_.cend() ?
 		template_it->second.rotation_order().value_or(0) : 0));
 }
 

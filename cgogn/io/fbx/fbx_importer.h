@@ -297,6 +297,8 @@ protected:
 	std::vector<std::tuple<ObjectId, ObjectId, std::string>> connections_op_;
 
 private:
+	/// @brief Mapping from FBX property name to a function returning the pointer and size (in elements, not in bytes)
+	///        of the corresponding data in an instance of `Properties`
 	static inline const std::unordered_map<std::string,
 			std::function<std::pair<std::optional<AnimScalar>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
 		std::make_pair("PreRotation", [](Properties& p){ return std_array_data_and_size(p.pre_rotation()); }),

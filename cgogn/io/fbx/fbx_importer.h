@@ -346,6 +346,23 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	template <typename T>
+	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
+	{
+		std::string name = candidate_name;
+
+		// Ensure name uniqueness
+		for (size_t i = 0;
+				get_attribute<T, Skeleton::Bone>(skeleton, name)
+						|| get_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+				name = candidate_name + std::to_string(i++));
+
+		auto& bind_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+		auto& anim_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name);
+
+		return std::make_pair(std::ref(bind_attr), std::ref(anim_attr));
+	}
+
 	template <typename Surface>
 	auto get_and_init_skinning_attributes(Surface& surface)
 	{
@@ -433,23 +450,6 @@ private:
 						break;
 					}
 			}
-	}
-
-	template <typename T>
-	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
-	{
-		std::string name = candidate_name;
-
-		// Ensure name uniqueness
-		for (size_t i = 0;
-				get_attribute<T, Skeleton::Bone>(skeleton, name)
-						|| get_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
-				name = candidate_name + std::to_string(i++));
-
-		auto& bind_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
-		auto& anim_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name);
-
-		return std::make_pair(std::ref(bind_attr), std::ref(anim_attr));
 	}
 
 	void load_bones(Skeleton& skeleton)

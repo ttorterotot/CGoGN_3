@@ -336,7 +336,6 @@ private:
 	bool load_skeleton_;
 };
 
-template <typename Surface>
 class FbxImporter : public FbxImporterBase
 {
 public:
@@ -347,6 +346,7 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	template <typename Surface>
 	auto get_and_init_skinning_attributes(Surface& surface)
 	{
 		using Vertex = typename mesh_traits<Surface>::Vertex;
@@ -365,6 +365,7 @@ private:
 		return std::make_pair(std::ref(weight_index_attr), std::ref(weight_value_attr));
 	}
 
+	template <typename Surface>
 	void load_geometry(Surface& surface, Geometry& geometry)
 	{
 		// Import geometry to surface type
@@ -610,6 +611,7 @@ private:
 		}
 	}
 
+	template <typename Surface>
 	void load_surfaces(Map<std::string, Surface*>& surfaces, bool normalized)
 	{
 		using Vertex = typename mesh_traits<Surface>::Vertex;
@@ -673,6 +675,7 @@ public:
 	/// @param load_surfaces whether or not to actually read surfaces
 	/// @param load_skeleton whether or not to actually read skeletons
 	/// @param normalized whether or not to normalize the positions for each surface (can offset it from bones)
+	template <typename Surface>
 	static void load(const std::string& path,
 			Map<std::string, Surface*>& surfaces,
 			std::optional<Skeleton*>& skeleton,

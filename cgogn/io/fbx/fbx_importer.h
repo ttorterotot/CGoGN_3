@@ -279,7 +279,10 @@ private:
 	std::optional<char> skip_through_characters(std::istream& is, const std::string& characters);
 
 	template <typename T, size_t Size>
-	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
+	static constexpr std::pair<T*, size_t> std_array_data_and_size(std::array<T, Size>& arr)
+	{
+		return std::make_pair(arr.data(), Size);
+	}
 
 protected:
 	std::unordered_map<std::string, Properties> property_templates_;
@@ -296,10 +299,10 @@ protected:
 private:
 	static inline const std::unordered_map<std::string,
 			std::function<std::pair<std::optional<AnimScalar>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
-		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
-		std::make_pair("PostRotation", [](Properties& p){ return std_array_g(p.post_rotation()); }),
-		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
-		std::make_pair("Lcl Rotation", [](Properties& p){ return std_array_g(p.lcl_rotation()); }),
+		std::make_pair("PreRotation", [](Properties& p){ return std_array_data_and_size(p.pre_rotation()); }),
+		std::make_pair("PostRotation", [](Properties& p){ return std_array_data_and_size(p.post_rotation()); }),
+		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_data_and_size(p.lcl_translation()); }),
+		std::make_pair("Lcl Rotation", [](Properties& p){ return std_array_data_and_size(p.lcl_rotation()); }),
 		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),
 		std::make_pair("d|Y", [](Properties& p){ return std::make_pair(p.d().data() + 1, 1); }),
 		std::make_pair("d|Z", [](Properties& p){ return std::make_pair(p.d().data() + 2, 1); }),

@@ -859,7 +859,7 @@ const FbxImporterBase::RotationOrder& FbxImporterBase::get_rotation_order(const 
 	if (id == ID_TO_ROTATION_ORDER.size())
 		std::cout << "Warning: spheric rotation order is unsupported" << std::endl;
 	else
-		std::cout << "Warning: unrecognized rotation order ID " << id;
+		std::cout << "Warning: unrecognized rotation order ID " << id << std::endl;
 
 	return ID_TO_ROTATION_ORDER[0];
 }

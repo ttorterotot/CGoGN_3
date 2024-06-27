@@ -246,7 +246,7 @@ protected:
 				ptr[i] = other_values[i];
 			else if (warn_unequal && other_values[i] && *other_values[i] != *ptr[i])
 				std::cout << "Warning: inconsistent values " << *ptr[i] << " and " << *other_values[i]
-						<< " for property " << property_name;
+						<< " for property " << property_name << std::endl;
 		}
 	}
 

@@ -733,7 +733,11 @@ bool FbxImporterBase::read_array(std::istream& is,
 			[[fallthrough]];
 		case ',':
 			cgogn_assert(in_array);
-			actual_size += read_values();
+			{
+				const uint32 read_size = read_values();
+				cgogn_assert(read_size <= std::numeric_limits<uint32>::max() - actual_size);
+				actual_size += read_size;
+			}
 			break;
 		case ';':
 			cgogn_assert(c_ == '\0');

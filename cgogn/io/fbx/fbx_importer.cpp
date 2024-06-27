@@ -34,6 +34,10 @@ namespace cgogn
 namespace io
 {
 
+
+// FbxImporterBase
+
+
 void FbxImporterBase::read(const std::string& path)
 {
 	Scoped_C_Locale loc;
@@ -969,6 +973,182 @@ geometry::Quaternion FbxImporterBase::LimbNodeModel::get_rotation_or(const AnimT
 			* FbxImporterBase::from_euler(std::array<std::optional<AnimScalar>, 3>
 					{get_value(3, time), get_value(4, time), get_value(5, time)})
 			* post_rotation;
+}
+
+
+// FbxImporter specialization non-templated methods
+
+
+void FbxImporter::load_bones(Skeleton& skeleton)
+{
+	for (LimbNodeModel& m : models_limb_node_)
+		m.bone = add_root(skeleton, m.name);
+
+	for (const LimbNodeModel& m : models_limb_node_)
+		if (auto* parent = get_parent_bone(m.id))
+			attach_bone(skeleton, m.bone, parent->bone);
+}
+
+void FbxImporter::associate_animations_to_bones()
+{
+	for (const auto& c : connections_op_)
+	{
+		// Get animation curve node's animation curves and targeted property
+
+		const auto& [curve_id, curve_node_id, axis_property_name] = c;
+
+		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
+				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+
+		if (curve_node_it == animation_curve_nodes_.end())
+			continue;
+
+		const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
+				[&](const AnimationCurve& curve){ return curve.id == curve_id; });
+
+		if (curve_it == animation_curves_.cend())
+			continue;
+
+		// Compare node value with curve default (*)
+		set_missing_values(curve_node_it->properties,
+				std::array<std::optional<AnimScalar>, 1>{curve_it->default_value},
+				axis_property_name, false);
+
+		curve_node_it->set_animation(&curve_it->animation, axis_property_name);
+	}
+
+	for (const auto& c : connections_op_)
+	{
+		// Get bone's animation curve node and targeted property
+
+		const auto& [curve_node_id, model_id, transform_property_name] = c;
+
+		const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
+				[&](const LimbNodeModel& model){ return model.id == model_id; });
+
+		if (model_it == models_limb_node_.end())
+			continue;
+
+		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
+				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+
+		if (curve_node_it == animation_curve_nodes_.end())
+			continue;
+
+		model_it->set_animation(curve_node_it->animation, transform_property_name);
+
+		// Compare model value with node's (*)
+		set_missing_values(model_it->properties, curve_node_it->properties.d(), transform_property_name, true);
+	}
+
+	// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
+}
+
+void FbxImporter::load_animations(Skeleton& skeleton)
+{
+	using RT = geometry::RigidTransformation<geometry::Quaternion, Vec3>;
+	using KA_RT = geometry::KeyframedAnimation<std::vector, AnimTimeT, RT>;
+	using KA_DQ = geometry::KeyframedAnimation<std::vector, AnimTimeT, geometry::DualQuaternion>;
+
+	// TODO: handling multiple animations in the same file (layers?)
+
+	associate_animations_to_bones();
+
+	auto& attr_joint_position = *add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
+	for (const auto& bone : skeleton.bone_traverser_)
+	{
+		const auto& [first_joint, second_joint] = (*skeleton.bone_joints_)[bone];
+		attr_joint_position[second_joint] = attr_joint_position[first_joint] = Vec3::Zero();
+	}
+
+	auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
+	auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
+
+	const std::string template_key = "Model";
+	const auto& default_rotation_order = get_default_rotation_order(template_key);
+	const auto default_pre_rotation = get_default_rotation(template_key, &Properties::pre_rotation, default_rotation_order);
+	const auto default_post_rotation = get_default_rotation(template_key, &Properties::post_rotation, default_rotation_order);
+	const auto default_lcl_rotation = get_default_rotation(template_key, &Properties::lcl_rotation, default_rotation_order);
+	const Vec3 default_lcl_translation = get_default_translation(template_key, &Properties::lcl_translation);
+
+	for (const LimbNodeModel& m : models_limb_node_)
+	{
+		KA_RT anim_rt; // RigidTransformation animation
+		KA_RT anim_rt_b; // RigidTransformation bind pose
+		KA_DQ anim_dq; // DualQuaternion animation
+		KA_DQ anim_dq_b; // DualQuaternion bind pose
+
+		// Get keyframe times
+		std::set<AnimTimeT> times;
+		{
+			std::vector<AnimationT> anim_copies;
+			for (const auto& anim : m.animation)
+				if (anim)
+					anim_copies.push_back(*anim);
+			times = AnimationT::get_unique_keyframe_times(anim_copies);
+		}
+
+		const auto& rotation_order = m.properties.rotation_order() ?
+				get_rotation_order(static_cast<size_t>(*m.properties.rotation_order()))
+						.value_or(default_rotation_order) : default_rotation_order;
+
+		const auto rotation_d = [&](const std::array<std::optional<AnimScalar>, 3>& values,
+				geometry::Quaternion default_value)
+		{
+			return Properties::any_set(values) ? from_euler(values, rotation_order) : default_value;
+		};
+
+		const auto lcl_translation_d = [&] {
+			const auto& values = m.properties.lcl_translation();
+			if (!Properties::any_set(values))
+				return default_lcl_translation;
+			return Vec3{values[0].value_or(0.0), values[1].value_or(0.0), values[2].value_or(0.0)};
+		};
+
+		auto pre_rotation = rotation_d(m.properties.pre_rotation(), default_pre_rotation);
+		auto post_rotation = rotation_d(m.properties.post_rotation(), default_post_rotation);
+		auto lcl_rotation = rotation_d(m.properties.lcl_rotation(), default_lcl_rotation);
+		auto total_lcl_rotation = pre_rotation * lcl_rotation * post_rotation;
+		Vec3 lcl_translation = lcl_translation_d();
+
+		anim_rt_b.emplace_back(0.0, RT{total_lcl_rotation, lcl_translation});
+		anim_dq_b.emplace_back(0.0, geometry::DualQuaternion::from_tr(lcl_translation, total_lcl_rotation));
+
+		// We assume the interpolation to be linear, so we can create full transform keyframes by interpolating
+		// each component along its own animation, instead of passing the split components beyond
+		for (const auto& time : times)
+		{
+			auto t = m.get_translation_or(time, lcl_translation);
+			auto r = m.get_rotation_or(time, pre_rotation, post_rotation, total_lcl_rotation);
+
+			anim_rt.emplace_back(time, RT{r, t});
+			anim_dq.emplace_back(time, geometry::DualQuaternion::from_tr(t, r));
+		}
+
+		if (times.empty())
+		{
+			anim_rt = anim_rt_b;
+			anim_dq = anim_dq_b;
+		}
+
+		attr_anim_rt[m.bone] = anim_rt;
+		attr_anim_rt_b[m.bone] = anim_rt_b;
+		attr_anim_dq[m.bone] = anim_dq;
+		attr_anim_dq_b[m.bone] = anim_dq_b;
+	}
+}
+
+FbxImporter::Skeleton* FbxImporter::load_skeleton()
+{
+	if (models_limb_node_.empty())
+		return nullptr;
+
+	Skeleton* skeleton = new Skeleton{};
+
+	load_bones(*skeleton);
+	load_animations(*skeleton);
+
+	return skeleton;
 }
 
 } // namespace io

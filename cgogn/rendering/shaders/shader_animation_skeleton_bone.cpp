@@ -91,6 +91,8 @@ ShaderAnimationSkeletonBone::ShaderAnimationSkeletonBone()
 			if (dot(Y, Y) < 1.0)
 				Y = cross(X, vec3(0.0, 1.0, 0.0));
 
+			Y = normalize(Y);
+
 			vec3 Z = cross(X, Y);
 
 			float c = cos(2 * M_PI / 3) * base_radius;
@@ -209,7 +211,7 @@ ShaderAnimationSkeletonBoneColorNormal::ShaderAnimationSkeletonBoneColorNormal()
 
 			X = normalize(X);
 
-			vec3 Y = cross(X, normalize(normal_b[0]));
+			vec3 Y = normalize(cross(X, normal_b[0]));
 			vec3 Z = cross(X, Y);
 
 			float c = cos(2 * M_PI / 3) * base_radius;

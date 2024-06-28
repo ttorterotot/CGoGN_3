@@ -1015,7 +1015,8 @@ public:
 	template <typename FUNC_PA, typename FUNC_PB, typename FUNC_I>
 	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
 			const FUNC_I& get_interpolation_weight,
-			bool refresh_volume_vertex_distance_from_boundary_before_interpolation = true)
+			bool refresh_volume_vertex_distance_from_boundary_before_interpolation = true,
+			bool keep_buffer_attributes = false)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -1056,6 +1057,12 @@ public:
 				weight_value_buffer);
 			return true;
 		});
+
+		if (!keep_buffer_attributes)
+		{
+			remove_attribute<VolumeVertex>(*volume_, temp_vvswi);
+			remove_attribute<VolumeVertex>(*volume_, temp_vvswv);
+		}
 
 		update_volume_skin_skinning_attributes();
 	}

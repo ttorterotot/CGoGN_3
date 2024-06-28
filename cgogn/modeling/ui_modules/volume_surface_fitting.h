@@ -94,9 +94,22 @@ class VolumeSurfaceFitting : public ViewModule
 	using VolumeFace = typename mesh_traits<VOLUME>::Face;
 	using VolumeVolume = typename mesh_traits<VOLUME>::Volume;
 
-	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
-	static constexpr const bool HasSkinningWeightsTransfer = HasSkinningUtility;
+	// Base toggles from template parameters
 	static constexpr const bool HandlesAnimationSkeleton = HasSkinningUtility;
+	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsTransferFromSurface = HasVolumeSelector && HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsTransferFromAnimationSkeleton = HasVolumeSelector && HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsPropagation = HasSkinningUtility;
+
+	// Composite toggle shortcuts
+	static constexpr const bool HasSkinningWeightsTransfer =
+			HasSkinningWeightsTransferFromSurface || HasSkinningWeightsTransferFromAnimationSkeleton;
+	static constexpr const bool HasSkinningWeightsSelection =
+			SubdivideSkinningWeights || HasSkinningWeightsTransfer || HasSkinningWeightsPropagation;
+
+	// Toggle consistency
+	static_assert(!HasSkinningWeightsTransferFromAnimationSkeleton || HandlesAnimationSkeleton, "No skeleton to transfer from");
+	static_assert(!HasSkinningWeightsTransfer || HasVolumeSelector, "No volume to transfer weights to");
 
 public:
 	enum class VertexToSkeletonProjectionMode
@@ -1697,7 +1710,7 @@ protected:
 			ImGui::TextUnformatted("Volume");
 			imgui_mesh_selector(volume_provider_, volume_, "Volume", [&](VOLUME& v) { set_current_volume(&v); });
 
-			if constexpr (HasSkinningUtility) // HasSkinningWeightsTransfer || SubdivideSkinningWeights
+			if constexpr (HasSkinningWeightsSelection)
 			{
 				if (volume_)
 				{
@@ -1726,7 +1739,7 @@ protected:
 														   set_current_surface_vertex_position(attribute);
 													   });
 
-			if constexpr (HasSkinningWeightsTransfer)
+			if constexpr (HasSkinningWeightsTransferFromSurface)
 			{
 				imgui_combo_attribute<SurfaceVertex, Vec4i>(*surface_, surface_vertex_skinning_weight_index_,
 														"Skinning weight index##surface",
@@ -1837,7 +1850,7 @@ protected:
 				if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
 				{
 					auto& cs = *selected_frozen_vertices_set_;
-					if constexpr (HasSkinningUtility)
+					if constexpr (HasSkinningWeightsTransferFromAnimationSkeleton)
 					{
 						const bool skinning_attributes_set =
 								volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
@@ -1873,11 +1886,12 @@ protected:
 				}
 			}
 
-			if constexpr (HasSkinningWeightsTransfer)
-			{
+			if constexpr (HasSkinningWeightsTransferFromSurface)
 				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
 					transfer_skinning_weights_to_skin();
 
+			if constexpr (HasSkinningWeightsPropagation)
+			{
 				if (volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_)
 				{
 					static int k = 1;

@@ -94,9 +94,22 @@ class VolumeSurfaceFitting : public ViewModule
 	using VolumeFace = typename mesh_traits<VOLUME>::Face;
 	using VolumeVolume = typename mesh_traits<VOLUME>::Volume;
 
-	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
-	static constexpr const bool HasSkinningWeightsTransfer = HasSkinningUtility;
+	// Base toggles from template parameters
 	static constexpr const bool HandlesAnimationSkeleton = HasSkinningUtility;
+	static constexpr const bool SubdivideSkinningWeights = HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsTransferFromSurface = HasVolumeSelector && HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsTransferFromAnimationSkeleton = HasVolumeSelector && HasSkinningUtility;
+	static constexpr const bool HasSkinningWeightsPropagation = HasSkinningUtility;
+
+	// Composite toggle shortcuts
+	static constexpr const bool HasSkinningWeightsTransfer =
+			HasSkinningWeightsTransferFromSurface || HasSkinningWeightsTransferFromAnimationSkeleton;
+	static constexpr const bool HasSkinningWeightsSelection =
+			SubdivideSkinningWeights || HasSkinningWeightsTransfer || HasSkinningWeightsPropagation;
+
+	// Toggle consistency
+	static_assert(!HasSkinningWeightsTransferFromAnimationSkeleton || HandlesAnimationSkeleton, "No skeleton to transfer from");
+	static_assert(!HasSkinningWeightsTransfer || HasVolumeSelector, "No volume to transfer weights to");
 
 public:
 	enum class VertexToSkeletonProjectionMode
@@ -104,6 +117,12 @@ public:
 		PositionOnly,
 		SkinningWeightOnly,
 		PositionAndSkinningWeight,
+	};
+
+	enum class PropagationDirection
+	{
+		BoundaryToCenter,
+		CenterToBoundary,
 	};
 
 public:
@@ -167,6 +186,9 @@ public:
 		while (!queued_cells.empty())
 		{
 			++depth;
+			cgogn_message_assert(depth >= 0,
+					"Propagation depth overflowed: "
+					"visit implementation is incorrect or mesh is exceedingly linear");
 			for (const auto& v : queued_cells)
 				visit(v, depth, queueing_cells);
 			std::swap(queueing_cells, queued_cells);
@@ -256,7 +278,7 @@ public:
 						value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)) =
 					geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 									*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-									source_vertices, {}, skinning_weight_value_buffer);
+									skinning_weight_value_buffer, source_vertices);
 		};
 
 		const auto& on_edge_cut = [&](VolumeVertex v)
@@ -311,11 +333,12 @@ public:
 		refresh_volume_skin();
 
 		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			const auto& vv = value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v);
 			Vec3 n = geometry::normal(*volume_skin_, v, volume_skin_vertex_position_.get());
 			Vec3 p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) + thickness * n;
 			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = p;
-			value<Vec3>(*volume_, volume_vertex_position_,
-						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = p;
+			value<Vec3>(*volume_, volume_vertex_position_, vv) = p;
+			value<bool>(*volume_, volume_vertex_core_mark_, vv) = false;
 			return true;
 		});
 
@@ -338,7 +361,7 @@ public:
 		{
 			bool is_core = true;
 			foreach_dart_of_orbit(*volume_, v,
-					[&](Dart d){ is_core &= !is_boundary(*volume_, d); return true; });
+					[&](Dart d) -> bool { is_core &= !is_boundary(*volume_, d); return true; });
 			value<bool>(*volume_, volume_vertex_core_mark_, v) = is_core;
 			return true;
 		});
@@ -347,7 +370,7 @@ public:
 	void select_volume_vertices_from_core_mark()
 	{
 		auto& cs = volume_provider_->mesh_data(*volume_).template
-				get_or_add_cells_set<VolumeVertex>("vertex_core_mark");
+				get_or_add_cells_set<VolumeVertex>(CORE_VERTEX_SET_NAME);
 		cs.select_if([&](VolumeVertex v) { return value<bool>(*volume_, volume_vertex_core_mark_, v); });
 	}
 
@@ -380,10 +403,10 @@ public:
 			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
 			if (bone.is_valid())
 			{
-				const auto& p = (*skeleton.bone_parent_)[bone];
+				const auto& p = (*skeleton.bone_parent_)[index_of(skeleton, bone)];
 				if (p.is_valid())
 					bone = p; // get parent unless already root
-				indices = {static_cast<Vec4i::Scalar>(index_of(skeleton, bone)), -1, -1, -1};
+				indices = {static_cast<Vec4i::Scalar>(bone), -1, -1, -1};
 				values = {1.0, 0.0, 0.0, 0.0};
 			}
 			else
@@ -459,7 +482,7 @@ public:
 		volume_vertex_max_distance_from_boundary_ = propagate(std::move(source_vertices),
 				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
 		{
-			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) -> bool {
 				auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_);
 				if (d == SENTINEL)
 				{
@@ -784,7 +807,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					source_vertices, std::optional{source_vertex_weights}, skinning_weight_value_buffer);
+					skinning_weight_value_buffer, source_vertices, std::optional{source_vertex_weights});
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;
@@ -794,103 +817,254 @@ public:
 		});
 	}
 
-	void set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-			const VolumeVertex& v, uint32 distance_from_boundary,
-			std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>& buffers = {})
+	template <typename FUNC>
+	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& k,
+			const FUNC& is_vertex_source,
+			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
 	{
-		auto& source_vertices = buffers.first; // i -> ith source vertex
-		auto& weight_value_buffer = buffers.second; // i -> ith bone accumulated weight buffer
+		// bool is_vertex_source(VolumeVertex v)
+		static_assert(is_func_parameter_same<FUNC, VolumeVertex>::value,
+				"Given function should take a VolumeVertex as parameter");
+		static_assert(is_func_return_same<FUNC, bool>::value,
+				"Given function should return a bool");
 
-		source_vertices.clear();
-		foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
-			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_) == distance_from_boundary)
-				source_vertices.push_back(v_);
-			return true;
-		});
+		const auto is_vertex_not_source = [&](VolumeVertex v_) -> bool { return !is_vertex_source(v_); };
+
+		cgogn_assert(k > 0);
+
+		vertex_k_neighborhood(*volume_, v, k, source_vertex_buffer, false);
+		size_t k_neighborhood_size = source_vertex_buffer.size();
+
+		// Filter k-neighborhood based on criterion
+		// std::remove_if doesn't resize the collection but returns an iterator to its first dirty element
+		source_vertex_buffer.resize(
+				std::remove_if(source_vertex_buffer.begin(), source_vertex_buffer.end(), is_vertex_not_source)
+						- source_vertex_buffer.begin());
 
 		std::tie(
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
 				value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
 		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-				source_vertices, {}, weight_value_buffer);
+				weight_value_buffer, source_vertex_buffer);
+
+		return std::make_pair(k_neighborhood_size, source_vertex_buffer.size());
 	}
 
-	void propagate_skin_skinning_weights_iterative()
+	template <typename FUNC>
+	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& k,
+			const FUNC& is_vertex_source)
+	{
+		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		return set_vertex_skinning_weights_from_k_neighborhood(v, k, is_vertex_source,
+				source_vertex_buffer, weight_value_buffer);
+	}
+
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_min_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& min_k,
+			const FUNC& is_vertex_source,
+			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
+	{
+		// @TODO: could try narrowing faster with doubling then binary search,
+		// but k shouldn't realistically need to go above 2 or 3
+		auto k = min_k;
+		size_t previous_neighborhood_size, neighborhood_size = 0, source_vertices_size;
+		do {
+			// We have to keep track of previous neighborhood size because it not increasing
+			// means we are stuck without any source vertex in the connected component
+			// (otherwise we would be increasing k forever)
+			previous_neighborhood_size = neighborhood_size;
+			std::tie(neighborhood_size, source_vertices_size) =
+					set_vertex_skinning_weights_from_k_neighborhood(
+							v, k++, is_vertex_source, source_vertex_buffer, weight_value_buffer);
+		} while (source_vertices_size == 0 && neighborhood_size > previous_neighborhood_size);
+	}
+
+	template <typename FUNC>
+	void set_vertex_skinning_weights_from_min_k_neighborhood(
+			const VolumeVertex& v,
+			const uint32& min_k,
+			const FUNC& is_vertex_source)
+	{
+		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		set_vertex_skinning_weights_from_min_k_neighborhood(v, min_k, is_vertex_source,
+				source_vertex_buffer, weight_value_buffer);
+	}
+
+	template <PropagationDirection Direction>
+	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u,
+			bool update_volume_skin_skinning_attributes_once_done = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
 		if (refresh_volume_vertex_distance_from_boundary_)
 			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
 
-		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
+		std::vector<CellCache<VOLUME>> layers;
+		layers.reserve(volume_vertex_max_distance_from_boundary_);
 
-		for (uint32 d = 1; d <= volume_vertex_max_distance_from_boundary_; ++d)
-			parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
-				if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) != d)
-					return true; // continue, don't break
-				// Buffer to avoid reallocations;
+		for (int32 i = 0; i < volume_vertex_max_distance_from_boundary_; ++i)
+			layers.emplace_back(*volume_);
+
+		foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
+			const auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v);
+			cgogn_assert(static_cast<int32>(d) <= volume_vertex_max_distance_from_boundary_);
+			if constexpr (Direction == PropagationDirection::BoundaryToCenter)
+				if (d > 0)
+					layers[d - 1].add(v);
+			if constexpr (Direction == PropagationDirection::CenterToBoundary)
+				if (static_cast<int32>(d) < volume_vertex_max_distance_from_boundary_)
+					layers[d].add(v);
+			return true;
+		});
+
+		for (int32 i = 0; i < volume_vertex_max_distance_from_boundary_; ++i)
+		{
+			static constexpr const bool outside_in = Direction == PropagationDirection::BoundaryToCenter;
+			const uint32 l = outside_in ? i : layers.size() - 1 - i;
+			static constexpr const uint32 offset = outside_in ? 0u : 1u;
+			const uint32 d = l + offset;
+			const auto is_vertex_interpolation_source = [&](VolumeVertex v) -> bool {
+				return value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) == d; };
+			parallel_foreach_cell(layers[l], [&](VolumeVertex v) -> bool {
+				// Buffers to avoid reallocations;
 				// constructed on first lambda call of thread, destructed when thread finishes
-				static thread_local VertexBufferSet vertex_buffers;
-				set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(v, d - 1, vertex_buffers);
+				static thread_local std::vector<VolumeVertex> source_vertex_buffer;
+				static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
+				set_vertex_skinning_weights_from_min_k_neighborhood(
+						v, neighborhood_min_k, is_vertex_interpolation_source,
+						source_vertex_buffer, weight_value_buffer);
 				return true;
 			});
+		}
 
-		update_volume_skin_skinning_attributes();
+		if (update_volume_skin_skinning_attributes_once_done)
+			update_volume_skin_skinning_attributes();
 	}
 
-	void propagate_skin_skinning_weights_repropagation()
+	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u,
+			bool update_volume_skin_skinning_attributes_once_done = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
-		if (refresh_volume_vertex_distance_from_boundary_)
-			refresh_volume_vertex_distance_from_boundary(); // refreshes volume_skin
-
-		using VertexBufferSet = std::pair<std::vector<VolumeVertex>, std::vector<Vec4::Scalar>>;
+		if (refresh_volume_skin_)
+			refresh_volume_skin();
 
 		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
-		std::vector<VolumeVertex> source_vertices;
-		VertexBufferSet vertex_buffers;
+		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertex_buffer;
+		std::vector<Vec4::Scalar> weight_value_buffer;
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
 		{
-			if (value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v) > 0)
+			if (!cs.contains(v))
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] = SENTINEL;
 			return true;
 		});
 
-		foreach_cell(*volume_skin_, [&](SurfaceVertex v)
-		{
-			source_vertices.push_back(value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
-			return true;
+		cs.foreach_cell([&](VolumeVertex v) {
+			propagation_source_vertices.push_back(v);
 		});
 
-		propagate(std::move(source_vertices),
+		const auto is_vertex_interpolation_source = [&](VolumeVertex v) -> bool {
+			return value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v)[0] != SENTINEL;
+		};
+
+		propagate(std::move(propagation_source_vertices),
 				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
 		{
-			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_){
+			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) -> bool {
 				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
 				{
-					set_vertex_skinning_weights_from_neighborhood_of_distance_from_boundary(
-							v_, depth, vertex_buffers);
+					set_vertex_skinning_weights_from_min_k_neighborhood(
+							v_, neighborhood_min_k, is_vertex_interpolation_source,
+							interpolation_source_vertex_buffer, weight_value_buffer);
 					cells_to_visit_next.push_back(v_);
 				}
 				return true;
 			});
 		});
 
-		update_volume_skin_skinning_attributes();
+		if (update_volume_skin_skinning_attributes_once_done)
+			update_volume_skin_skinning_attributes();
 	}
 
-	void propagate_skin_skinning_weights()
+	template <typename T, typename CELL, typename MESH>
+	std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>> get_buffer_attribute(MESH& m,
+			const std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>>& attribute)
 	{
-		if (refresh_volume_vertex_distance_from_boundary_)
+		if (!attribute)
+			return nullptr;
+
+		auto buffer = get_or_add_attribute<T, CELL>(
+				m, attribute->name() + "_VSF_buffer");
+		buffer->copy(*attribute);
+
+		return buffer;
+	}
+
+	template <typename FUNC_PA, typename FUNC_PB, typename FUNC_I>
+	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
+			const FUNC_I& get_interpolation_weight,
+			bool refresh_volume_vertex_distance_from_boundary_before_interpolation = true,
+			bool keep_buffer_attributes = false)
+	{
+		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
+
+		// Vec4::Scalar get_interpolation_weight(VolumeVertex v)
+		static_assert(is_func_parameter_same<FUNC_I, VolumeVertex>::value,
+				"Given function should take a VolumeVertex as parameter");
+		static_assert(!std::is_integral_v<func_return_type<FUNC_I>>,
+				"Given function should return a value between 0.0 and 1.0");
+
+		auto temp_vvswi = get_buffer_attribute<Vec4i, VolumeVertex>(*volume_, volume_vertex_skinning_weight_index_);
+		auto temp_vvswv = get_buffer_attribute<Vec4, VolumeVertex>(*volume_, volume_vertex_skinning_weight_value_);
+
+		// Set main attributes aside to propagate on temporaries
+		// (this is the fastest way to swap cleanly: https://godbolt.org/z/8xsbc7vYf)
+		std::swap(temp_vvswi, volume_vertex_skinning_weight_index_);
+		std::swap(temp_vvswv, volume_vertex_skinning_weight_value_);
+
+		propagate_a(); // temporary attributes will hold a during interpolation
+
+		// Restore main attributes
+		std::swap(temp_vvswi, volume_vertex_skinning_weight_index_);
+		std::swap(temp_vvswv, volume_vertex_skinning_weight_value_);
+
+		propagate_b(); // main attributes will hold b during interpolation
+
+		if (refresh_volume_vertex_distance_from_boundary_before_interpolation
+				&& refresh_volume_vertex_distance_from_boundary_)
 			refresh_volume_vertex_distance_from_boundary();
 
-		if (volume_vertex_max_distance_from_boundary_ < 8)
-			propagate_skin_skinning_weights_iterative(); // fastest one at low maximum depths
-		else
-			propagate_skin_skinning_weights_repropagation(); // fastest one at high maximum depths
+		parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
+			static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
+			auto& indices = value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v);
+			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
+			std::tie(indices, values) = geometry::SkinningWeightInterpolation::lerp(
+				{value<Vec4i>(*volume_, temp_vvswi, v), indices},
+				{value<Vec4>(*volume_, temp_vvswv, v), values},
+				get_interpolation_weight(v),
+				weight_value_buffer);
+			return true;
+		});
+
+		if (!keep_buffer_attributes)
+		{
+			remove_attribute<VolumeVertex>(*volume_, temp_vvswi);
+			remove_attribute<VolumeVertex>(*volume_, temp_vvswv);
+		}
+
+		update_volume_skin_skinning_attributes();
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)
@@ -1366,6 +1540,12 @@ public:
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
 	}
 
+	void set_current_animation_skeleton(Skeleton& s)
+	{
+		static_assert(HandlesAnimationSkeleton);
+		animation_skeleton_ = &s;
+	}
+
 	void set_current_animation_skeleton_joint_position(const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute)
 	{
 		static_assert(HandlesAnimationSkeleton);
@@ -1419,6 +1599,11 @@ public:
 
 		surface_bvh_ = std::make_unique<acc::BVHTree<uint32, Vec3>>(face_vertex_indices, vertex_position);
 		// surface_kdt_ = std::make_unique<acc::KDTree<3, uint32>>(vertex_position);
+	}
+
+	void set_frozen_vertices(CellsSet<VOLUME, VolumeVertex>* cs)
+	{
+		selected_frozen_vertices_set_ = cs;
 	}
 
 	void set_current_surface_vertex_skinning_weight_index(const std::shared_ptr<SurfaceAttribute<Vec4i>>& attribute)
@@ -1519,7 +1704,7 @@ protected:
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 	}
 
-	void show_tooltip_for_ui_above(const char* tooltip_text)
+	static void show_tooltip_for_ui_above(const char* tooltip_text)
 	{
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security
@@ -1532,7 +1717,7 @@ protected:
 			ImGui::TextUnformatted("Volume");
 			imgui_mesh_selector(volume_provider_, volume_, "Volume", [&](VOLUME& v) { set_current_volume(&v); });
 
-			if constexpr (HasSkinningUtility) // HasSkinningWeightsTransfer || SubdivideSkinningWeights
+			if constexpr (HasSkinningWeightsSelection)
 			{
 				if (volume_)
 				{
@@ -1561,7 +1746,7 @@ protected:
 														   set_current_surface_vertex_position(attribute);
 													   });
 
-			if constexpr (HasSkinningWeightsTransfer)
+			if constexpr (HasSkinningWeightsTransferFromSurface)
 			{
 				imgui_combo_attribute<SurfaceVertex, Vec4i>(*surface_, surface_vertex_skinning_weight_index_,
 														"Skinning weight index##surface",
@@ -1580,12 +1765,14 @@ protected:
 
 		if constexpr (HandlesAnimationSkeleton)
 		{
-			imgui_mesh_selector(animation_skeleton_provider_, animation_skeleton_, "Skeleton", [&](Skeleton& s) { animation_skeleton_ = &s; });
+			imgui_mesh_selector(animation_skeleton_provider_, animation_skeleton_,
+								"Skeleton", [&](Skeleton& s) { set_current_animation_skeleton(s); });
 			if (animation_skeleton_)
 				imgui_combo_attribute<Joint, Vec3>(*animation_skeleton_, animation_skeleton_joint_position_, "Position#skeleton",
 												   [&](const std::shared_ptr<SkeletonAttribute<Vec3>>& attribute) {
 													   set_current_animation_skeleton_joint_position(attribute);
 												   });
+			ImGui::Separator();
 		}
 	}
 
@@ -1638,39 +1825,7 @@ protected:
 		ImGui::TextUnformatted("HexMesh Geometry Ops");
 
 		imgui_combo_cells_set(md, selected_frozen_vertices_set_, "Frozen vertices",
-								[&](CellsSet<VOLUME, VolumeVertex>* cs) { selected_frozen_vertices_set_ = cs; });
-
-		if constexpr (HandlesAnimationSkeleton)
-		{
-			if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
-			{
-				auto& cs = *selected_frozen_vertices_set_;
-				if constexpr (HasSkinningUtility)
-				{
-					const bool skinning_attributes_set =
-							volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_;
-
-					if (!skinning_attributes_set)
-						ImGui::BeginDisabled();
-					if (ImGui::Button("Project and bind frozen vertices to skeleton"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
-					if (!skinning_attributes_set)
-						ImGui::EndDisabled();
-
-					if (ImGui::Button("Project only"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-					ImGui::SameLine();
-					if (!skinning_attributes_set)
-						ImGui::BeginDisabled();
-					if (ImGui::Button("Bind only"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
-					if (!skinning_attributes_set)
-						ImGui::EndDisabled();
-				}
-				else if (ImGui::Button("Project frozen vertices to skeleton"))
-					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-			}
-		}
+								[&](CellsSet<VOLUME, VolumeVertex>* cs) { set_frozen_vertices(cs); });
 
 		if (ImGui::Button("Relocate interior vertices"))
 			relocate_interior_vertices();
@@ -1697,32 +1852,114 @@ protected:
 
 			ImGui::Separator();
 
-			if constexpr (HasSkinningWeightsTransfer)
+			if constexpr (HandlesAnimationSkeleton)
 			{
+				if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
+				{
+					auto& cs = *selected_frozen_vertices_set_;
+					if constexpr (HasSkinningWeightsTransferFromAnimationSkeleton)
+					{
+						const bool skinning_attributes_set =
+								volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
+
+						const auto ui_warn_skinning_attributes_not_set =
+								[]{ show_tooltip_for_ui_above("Volume skinning attributes must be set to bind"); };
+
+						if (!skinning_attributes_set)
+							ImGui::BeginDisabled();
+						if (ImGui::Button("Project and bind frozen vertices to skeleton"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
+						if (!skinning_attributes_set)
+						{
+							ui_warn_skinning_attributes_not_set();
+							ImGui::EndDisabled();
+						}
+
+						if (ImGui::Button("Project only"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+						ImGui::SameLine();
+						if (!skinning_attributes_set)
+							ImGui::BeginDisabled();
+						if (ImGui::Button("Bind only"))
+							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
+						if (!skinning_attributes_set)
+						{
+							ui_warn_skinning_attributes_not_set();
+							ImGui::EndDisabled();
+						}
+					}
+					else if (ImGui::Button("Project frozen vertices to skeleton"))
+						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+				}
+			}
+
+			if constexpr (HasSkinningWeightsTransferFromSurface)
 				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
 					transfer_skinning_weights_to_skin();
 
-				static int skinning_weights_propagation_method = 0;
-				ImGui::RadioButton("Auto##skinning_weights_propagation_method", &skinning_weights_propagation_method, 0);
-				show_tooltip_for_ui_above("Automatically picks the supposed fastest method between iterative and repropagation");
-				ImGui::SameLine();
-				ImGui::RadioButton("Iterative##skinning_weights_propagation_method", &skinning_weights_propagation_method, 1);
-				show_tooltip_for_ui_above("Best suited for meshes where all vertices are topologically close (<8 edges) to the boundary");
-				ImGui::SameLine();
-				ImGui::RadioButton("Repropagation##skinning_weights_propagation_method", &skinning_weights_propagation_method, 2);
-				show_tooltip_for_ui_above("Best suited for meshes where some vertices are topologically far away (>8 edges) from the boundary");
-				if (volume_vertex_skinning_weight_index_ && volume_skin_vertex_skinning_weight_value_
-						&& ImGui::Button("Propagate skin's skinning weights"))
-					switch (skinning_weights_propagation_method){
-					case 1:
-						propagate_skin_skinning_weights_iterative();
-						break;
-					case 2:
-						propagate_skin_skinning_weights_repropagation();
-						break;
-					default:
-						propagate_skin_skinning_weights();
+			if constexpr (HasSkinningWeightsPropagation)
+			{
+				if (volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_)
+				{
+					static int k = 1;
+					ImGui::SliderInt("Source minimum neighborhood k", &k, 1, 8);
+					cgogn_assert(k > 0);
+					const auto k_ = static_cast<uint32>(k);
+
+					enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN, SOURCE_SKIN_CENTER, SOURCE_SKIN_FROZEN };
+					static int i = SOURCE_SKIN;
+					ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0Skin and center\0Skin and frozen set\0");
+
+					const auto boundary_to_center_interpolation = [&](VolumeVertex v) {
+						return static_cast<Vec4::Scalar>(value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v))
+								/ volume_vertex_max_distance_from_boundary_;
+					};
+
+					// propagate_skinning_weights(_from_set) calls from interpolate_skinning_weights
+					// don't need to update the volume skin's skinning attributes from the volume's
+					// because interpolate_skinning_weights needs to do so at the end anyway
+					// (IPU stands for "Interpolate_skinning_weights calling Propagate_skinning_weights
+					// with Update_volume_skin_skinning_attributes_once_done set to this value")
+					static constexpr const bool IPU = false;
+
+					const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
+
+					if (!can_propagate)
+						ImGui::BeginDisabled();
+
+					if (ImGui::Button("Propagate skinning weights") && can_propagate)
+					{
+						switch (i)
+						{
+						case SOURCE_SKIN:
+							propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_);
+							break;
+						case SOURCE_CENTER:
+							propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_);
+							break;
+						case SOURCE_FROZEN:
+							propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
+							break;
+						case SOURCE_SKIN_CENTER:
+							interpolate_skinning_weights(
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
+								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, IPU); },
+								boundary_to_center_interpolation, false); // refresh already done by both propagations
+							break;
+						case SOURCE_SKIN_FROZEN:
+							interpolate_skinning_weights(
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
+								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, IPU); },
+								boundary_to_center_interpolation, false); // refresh already done by first propagation
+							break;
+						default:
+							cgogn_assert_not_reached("Missing propagation source case");
+						}
 					}
+
+					if (!can_propagate)
+						ImGui::EndDisabled();
+				}
 			}
 
 			if (ImGui::Button("Project on surface"))
@@ -1776,6 +2013,9 @@ protected:
 		left_panel_meshes();
 		left_panel_operations();
 	}
+
+public:
+	static constexpr const char* CORE_VERTEX_SET_NAME = "vertex_core_mark";
 
 protected:
 	MeshProvider<AnimationSkeleton>* animation_skeleton_provider_ = nullptr;

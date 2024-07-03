@@ -138,14 +138,6 @@ class AnimationSkeletonRender : public ViewModule
 	};
 
 public:
-	enum class TransformAttributeSetMode
-	{
-		None,
-		SetAndUpdateParametersIfPointersDiffer,
-		UpdateVboParameterOnlyAndUnconditionally,
-	};
-
-public:
 	AnimationSkeletonRender(const App& app)
 		: ViewModule(app, "AnimationSkeletonRender (" + std::string{mesh_traits<MESH>::name} + ")"),
 		  selected_view_(app.current_view()), selected_mesh_(nullptr)
@@ -168,59 +160,6 @@ private:
 			-> std::enable_if_t<std::is_convertible_v<T&, Mat4&>, Mat4>
 	{
 		return transform;
-	}
-
-	bool attribute_is_or_set_transform_tmpl(const std::shared_ptr<AttributeGen>& attribute,
-			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
-	{
-		return false;
-	}
-
-	template <typename T, typename ...Args>
-	bool attribute_is_or_set_transform_tmpl(const std::shared_ptr<AttributeGen>& attribute,
-			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
-	{
-		if (set_mode == TransformAttributeSetMode::UpdateVboParameterOnlyAndUnconditionally)
-		{
-			if (!attribute_unsafe)
-				return false;
-			cgogn_assert(v);
-			if (auto p = dynamic_cast<const Attribute<T>*>(attribute_unsafe))
-			{
-				cgogn_assert(v && m);
-				update_bone_normal_vbo(*v, *m, *p);
-				v->request_update();
-				return true;
-			}
-		}
-		else if (auto p = std::dynamic_pointer_cast<Attribute<T>>(attribute))
-		{
-			switch (set_mode)
-			{
-			case TransformAttributeSetMode::None:
-				break;
-			case TransformAttributeSetMode::SetAndUpdateParametersIfPointersDiffer:
-				cgogn_assert(v && m);
-				set_bone_transform(*v, *m, p, attribute);
-				break;
-			default:
-				cgogn_assert_not_reached("Missing set mode case");
-			}
-			return true;
-		}
-		if constexpr (sizeof...(Args) > 0)
-			return attribute_is_or_set_transform_tmpl<Args...>(attribute, attribute_unsafe, v, m, set_mode);
-		return false;
-	}
-
-	// `attribute_unsafe` assumed to be present if `set_mode` is update-only.
-	// `v` and `m` assumed to be present if `set_mode` isn't none.
-	bool attribute_is_or_set_transform(const std::shared_ptr<AttributeGen>& attribute,
-			const AttributeGen* attribute_unsafe, View* v, const MESH* m, TransformAttributeSetMode set_mode)
-	{
-		if constexpr (sizeof...(SupportedTransforms) > 0)
-			return attribute_is_or_set_transform_tmpl<SupportedTransforms...>(attribute, attribute_unsafe, v, m, set_mode);
-		return false;
 	}
 
 	void init_mesh(MESH* m)
@@ -266,16 +205,27 @@ private:
 						Parameters& p = parameters_[v][m];
 						if (attribute && attribute == p.bone_transform_.get())
 						{
-							attribute_is_or_set_transform(nullptr, attribute, v, m,
-									TransformAttributeSetMode::UpdateVboParameterOnlyAndUnconditionally);
+							cgogn_assert(v && m);
+							if constexpr (sizeof...(SupportedTransforms) > 0)
+								update_bone_normal_vbo<SupportedTransforms...>(*v, *m, attribute);
 							v->request_update();
 						}
 					}));
 		}
 	}
 
+	template <typename T, typename ...Args>
+	void update_bone_normal_vbo(View& v, const MESH& m, const AttributeGen* attribute)
+	{
+		if (auto p = dynamic_cast<const Attribute<T>*>(attribute))
+			update_bone_normal_vbo(v, m, *p);
+		else if constexpr (sizeof...(Args) > 0)
+			update_bone_normal_vbo<Args...>(v, m, attribute);
+	}
+
 	template <typename TransformT>
-	void update_bone_normal_vbo(View& v, const MESH& m, const Attribute<TransformT>& bone_transform)
+	void update_bone_normal_vbo(View& v, const MESH& m, const Attribute<TransformT>& bone_transform,
+			bool request_view_update = true)
 	{
 		Parameters& p = parameters_[&v][&m];
 		MeshData<MESH>& md = mesh_provider_->mesh_data(m);
@@ -286,12 +236,26 @@ private:
 			normals.push_back(transform_matrix.block<3, 1>(0, 1) / transform_matrix(3, 3));
 		}
 		rendering::update_vbo(normals, p.bone_normal_vbo_.get());
+		if (request_view_update)
+			v.request_update();
 	}
 
 public:
+	template <typename T, typename ...Args>
 	bool attribute_is_transform(const std::shared_ptr<AttributeGen>& attribute)
 	{
-		return attribute_is_or_set_transform(attribute, nullptr, nullptr, nullptr, TransformAttributeSetMode::None);
+		if (std::dynamic_pointer_cast<Attribute<T>>(attribute))
+			return true;
+		if constexpr (sizeof...(Args) > 0)
+			return attribute_is_transform<Args...>(attribute);
+		return false;
+	}
+
+	bool attribute_is_transform(const std::shared_ptr<AttributeGen>& attribute)
+	{
+		if constexpr (sizeof...(SupportedTransforms) > 0)
+			return attribute_is_transform<SupportedTransforms...>(attribute);
+		return false;
 	}
 
 	void set_joint_position(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& joint_position)
@@ -365,6 +329,21 @@ public:
 		v.request_update();
 	}
 
+	void reset_bone_transform(View& v, const MESH& m)
+	{
+		Parameters& p = parameters_[&v][&m];
+		if (!p.bone_transform_)
+			return;
+
+		p.bone_transform_ = nullptr;
+		// Don't reset bone_normal_vbo_ and just pass nullptr, this avoids recreating it each time
+
+		p.param_animation_skeleton_bone_color_normal_->set_vbos(
+				{p.joint_position_vbo_, p.bone_color_vbo_, nullptr});
+
+		v.request_update();
+	}
+
 	/// @brief Sets the bone transform attribute attribute for a certain type of transform
 	/// @param v the view to update
 	/// @param m the mesh that holds the attribute
@@ -376,9 +355,14 @@ public:
 	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<Attribute<TransformT>>& bone_transform,
 			std::shared_ptr<AttributeGen> bone_transform_gen = nullptr)
 	{
-		cgogn_assert(bone_transform || !bone_transform_gen); // passing null bt but non-null btg breaks logic
+		if (!bone_transform)
+		{
+			cgogn_assert(!bone_transform_gen); // passing null bt but non-null btg makes no sense
+			reset_bone_transform(v, m);
+			return;
+		}
 
-		if (bone_transform && !bone_transform_gen)
+		if (!bone_transform_gen)
 		{
 			bone_transform_gen = std::dynamic_pointer_cast<AttributeGen>(bone_transform);
 			cgogn_assert(bone_transform_gen); // conversion back to AttributeGen expected to work
@@ -390,34 +374,31 @@ public:
 
 		p.bone_transform_ = bone_transform_gen;
 
-		if (bone_transform)
-			update_bone_normal_vbo(v, m, *bone_transform);
+		update_bone_normal_vbo(v, m, *bone_transform, false);
 
 		p.param_animation_skeleton_bone_color_normal_->set_vbos(
-				{p.joint_position_vbo_, p.bone_color_vbo_, bone_transform ? p.bone_normal_vbo_.get() : nullptr});
+				{p.joint_position_vbo_, p.bone_color_vbo_, p.bone_normal_vbo_.get()});
 
 		v.request_update();
 	}
 
+	template <typename T, typename ...Args>
 	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<AttributeGen>& attribute)
 	{
-		if (attribute)
-		{
-			std::ignore = attribute_is_or_set_transform(attribute, nullptr, &v, &m,
-					TransformAttributeSetMode::SetAndUpdateParametersIfPointersDiffer);
-			return;
-		}
+		if (!attribute)
+			reset_bone_transform(v, m);
+		else if (auto p = std::dynamic_pointer_cast<Attribute<T>>(attribute))
+			set_bone_transform(v, m, p, attribute);
+		else if constexpr (sizeof...(Args) > 0)
+			set_bone_transform<Args...>(v, m, attribute);
+	}
 
-		Parameters& p = parameters_[&v][&m];
-		if (!p.bone_transform_)
-			return;
-
-		p.bone_transform_ = attribute;
-
-		p.param_animation_skeleton_bone_color_normal_->set_vbos(
-				{p.joint_position_vbo_, p.bone_color_vbo_, nullptr});
-
-		v.request_update();
+	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<AttributeGen>& attribute)
+	{
+		if (!attribute)
+			reset_bone_transform(v, m);
+		else if constexpr (sizeof...(SupportedTransforms) > 0)
+			set_bone_transform<SupportedTransforms...>(v, m, attribute);
 	}
 
 	void set_bone_color(View& v, const MESH& m, const std::shared_ptr<Attribute<Vec3>>& bone_color)

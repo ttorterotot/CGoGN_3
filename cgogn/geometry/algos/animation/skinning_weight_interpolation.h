@@ -25,6 +25,7 @@
 #define CGOGN_SKINNING_WEIGHT_INTERPOLATION_H_
 
 #include <optional>
+#include <array>
 #include <vector>
 
 #include <cgogn/geometry/types/vector_traits.h>
@@ -53,43 +54,18 @@ public:
 
 	SkinningWeightInterpolation() = delete;
 
-	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
-	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
-			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
-			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
-			const CONT_C& source_cells,
-			const std::optional<CONT_W> source_cell_weights = {},
-			std::vector<Vec4::Scalar>& weight_value_buffer = {},
-			const NormalizationType& normalization = NormalizationType::AbsSum)
+	static std::pair<Vec4i, Vec4> compute_weights(
+			const std::vector<Vec4::Scalar>& bone_weight_values,
+			const NormalizationType& normalization = NormalizationType::AbsSum,
+			size_t source_cell_count = 0)
 	{
 		Vec4i indices{ -1, -1, -1, -1 };
 		Vec4 values = Vec4::Zero();
-		weight_value_buffer.clear();
-
-		if (source_cells.empty())
-			return std::make_pair(indices, values);
-
-		// Sum up all weight contributions per-bone into the buffer
-		for (size_t i = 0; i < source_cells.size(); ++i)
-		{
-			const auto& vi = index_of(m, source_cells[i]);
-			const auto vw = source_cell_weights ? (*source_cell_weights)[i] : 1.0;
-			for (size_t i = 0; i < 4; ++i)
-			{
-				const int wi = weight_index[vi][i];
-				const double wv = vw * weight_value[vi][i];
-				if (wi < 0 || wv == 0.0)
-					continue;
-				if (weight_value_buffer.size() <= wi)
-					weight_value_buffer.resize(wi + 1, 0.0);
-				weight_value_buffer[wi] += wv;
-			}
-		}
 
 		// Find and set four highest weight values, and set corresponding indices
-		for (size_t wi = 0; wi < weight_value_buffer.size(); ++wi)
+		for (size_t wi = 0; wi < bone_weight_values.size(); ++wi)
 		{
-			const auto& wv = weight_value_buffer[wi];
+			const auto& wv = bone_weight_values[wi];
 			if (wv == 0.0) // zero weight, not worth adding
 				continue;
 			int target_coef = -1; // vector index to write the new weight to
@@ -125,14 +101,100 @@ public:
 				values /= std::abs(values.sum());
 			break;
 		case NormalizationType::CellCount:
-			// source_cells.size() > 0 due to early return above
-			values /= source_cells.size();
+			cgogn_message_assert(source_cell_count > 0, "Source cell count must be non-zero if interpolation uses it");
+			values /= source_cell_count;
 			break;
 		default:
 			cgogn_assert_not_reached("Missing normalization type case");
 		}
 
 		return std::make_pair(indices, values);
+	}
+
+	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
+	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
+			std::vector<Vec4::Scalar>& weight_value_buffer,
+			const CONT_C& source_cells,
+			const std::optional<CONT_W> source_cell_weights = {},
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		weight_value_buffer.clear();
+
+		if (source_cells.empty())
+			return std::make_pair(Vec4i{-1, -1, -1, -1}, Vec4::Zero());
+
+		// Sum up all weight contributions per-bone into the buffer
+		for (size_t i = 0; i < source_cells.size(); ++i)
+		{
+			const auto& vi = index_of(m, source_cells[i]);
+			const auto vw = source_cell_weights ? (*source_cell_weights)[i] : 1.0;
+			for (size_t j = 0; j < 4; ++j)
+			{
+				const int wi = weight_index[vi][j];
+				const double wv = vw * weight_value[vi][j];
+				if (wi < 0 || wv == 0.0)
+					continue;
+				if (weight_value_buffer.size() <= wi)
+					weight_value_buffer.resize(wi + 1, 0.0);
+				weight_value_buffer[wi] += wv;
+			}
+		}
+
+		return compute_weights(weight_value_buffer, normalization, source_cells.size());
+	}
+
+	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
+	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
+			const CONT_C& source_cells,
+			const std::optional<CONT_W> source_cell_weights = {},
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		return compute_weights(m, weight_index, weight_value, weight_value_buffer,
+				source_cells, source_cell_weights, normalization);
+	}
+
+	static std::pair<Vec4i, Vec4> lerp(
+			const std::array<Vec4i, 2>& indices,
+			const std::array<Vec4, 2>& values,
+			const Vec4::Scalar& t,
+			std::vector<Vec4::Scalar>& weight_value_buffer,
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		weight_value_buffer.clear();
+
+		const Vec4::Scalar w[2] = { 1.0 - t, t };
+
+		// Sum up all weight contributions per-bone into the buffer
+		for (size_t i = 0; i < 2; ++i)
+		{
+			for (size_t j = 0; j < 4; ++j)
+			{
+				const int wi = indices[i][j];
+				const double wv = w[i] * values[i][j];
+				if (wi < 0 || wv == 0.0)
+					continue;
+				if (weight_value_buffer.size() <= wi)
+					weight_value_buffer.resize(wi + 1, 0.0);
+				weight_value_buffer[wi] += wv;
+			}
+		}
+
+		return compute_weights(weight_value_buffer, normalization, 2);
+	}
+
+	static std::pair<Vec4i, Vec4> lerp(
+			const std::array<Vec4i, 2>& indices,
+			const std::array<Vec4, 2>& values,
+			const Vec4::Scalar& t,
+			const NormalizationType& normalization = NormalizationType::AbsSum)
+	{
+		std::vector<Vec4::Scalar> weight_value_buffer;
+		return lerp(indices, values, t, weight_value_buffer, normalization);
 	}
 };
 

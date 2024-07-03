@@ -24,6 +24,10 @@
 #ifndef CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 #define CGOGN_MODULE_ANIMATION_SKELETON_CONTROLLER_H_
 
+#include <functional>
+#include <array>
+#include <set>
+
 #include <boost/core/demangle.hpp>
 
 #include <cgogn/ui/app.h>
@@ -223,14 +227,44 @@ protected:
 			if (selected_animation_)
 				show_time_controls();
 
-			if (ImGui::Checkbox("Root motion", &root_motion_))
-				root_motion_iteration_id_ = 0;
+			if (ImGui::TreeNode("Advanced"))
+			{
+				if (selected_animation_)
+					show_advanced_time_controls();
+
+				if (ImGui::Checkbox("Root motion", &root_motion_))
+					root_motion_iteration_id_ = 0;
+
+				ImGui::TreePop();
+			}
+
 
 			ImGui::Separator();
 
+			ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
+			ImGui::SameLine();
+			ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
+			ImGui::SameLine();
+			ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
+
 			if (ImGui::Button("Generate bone colors"))
-				Embedding::generate_bone_colors(*selected_skeleton_,
-						*get_or_add_attribute<Vec3, Bone>(*selected_skeleton_, GENERATED_BONE_COLOR_ATTRIBUTE_NAME));
+			{
+				const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+						GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
+				const std::array<std::function<void()>, 3> generators
+				{
+					[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
+					[&]{
+						if (selected_joint_position_)
+							Embedding::generate_bone_colors_from_position(
+									*selected_skeleton_, *selected_joint_position_, *attribute);
+					},
+					[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
+				};
+				cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
+				generators[color_generation_mode_]();
+				mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+			}
 		}
 
 		advance_play();
@@ -258,7 +292,7 @@ private:
 			return; // end already reached
 		}
 
-		TimeT new_time = time_ + static_cast<TimeT>(App::frame_time_ - last_frame_time_);
+		TimeT new_time = time_ + time_ratio_ * static_cast<TimeT>(App::frame_time_ - last_frame_time_);
 
 		// If the animation changed to one that starts later,
 		// better to fast-forward to its start than to wait to catch up
@@ -274,6 +308,45 @@ private:
 		}
 		else // PlayMode::PlayOnce
 			set_time(std::min(new_time, end_time));
+	}
+
+	// Fast-forwards towards the next pose if an animation is selected.
+	void advance_towards_next_pose(const TimeT& prec = Eigen::NumTraits<TimeT>::dummy_precision())
+	{
+		if (!selected_animation_ || !selected_animation_time_extrema_)
+			return;
+
+		const auto& [start_time, end_time] = *selected_animation_time_extrema_;
+		cgogn_assert(start_time <= end_time);
+
+		if (start_time == end_time || time_ < start_time || time_ >= end_time)
+		{
+			set_time(TimePoint::Start);
+			return;
+		}
+
+		const std::set<TimeT> times = AnimationT::get_unique_keyframe_times(*selected_animation_);
+
+		const auto next_pose_it = times.upper_bound(time_);
+		cgogn_message_assert(next_pose_it != times.cbegin(), "Animation unique times incoherent with time bounds");
+
+		if (!advance_pose_time_ratio_dependence_ || time_ratio_ >= 1.0)
+		{
+			set_time(*next_pose_it);
+			return;
+		}
+
+		auto previous_pose_it = next_pose_it;
+		--previous_pose_it;
+
+		const TimeT& previous_pose_time = *previous_pose_it;
+		const TimeT& next_pose_time = *next_pose_it;
+		cgogn_message_assert(previous_pose_time >= start_time && next_pose_time <= end_time,
+				"Animation unique times incoherent with time bounds");
+
+		// Contrarily to advance_play in looping mode, overshooting is clamped
+		const auto t = std::min(time_ + time_ratio_ * (next_pose_time - previous_pose_time), end_time);
+		set_time(std::abs(next_pose_time - t) <= prec ? next_pose_time : t);
 	}
 
 	void show_time_controls()
@@ -332,6 +405,25 @@ private:
 		show_tooltip_for_ui_above("Fast-forward");
 	}
 
+	void show_advanced_time_controls()
+	{
+		if (!selected_animation_time_extrema_ // no pose
+				|| selected_animation_time_extrema_->first >= selected_animation_time_extrema_->second) // single pose
+			return;
+
+		float tr = static_cast<float>(time_ratio_);
+		if (ImGui::DragFloat("Ratio", &tr, 0.0625f, 0.0f, std::numeric_limits<float>::max()))
+			time_ratio_ = static_cast<TimeT>(tr);
+
+		if (ImGui::Button(">"))
+			advance_towards_next_pose();
+		show_tooltip_for_ui_above("Next pose");
+		ImGui::SameLine();
+		ImGui::Checkbox("Ratio-dependent", &advance_pose_time_ratio_dependence_);
+
+		ImGui::Separator();
+	}
+
 	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
 	{
 		bool res = false;
@@ -356,7 +448,7 @@ private:
 			set_play_mode(play_mode);
 	}
 
-	void show_tooltip_for_ui_above(const char* tooltip_text)
+	static void show_tooltip_for_ui_above(const char* tooltip_text)
 	{
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 			ImGui::SetTooltip("%s", tooltip_text); // format required to avoid Wformat-security
@@ -421,8 +513,11 @@ private:
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};
+	TimeT time_ratio_ = 1.0;
+	bool advance_pose_time_ratio_dependence_ = false;
 	uint32 root_motion_iteration_id_ = 0;
 	bool root_motion_ = false;
+	int color_generation_mode_ = 0;
 	MESH* selected_skeleton_ = nullptr;
 	std::shared_ptr<Attribute<AnimationT>> selected_animation_ = nullptr;
 	std::optional<std::pair<TimeT, TimeT>> selected_animation_time_extrema_ = {};

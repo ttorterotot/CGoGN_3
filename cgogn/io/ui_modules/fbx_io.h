@@ -70,10 +70,10 @@ public:
 	void load_file(const std::string& path, bool load_surfaces = true, bool load_skeletons = true, bool normalized = false)
 	{
 		std::string filename = filename_from_path(path);
-		typename io::FbxImporter<Surface>::Map<std::string, Surface*> surfaces;
+		typename io::FbxImporter::Map<std::string, Surface*> surfaces;
 		std::optional<Skeleton*> skeleton;
 
-		io::FbxImporter<Surface>::load(path, surfaces, skeleton, load_surfaces, load_skeletons, normalized);
+		io::FbxImporter::load<Surface>(path, surfaces, skeleton, load_surfaces, load_skeletons, normalized);
 
 		for (const auto [objname, surface] : surfaces)
 			register_surface(surface, objname, filename);

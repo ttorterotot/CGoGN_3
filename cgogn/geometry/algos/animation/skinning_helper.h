@@ -124,9 +124,11 @@ public:
 
 			for (int j = 0; j < 4; ++j)
 			{
-				auto wi = weight_indices[i][j];
-				if (wi < 0)
+				const auto& wb = weight_indices[i][j];
+				if (wb < 0)
 					continue;
+
+				const auto wi = index_of(as, static_cast<Bone>(wb));
 				if (wi >= offsets.size())
 				{
 					res = false;
@@ -138,7 +140,7 @@ public:
 				w += wv;
 			}
 
-			if (normalize_weights)
+			if (normalize_weights && w != 0.0)
 				p /= w;
 
 			positions[i] = p;
@@ -185,10 +187,11 @@ public:
 
 			for (int j = 0; j < 4; ++j)
 			{
-				auto wi = weight_indices[i][j];
-				if (wi < 0)
+				const auto& wb = weight_indices[i][j];
+				if (wb < 0)
 					continue;
 
+				const auto wi = index_of(as, static_cast<Bone>(wb));
 				if (wi < offsets.size())
 					t += weight_values[i][j] * offsets[wi];
 				else
@@ -206,6 +209,73 @@ public:
 		return res;
 	}
 
+	/// @brief Updates vertex colors with the greyscale value of the provided bone's weight for each vertex
+	/// @param m the mesh the vertex attributes are for
+	/// @param bone the bone to read the weights of
+	/// @param weight_indices the affecting bone index attribute to refer to
+	/// @param weight_values the affecing bone weight attribute to refer to
+	/// @param vertex_color the vertex color attribute to update
+	template <typename MESH>
+	static void compute_bone_influence(
+			const MESH& m,
+			const Bone& bone,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& vertex_color)
+	{
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
+		{
+			const auto i = index_of(m, v);
+
+			for (size_t j = 0; j < 4; ++j)
+			{
+				if (weight_indices[i][j] == static_cast<Vec4i::Scalar>(bone))
+				{
+					vertex_color[i] = Vec3::Ones() * weight_values[i][j];
+					return true;
+				}
+			}
+
+			vertex_color[i] = Vec3::Zero();
+			return true;
+		});
+	}
+
+	/// @brief Updates vertex colors by interpolating bone colors based on their weights for each vertex
+	/// @param m the mesh the vertex attributes are for
+	/// @param as the skeleton the bone attributes are for
+	/// @param weight_indices the affecting bone index attribute to refer to
+	/// @param weight_values the affecing bone weight attribute to refer to
+	/// @param bone_color the bone color attribute to refer to
+	/// @param vertex_color the vertex color attribute to update
+	template <typename MESH, typename SKEL>
+	static void compute_bone_influence(
+			const MESH& m,
+			const SKEL& as,
+			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_indices,
+			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_values,
+			const typename mesh_traits<SKEL>::template Attribute<Vec3>& bone_color,
+			typename mesh_traits<MESH>::template Attribute<Vec3>& vertex_color)
+	{
+		parallel_foreach_cell(m, [&](typename mesh_traits<MESH>::Vertex v)
+		{
+			const auto i = index_of(m, v);
+			auto& color = vertex_color[i];
+			const auto& indices = weight_indices[i];
+
+			color = Vec3::Zero();
+
+			for (size_t j = 0; j < 4; ++j)
+			{
+				const auto& bone = static_cast<Bone>(weight_indices[i][j]);
+				if (bone.is_valid())
+					color += bone_color[index_of(as, bone)] * weight_values[i][j];
+			}
+
+			return true;
+		});
+	}
+
 private:
 
 	// Computes the transform offset for the pose.
@@ -221,7 +291,10 @@ private:
 		std::vector<TransformT> offsets(world_transforms.maximum_index());
 
 		for (const auto& bone : as.bone_traverser_)
-			offsets[bone] = world_transforms[bone] * bind_inv_world_transforms[bone];
+		{
+			const auto& bone_index = index_of(as, bone);
+			offsets[bone_index] = world_transforms[bone_index] * bind_inv_world_transforms[bone_index];
+		}
 
 		return offsets;
 	}

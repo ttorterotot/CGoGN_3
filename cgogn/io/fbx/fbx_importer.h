@@ -69,7 +69,7 @@ public:
 
 protected:
 	using Skeleton = AnimationSkeleton;
-	using ObjectId = uint32;
+	using ObjectId = uint64;
 	using AnimTimeT = double;
 	using AnimScalar = geometry::Scalar;
 	using AnimationT = geometry::KeyframedAnimation<std::vector, AnimTimeT, AnimScalar>;
@@ -186,7 +186,28 @@ private:
 	static constexpr const AnimTimeT ANIM_TIME_RATIO = 1.0 / 46186158000l;
 
 public:
-	static const RotationOrder& get_rotation_order(const size_t& id);
+	template <bool WarnUnsupported = true, int DefaultId = -1>
+	static std::conditional_t<DefaultId >= 0, const RotationOrder&, std::optional<RotationOrder>> get_rotation_order(
+			const size_t& id)
+	{
+		if (id < ID_TO_ROTATION_ORDER.size())
+			return ID_TO_ROTATION_ORDER[id];
+
+		if constexpr (WarnUnsupported)
+		{
+			if (id == ID_TO_ROTATION_ORDER.size())
+				std::cout << "Warning: spheric rotation order is unsupported" << std::endl;
+			else
+				std::cout << "Warning: unrecognized rotation order ID " << id << std::endl;
+		}
+
+		static_assert(DefaultId < 0 || DefaultId < ID_TO_ROTATION_ORDER.size());
+
+		if constexpr (DefaultId >= 0)
+			return ID_TO_ROTATION_ORDER[DefaultId];
+		else
+			return std::optional<RotationOrder>{};
+	}
 
 protected:
 
@@ -246,7 +267,7 @@ protected:
 				ptr[i] = other_values[i];
 			else if (warn_unequal && other_values[i] && *other_values[i] != *ptr[i])
 				std::cout << "Warning: inconsistent values " << *ptr[i] << " and " << *other_values[i]
-						<< " for property " << property_name;
+						<< " for property " << property_name << std::endl;
 		}
 	}
 
@@ -279,7 +300,10 @@ private:
 	std::optional<char> skip_through_characters(std::istream& is, const std::string& characters);
 
 	template <typename T, size_t Size>
-	static constexpr std::pair<T*, size_t> std_array_g(std::array<T, Size>& arr){ return std::make_pair(arr.data(), Size); }
+	static constexpr std::pair<T*, size_t> std_array_data_and_size(std::array<T, Size>& arr)
+	{
+		return std::make_pair(arr.data(), Size);
+	}
 
 protected:
 	std::unordered_map<std::string, Properties> property_templates_;
@@ -294,12 +318,14 @@ protected:
 	std::vector<std::tuple<ObjectId, ObjectId, std::string>> connections_op_;
 
 private:
+	/// @brief Mapping from FBX property name to a function returning the pointer and size (in elements, not in bytes)
+	///        of the corresponding data in an instance of `Properties`
 	static inline const std::unordered_map<std::string,
 			std::function<std::pair<std::optional<AnimScalar>*, size_t>(Properties&)>> PROPERTY_INFO_ = {
-		std::make_pair("PreRotation", [](Properties& p){ return std_array_g(p.pre_rotation()); }),
-		std::make_pair("PostRotation", [](Properties& p){ return std_array_g(p.post_rotation()); }),
-		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_g(p.lcl_translation()); }),
-		std::make_pair("Lcl Rotation", [](Properties& p){ return std_array_g(p.lcl_rotation()); }),
+		std::make_pair("PreRotation", [](Properties& p){ return std_array_data_and_size(p.pre_rotation()); }),
+		std::make_pair("PostRotation", [](Properties& p){ return std_array_data_and_size(p.post_rotation()); }),
+		std::make_pair("Lcl Translation", [](Properties& p){ return std_array_data_and_size(p.lcl_translation()); }),
+		std::make_pair("Lcl Rotation", [](Properties& p){ return std_array_data_and_size(p.lcl_rotation()); }),
 		std::make_pair("d|X", [](Properties& p){ return std::make_pair(p.d().data(), 1); }),
 		std::make_pair("d|Y", [](Properties& p){ return std::make_pair(p.d().data() + 1, 1); }),
 		std::make_pair("d|Z", [](Properties& p){ return std::make_pair(p.d().data() + 2, 1); }),
@@ -310,7 +336,6 @@ private:
 	bool load_skeleton_;
 };
 
-template <typename Surface>
 class FbxImporter : public FbxImporterBase
 {
 public:
@@ -321,6 +346,24 @@ private:
 	using FbxImporterBase::FbxImporterBase; // inherit constructor
 
 private:
+	template <typename T>
+	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
+	{
+		std::string name = candidate_name;
+
+		// Ensure name uniqueness
+		for (size_t i = 0;
+				get_attribute<T, Skeleton::Bone>(skeleton, name)
+						|| get_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+				name = candidate_name + std::to_string(i++));
+
+		auto& bind_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
+		auto& anim_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name);
+
+		return std::make_pair(std::ref(bind_attr), std::ref(anim_attr));
+	}
+
+	template <typename Surface>
 	auto get_and_init_skinning_attributes(Surface& surface)
 	{
 		using Vertex = typename mesh_traits<Surface>::Vertex;
@@ -339,6 +382,7 @@ private:
 		return std::make_pair(std::ref(weight_index_attr), std::ref(weight_value_attr));
 	}
 
+	template <typename Surface>
 	void load_geometry(Surface& surface, Geometry& geometry)
 	{
 		// Import geometry to surface type
@@ -408,181 +452,7 @@ private:
 			}
 	}
 
-	template <typename T>
-	auto add_animation_attributes(Skeleton& skeleton, const std::string& candidate_name)
-	{
-		std::string name = candidate_name;
-
-		// Ensure name uniqueness
-		for (size_t i = 0;
-				get_attribute<T, Skeleton::Bone>(skeleton, name)
-						|| get_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
-				name = candidate_name + std::to_string(i++));
-
-		auto& bind_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name + "_bind");
-		auto& anim_attr = *add_attribute<T, Skeleton::Bone>(skeleton, name);
-
-		return std::make_pair(std::ref(bind_attr), std::ref(anim_attr));
-	}
-
-	void load_bones(Skeleton& skeleton)
-	{
-		for (LimbNodeModel& m : models_limb_node_)
-			m.bone = add_root(skeleton, m.name);
-
-		for (const LimbNodeModel& m : models_limb_node_)
-			if (auto* parent = get_parent_bone(m.id))
-				attach_bone(skeleton, m.bone, parent->bone);
-	}
-
-	void associate_animations_to_bones()
-	{
-		for (const auto& c : connections_op_)
-		{
-			// Get animation curve node's animation curves and targeted property
-
-			const auto& [curve_id, curve_node_id, axis_property_name] = c;
-
-			const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-					[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
-
-			if (curve_node_it == animation_curve_nodes_.end())
-				continue;
-
-			const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
-					[&](const AnimationCurve& curve){ return curve.id == curve_id; });
-
-			if (curve_it == animation_curves_.cend())
-				continue;
-
-			// Compare node value with curve default (*)
-			set_missing_values(curve_node_it->properties,
-					std::array<std::optional<AnimScalar>, 1>{curve_it->default_value},
-					axis_property_name, false);
-
-			curve_node_it->set_animation(&curve_it->animation, axis_property_name);
-		}
-
-		for (const auto& c : connections_op_)
-		{
-			// Get bone's animation curve node and targeted property
-
-			const auto& [curve_node_id, model_id, transform_property_name] = c;
-
-			const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
-					[&](const LimbNodeModel& model){ return model.id == model_id; });
-
-			if (model_it == models_limb_node_.end())
-				continue;
-
-			const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-					[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
-
-			if (curve_node_it == animation_curve_nodes_.end())
-				continue;
-
-			model_it->set_animation(curve_node_it->animation, transform_property_name);
-
-			// Compare model value with node's (*)
-			set_missing_values(model_it->properties, curve_node_it->properties.d(), transform_property_name, true);
-		}
-
-		// (*) should be equal if both are present, if the former isn't, then try to get a value from the latter
-	}
-
-	void load_animations(Skeleton& skeleton)
-	{
-		using RT = geometry::RigidTransformation<geometry::Quaternion, Vec3>;
-		using KA_RT = geometry::KeyframedAnimation<std::vector, AnimTimeT, RT>;
-		using KA_DQ = geometry::KeyframedAnimation<std::vector, AnimTimeT, geometry::DualQuaternion>;
-
-		// TODO: handling multiple animations in the same file (layers?)
-
-		associate_animations_to_bones();
-
-		auto& attr_joint_position = *add_attribute<Vec3, Skeleton::Joint>(skeleton, "position");
-		for (const auto& bone : skeleton.bone_traverser_)
-		{
-			const auto& [first_joint, second_joint] = (*skeleton.bone_joints_)[bone];
-			attr_joint_position[second_joint] = attr_joint_position[first_joint] = Vec3::Zero();
-		}
-
-		auto [attr_anim_rt_b, attr_anim_rt] = add_animation_attributes<KA_RT>(skeleton, "RT");
-		auto [attr_anim_dq_b, attr_anim_dq] = add_animation_attributes<KA_DQ>(skeleton, "DQ");
-
-		const std::string template_key = "Model";
-		const auto& default_rotation_order = get_default_rotation_order(template_key);
-		const auto default_pre_rotation = get_default_rotation(template_key, &Properties::pre_rotation, default_rotation_order);
-		const auto default_post_rotation = get_default_rotation(template_key, &Properties::post_rotation, default_rotation_order);
-		const auto default_lcl_rotation = get_default_rotation(template_key, &Properties::lcl_rotation, default_rotation_order);
-		const Vec3 default_lcl_translation = get_default_translation(template_key, &Properties::lcl_translation);
-
-		for (const LimbNodeModel& m : models_limb_node_)
-		{
-			KA_RT anim_rt; // RigidTransformation animation
-			KA_RT anim_rt_b; // RigidTransformation bind pose
-			KA_DQ anim_dq; // DualQuaternion animation
-			KA_DQ anim_dq_b; // DualQuaternion bind pose
-
-			// Get keyframe times
-			std::set<AnimTimeT> times;
-			{
-				std::vector<AnimationT> anim_copies;
-				for (const auto& anim : m.animation)
-					if (anim)
-						anim_copies.push_back(*anim);
-				times = AnimationT::get_unique_keyframe_times(anim_copies);
-			}
-
-			const auto& rotation_order = m.properties.rotation_order() ?
-					get_rotation_order(static_cast<size_t>(*m.properties.rotation_order())) : default_rotation_order;
-
-			const auto rotation_d = [&](const std::array<std::optional<AnimScalar>, 3>& values,
-					geometry::Quaternion default_value)
-			{
-				return Properties::any_set(values) ? from_euler(values, rotation_order) : default_value;
-			};
-
-			const auto lcl_translation_d = [&] {
-				const auto& values = m.properties.lcl_translation();
-				if (!Properties::any_set(values))
-					return default_lcl_translation;
-				return Vec3{values[0].value_or(0.0), values[1].value_or(0.0), values[2].value_or(0.0)};
-			};
-
-			auto pre_rotation = rotation_d(m.properties.pre_rotation(), default_pre_rotation);
-			auto post_rotation = rotation_d(m.properties.post_rotation(), default_post_rotation);
-			auto lcl_rotation = rotation_d(m.properties.lcl_rotation(), default_lcl_rotation);
-			auto total_lcl_rotation = pre_rotation * lcl_rotation * post_rotation;
-			Vec3 lcl_translation = lcl_translation_d();
-
-			anim_rt_b.emplace_back(0.0, RT{total_lcl_rotation, lcl_translation});
-			anim_dq_b.emplace_back(0.0, geometry::DualQuaternion::from_tr(lcl_translation, total_lcl_rotation));
-
-			// We assume the interpolation to be linear, so we can create full transform keyframes by interpolating
-			// each component along its own animation, instead of passing the split components beyond
-			for (const auto& time : times)
-			{
-				auto t = m.get_translation_or(time, lcl_translation);
-				auto r = m.get_rotation_or(time, pre_rotation, post_rotation, total_lcl_rotation);
-
-				anim_rt.emplace_back(time, RT{r, t});
-				anim_dq.emplace_back(time, geometry::DualQuaternion::from_tr(t, r));
-			}
-
-			if (times.empty())
-			{
-				anim_rt = anim_rt_b;
-				anim_dq = anim_dq_b;
-			}
-
-			attr_anim_rt[m.bone] = anim_rt;
-			attr_anim_rt_b[m.bone] = anim_rt_b;
-			attr_anim_dq[m.bone] = anim_dq;
-			attr_anim_dq_b[m.bone] = anim_dq_b;
-		}
-	}
-
+	template <typename Surface>
 	void load_surfaces(Map<std::string, Surface*>& surfaces, bool normalized)
 	{
 		using Vertex = typename mesh_traits<Surface>::Vertex;
@@ -615,7 +485,7 @@ private:
 					load_geometry(*surface, *geometry_it);
 			}
 
-			// TODO connections_op_
+			// @TODO connections_oo_ with parents to apply their transform, if any
 
 			if (normalized)
 				if (auto vertex_position = get_attribute<Vec3, Vertex>(*surface, "position"))
@@ -623,18 +493,10 @@ private:
 		}
 	}
 
-	Skeleton* load_skeleton()
-	{
-		if (models_limb_node_.empty())
-			return nullptr;
-
-		Skeleton* skeleton = new Skeleton{};
-
-		load_bones(*skeleton);
-		load_animations(*skeleton);
-
-		return skeleton;
-	}
+	void load_bones(Skeleton& skeleton);
+	void associate_animations_to_bones();
+	void load_animations(Skeleton& skeleton);
+	Skeleton* load_skeleton();
 
 public:
 	FbxImporter() = delete;
@@ -646,6 +508,7 @@ public:
 	/// @param load_surfaces whether or not to actually read surfaces
 	/// @param load_skeleton whether or not to actually read skeletons
 	/// @param normalized whether or not to normalize the positions for each surface (can offset it from bones)
+	template <typename Surface>
 	static void load(const std::string& path,
 			Map<std::string, Surface*>& surfaces,
 			std::optional<Skeleton*>& skeleton,

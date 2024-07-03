@@ -245,7 +245,7 @@ public:
 		set_bone_world_transform(nullptr);
 
 		skeleton_connection_ = !sk ? nullptr
-				: boost::synapse::connect<typename MeshProvider<Mesh>::template attribute_changed_t<TransformT>>(
+				: boost::synapse::connect<typename MeshProvider<Skeleton>::template attribute_changed_t<TransformT>>(
 						sk, [&](AttributeSk<TransformT>* attribute)
 				{
 					if (selected_bone_world_transform_.get() == attribute)

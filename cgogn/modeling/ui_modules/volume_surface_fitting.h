@@ -322,6 +322,10 @@ public:
 		volume_provider_->emit_connectivity_changed(*volume_);
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 
+		if constexpr (SubdivideSkinningWeights)
+			if (skinning_weight_attributes_set)
+				emit_volume_skinning_attributes_changed();
+
 		set_volume_caches_dirty(true);
 	}
 
@@ -633,9 +637,9 @@ public:
 			return true;
 		});
 
-		update_volume_skin_skinning_attributes();
-
 		surface_provider_->emit_connectivity_changed(*volume_skin_);
+
+		update_volume_skin_skinning_attributes();
 
 		refresh_volume_skin_ = false;
 	}
@@ -781,7 +785,7 @@ public:
 				&& surface_vertex_position_ && surface_bvh_;
 	}
 
-	void transfer_skinning_weights_to_skin()
+	void transfer_skinning_weights_to_skin(bool emit_attributes_changed = true)
 	{
 		if (refresh_volume_skin_)
 			refresh_volume_skin(); // already updates skin skinning attributes
@@ -815,6 +819,12 @@ public:
 			value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, vv) = values;
 			return true;
 		});
+
+		if (emit_attributes_changed)
+		{
+			emit_volume_skinning_attributes_changed();
+			emit_volume_skin_skinning_attributes_changed();
+		}
 	}
 
 	template <typename FUNC>
@@ -903,7 +913,8 @@ public:
 
 	template <PropagationDirection Direction>
 	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u,
-			bool update_volume_skin_skinning_attributes_once_done = true)
+			bool update_volume_skin_skinning_attributes_once_done = true,
+			bool emit_attributes_changed = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -948,12 +959,16 @@ public:
 			});
 		}
 
+		if (emit_attributes_changed)
+			emit_volume_skinning_attributes_changed();
+
 		if (update_volume_skin_skinning_attributes_once_done)
-			update_volume_skin_skinning_attributes();
+			update_volume_skin_skinning_attributes(emit_attributes_changed);
 	}
 
 	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u,
-			bool update_volume_skin_skinning_attributes_once_done = true)
+			bool update_volume_skin_skinning_attributes_once_done = true,
+			bool emit_attributes_changed = true)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
@@ -994,8 +1009,11 @@ public:
 			});
 		});
 
+		if (emit_attributes_changed)
+			emit_volume_skinning_attributes_changed();
+
 		if (update_volume_skin_skinning_attributes_once_done)
-			update_volume_skin_skinning_attributes();
+			update_volume_skin_skinning_attributes(emit_attributes_changed);
 	}
 
 	template <typename T, typename CELL, typename MESH>
@@ -1016,6 +1034,7 @@ public:
 	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
 			const FUNC_I& get_interpolation_weight,
 			bool refresh_volume_vertex_distance_from_boundary_before_interpolation = true,
+			bool emit_attributes_changed = true,
 			bool keep_buffer_attributes = false)
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
@@ -1064,7 +1083,16 @@ public:
 			remove_attribute<VolumeVertex>(*volume_, temp_vvswv);
 		}
 
-		update_volume_skin_skinning_attributes();
+		if (keep_buffer_attributes && emit_attributes_changed)
+		{
+			volume_provider_->template emit_attribute_changed<false>(*volume_, temp_vvswi.get());
+			volume_provider_->template emit_attribute_changed<false>(*volume_, temp_vvswv.get());
+		}
+
+		if (emit_attributes_changed)
+			emit_volume_skinning_attributes_changed();
+
+		update_volume_skin_skinning_attributes(emit_attributes_changed);
 	}
 
 	void regularize_surface_vertices(Scalar fit_to_data)
@@ -1632,10 +1660,27 @@ public:
 			update_volume_skin_skinning_attributes();
 	}
 
+	void emit_volume_skinning_attributes_changed()
+	{
+		volume_provider_->template emit_attribute_changed<false>(
+				*volume_, volume_vertex_skinning_weight_index_.get());
+		volume_provider_->template emit_attribute_changed<false>(
+				*volume_, volume_vertex_skinning_weight_value_.get());
+	}
+
+	void emit_volume_skin_skinning_attributes_changed()
+	{
+		surface_provider_->template emit_attribute_changed<false>(
+				*volume_skin_, volume_skin_vertex_skinning_weight_index_.get());
+		surface_provider_->template emit_attribute_changed<false>(
+				*volume_skin_, volume_skin_vertex_skinning_weight_value_.get());
+	}
+
 	template <typename T>
 	void update_volume_skin_skinning_attribute(
 			std::shared_ptr<SurfaceAttribute<T>>& skin_attribute,
-			const std::shared_ptr<VolumeAttribute<T>>& volume_attribute)
+			const std::shared_ptr<VolumeAttribute<T>>& volume_attribute,
+			bool emit_attribute_changed = true)
 	{
 		if (!volume_attribute || !volume_ || !volume_skin_)
 		{
@@ -1651,12 +1696,19 @@ public:
 					value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v));
 			return true;
 		});
+
+		if (emit_attribute_changed)
+			surface_provider_->template emit_attribute_changed<false>(*volume_skin_, skin_attribute.get());
 	}
 
-	void update_volume_skin_skinning_attributes()
+	void update_volume_skin_skinning_attributes(bool emit_attributes_changed = true)
 	{
-		update_volume_skin_skinning_attribute(volume_skin_vertex_skinning_weight_index_, volume_vertex_skinning_weight_index_);
-		update_volume_skin_skinning_attribute(volume_skin_vertex_skinning_weight_value_, volume_vertex_skinning_weight_value_);
+		update_volume_skin_skinning_attribute(
+				volume_skin_vertex_skinning_weight_index_, volume_vertex_skinning_weight_index_,
+				emit_attributes_changed);
+		update_volume_skin_skinning_attribute(
+				volume_skin_vertex_skinning_weight_value_, volume_vertex_skinning_weight_value_,
+				emit_attributes_changed);
 	}
 
 protected:
@@ -1917,10 +1969,10 @@ protected:
 
 					// propagate_skinning_weights(_from_set) calls from interpolate_skinning_weights
 					// don't need to update the volume skin's skinning attributes from the volume's
-					// because interpolate_skinning_weights needs to do so at the end anyway
-					// (IPU stands for "Interpolate_skinning_weights calling Propagate_skinning_weights
-					// with Update_volume_skin_skinning_attributes_once_done set to this value")
-					static constexpr const bool IPU = false;
+					// nor to emit a signal that the volume (and its skin)'s have changed,
+					// because interpolate_skinning_weights needs to do both at the end anyway
+					// (NN stands for "not needed")
+					static constexpr const bool NN = false;
 
 					const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
 
@@ -1942,14 +1994,14 @@ protected:
 							break;
 						case SOURCE_SKIN_CENTER:
 							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
-								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, IPU); },
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
+								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, NN, NN); },
 								boundary_to_center_interpolation, false); // refresh already done by both propagations
 							break;
 						case SOURCE_SKIN_FROZEN:
 							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, IPU); },
-								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, IPU); },
+								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
+								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, NN, NN); },
 								boundary_to_center_interpolation, false); // refresh already done by first propagation
 							break;
 						default:

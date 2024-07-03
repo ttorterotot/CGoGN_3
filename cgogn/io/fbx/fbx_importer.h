@@ -485,7 +485,7 @@ private:
 					load_geometry(*surface, *geometry_it);
 			}
 
-			// TODO connections_op_
+			// @TODO connections_oo_ with parents to apply their transform, if any
 
 			if (normalized)
 				if (auto vertex_position = get_attribute<Vec3, Vertex>(*surface, "position"))

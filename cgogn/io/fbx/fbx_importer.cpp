@@ -1050,7 +1050,7 @@ void FbxImporter::load_animations(Skeleton& skeleton)
 	using KA_RT = geometry::KeyframedAnimation<std::vector, AnimTimeT, RT>;
 	using KA_DQ = geometry::KeyframedAnimation<std::vector, AnimTimeT, geometry::DualQuaternion>;
 
-	// TODO: handling multiple animations in the same file (layers?)
+	// @TODO: handling multiple animations in the same file (layers?)
 
 	associate_animations_to_bones();
 

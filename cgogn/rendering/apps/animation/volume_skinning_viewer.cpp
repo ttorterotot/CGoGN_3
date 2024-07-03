@@ -101,7 +101,7 @@ bool load_weights(const Skeleton& sk, Volume& m, const std::vector<uint32>& vert
 
 	std::unordered_map<std::string, Bone> bones;
 	for (const auto& bone : sk.bone_traverser_)
-		bones[process_bone_name((*sk.bone_name_)[bone])] = bone;
+		bones[process_bone_name((*sk.bone_name_)[index_of(sk, bone)])] = bone;
 
 	auto& wi = *cgogn::add_attribute<Vec4i, Vertex>(m, "weight_index");
 	auto& wv = *cgogn::add_attribute<Vec4, Vertex>(m, "weight_value");

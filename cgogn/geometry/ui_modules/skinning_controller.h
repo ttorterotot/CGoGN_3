@@ -24,6 +24,7 @@
 #ifndef CGOGN_MODULE_SKINNING_CONTROLLER_H_
 #define CGOGN_MODULE_SKINNING_CONTROLLER_H_
 
+#include <array>
 #include <algorithm>
 #include <unordered_map>
 
@@ -235,6 +236,21 @@ public:
 		selected_vertex_weight_index_.reset();
 		selected_vertex_weight_value_.reset();
 		set_vertex_position(get_attribute<Vec3, Vertex>(*sf, "position")); // nullptr (equiv. to reset) if not found
+
+		mesh_connections_[0] = !sf ? nullptr
+				: boost::synapse::connect<typename MeshProvider<Mesh>::template attribute_changed_t<Vec4i>>(
+						sf, [&](AttributeSf<Vec4i>* attribute)
+				{
+						if (selected_vertex_weight_index_.get() == attribute)
+							update_embedding();
+				});
+		mesh_connections_[1] = !sf ? nullptr
+				: boost::synapse::connect<typename MeshProvider<Mesh>::template attribute_changed_t<Vec4>>(
+						sf, [&](AttributeSf<Vec4>* attribute)
+				{
+						if (selected_vertex_weight_value_.get() == attribute)
+							update_embedding();
+				});
 	}
 
 	/// @brief Changes the linked skeleton, and resets attribute selection for it.
@@ -468,6 +484,7 @@ private:
 	std::shared_ptr<AttributeSk<TransformT>> selected_bind_bone_inv_world_transform_ = nullptr;
 	std::string bind_inv_world_transform_attribute_name_ = nullptr;
 	std::shared_ptr<boost::synapse::connection> skeleton_connection_ = nullptr;
+	std::array<std::shared_ptr<boost::synapse::connection>, 2> mesh_connections_ = {nullptr, nullptr};
 	MeshProvider<Skeleton>* skeleton_provider_ = nullptr;
 	bool save_vertex_position_on_first_bind_ = true;
 	bool restore_vertex_position_on_unbind_ = false;

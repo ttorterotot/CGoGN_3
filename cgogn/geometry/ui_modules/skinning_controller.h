@@ -402,7 +402,7 @@ private:
 		if (!enabled)
 			ImGui::BeginDisabled();
 
-		if (ImGui::Button(label))
+		if (ImGui::Button(label) && enabled)
 			res = true;
 
 		if (!enabled)

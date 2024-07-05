@@ -169,10 +169,19 @@ protected:
 	}
 
 public:
+	/// @brief Iteratively visits cells from a starting set using a dual buffer.
+	/// `visit` is tasked with queueing new cells for the next iteration and ensuring it doesn't loop indefinitely.
+	/// This allows for infinite loop prevention through a separate map held by the caller,
+	/// or a sentinel value in a data structure that's accessed anyway in the process of visiting a cell,
+	/// instead of keeping track of all previously visited cells in an extra data structure.
+	/// `visit` is called synchronously, not concurrently.
+	/// @param queued_cells the cells to start the propagation from (give up ownership with `std::move` if possible)
+	/// @param visit `void visit(CELL v, uint32 depth, std::vector<CELL>& cells_to_visit_next)`
+	/// @return the iteration depth, which can also be understood as the queued cell generation index
+	///         (`-1` if `queued_cells` starts empty, `0` if there was a single pass, `1` if there were two, etc)
 	template <typename CELL, typename FUNC_V>
 	static int32 propagate(std::vector<CELL>&& queued_cells, const FUNC_V& visit)
 	{
-		// void visit(CELL v, uint32 depth, std::vector<CELL>& cells_to_visit_next)
 		static_assert(is_ith_func_parameter_same<FUNC_V, 0, CELL>::value,
 				"Given function should take a CELL as its first parameter");
 		static_assert(is_ith_func_parameter_same<FUNC_V, 1, uint32>::value,
@@ -359,6 +368,10 @@ public:
 		add_volume_padding(thickness, nullptr);
 	}
 
+	/// @brief Marks current non-boundary vertices as core vertices.
+	/// Subsequent topological operations only mark vertices with only marked neighbors of the previous generation,
+	/// making the set of marked vertices non-growing through these operations (its boundary does not move).
+	/// Note: does not emit an attribute change signal.
 	void mark_volume_core_vertices()
 	{
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
@@ -371,6 +384,7 @@ public:
 		});
 	}
 
+	/// @brief Updates a `CellsSet` (useable i.e. as a frozen vertex set) from the current marking of core vertices.
 	void select_volume_vertices_from_core_mark()
 	{
 		auto& cs = volume_provider_->mesh_data(*volume_).template
@@ -378,6 +392,7 @@ public:
 		cs.select_if([&](VolumeVertex v) { return value<bool>(*volume_, volume_vertex_core_mark_, v); });
 	}
 
+	/// @brief Updates the mark color attribute from the current marking of core vertices.
 	void color_volume_vertices_from_core_mark()
 	{
 		if (auto attribute = get_or_add_attribute<Vec3, VolumeVertex>(*volume_, "vertex_core_mark_color"))
@@ -469,7 +484,7 @@ public:
 		if (refresh_volume_skin_)
 			refresh_volume_skin();
 
-		constexpr const auto SENTINEL = std::numeric_limits<uint32>::max();
+		constexpr const auto SENTINEL = std::numeric_limits<uint32>::max(); // unhandled cell
 		std::vector<VolumeVertex> source_vertices;
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
@@ -489,11 +504,13 @@ public:
 		volume_vertex_max_distance_from_boundary_ = propagate(std::move(source_vertices),
 				[&](VolumeVertex v, uint32 depth, std::vector<VolumeVertex>& cells_to_visit_next)
 		{
+			// When a cell is visited, its depth is already determined, instead it handles its neighbors;
+			// this allows for easy duplicate prevention in the collection of cells to visit next
 			foreach_adjacent_vertex_through_edge(*volume_, v, [&](VolumeVertex v_) -> bool {
 				auto& d = value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v_);
 				if (d == SENTINEL)
 				{
-					d = depth + 1;
+					d = depth + 1; // +1 because `v_` is a neighbor of `v` which is of depth `depth`
 					cells_to_visit_next.push_back(v_);
 				}
 				return true;
@@ -704,14 +721,14 @@ public:
 		refresh_solver_matrix_values_only_ = false;
 	}
 
-	// Returns the closest position to `p` on the surface
+	/// @return the closest position to `p` on the surface.
 	Vec3 closest_surface_point(const Vec3& p)
 	{
 		cgogn_assert(surface_bvh_);
 		return surface_bvh_->closest_point(p);
 	}
 
-	// Returns the BVH index of the surface face closest to `p` and the closest position on that face
+	/// @return the BVH index of the surface face closest to `p` and the closest position on that face.
 	std::pair<uint32, Vec3> closest_surface_face_and_point(const Vec3& p)
 	{
 		cgogn_assert(surface_bvh_);
@@ -830,6 +847,12 @@ public:
 		}
 	}
 
+	/// @brief Sets a vertex's skinning weights from those of its filtered k-neighborhood.
+	/// This overload allows passing of the same buffers (`thread_local` advised) across calls to avoid reallocations.
+	/// @param v the vertex to search around for weights and to set the weights of
+	/// @param k the size of the neighborhood of `v` to gather weights from
+	/// @param is_vertex_source `bool is_vertex_source(VolumeVertex v)`, filters k-neighbor vertices for valid sources
+	/// @return a pair of the unfiltered and filtered neighborhood sizes respectively
 	template <typename FUNC>
 	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
 			const VolumeVertex& v,
@@ -838,7 +861,6 @@ public:
 			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
 			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
 	{
-		// bool is_vertex_source(VolumeVertex v)
 		static_assert(is_func_parameter_same<FUNC, VolumeVertex>::value,
 				"Given function should take a VolumeVertex as parameter");
 		static_assert(is_func_return_same<FUNC, bool>::value,
@@ -867,6 +889,13 @@ public:
 		return std::make_pair(k_neighborhood_size, source_vertex_buffer.size());
 	}
 
+	/// @brief Sets a vertex's skinning weights from those of its filtered k-neighborhood.
+	/// This overload is expected to make several allocations per call for buffering purposes.
+	/// If you call this method many times, consider reusing buffers by calling the other overload instead.
+	/// @param v the vertex to search around for weights and to set the weights of
+	/// @param k the size of the neighborhood of `v` to gather weights from
+	/// @param is_vertex_source `bool is_vertex_source(VolumeVertex v)`, filters k-neighbor vertices for valid sources
+	/// @return a pair of the unfiltered and filtered neighborhood sizes respectively
 	template <typename FUNC>
 	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
 			const VolumeVertex& v,
@@ -879,6 +908,13 @@ public:
 				source_vertex_buffer, weight_value_buffer);
 	}
 
+	/// @brief Sets a vertex's skinning weights from those of its filtered k-neighborhood,
+	///        increasing `k` starting from `k_min` until it finds at least one source vertex,
+	///        or has explored the entire connected component without finding any.
+	/// This overload allows passing of the same buffers (`thread_local` advised) across calls to avoid reallocations.
+	/// @param v the vertex to search around for weights and to set the weights of
+	/// @param min_k the minimum size of the neighborhood of `v` to gather weights from
+	/// @param is_vertex_source `bool is_vertex_source(VolumeVertex v)`, filters k-neighbor vertices for valid sources
 	template <typename FUNC>
 	void set_vertex_skinning_weights_from_min_k_neighborhood(
 			const VolumeVertex& v,
@@ -902,6 +938,14 @@ public:
 		} while (source_vertices_size == 0 && neighborhood_size > previous_neighborhood_size);
 	}
 
+	/// @brief Sets a vertex's skinning weights from those of its filtered k-neighborhood,
+	///        increasing `k` starting from `k_min` until it finds at least one source vertex,
+	///        or has explored the entire connected component without finding any.
+	/// This overload is expected to make several allocations per call for buffering purposes.
+	/// If you call this method many times, consider reusing buffers by calling the other overload instead.
+	/// @param v the vertex to search around for weights and to set the weights of
+	/// @param min_k the minimum size of the neighborhood of `v` to gather weights from
+	/// @param is_vertex_source `bool is_vertex_source(VolumeVertex v)`, filters k-neighbor vertices for valid sources
 	template <typename FUNC>
 	void set_vertex_skinning_weights_from_min_k_neighborhood(
 			const VolumeVertex& v,
@@ -914,6 +958,9 @@ public:
 				source_vertex_buffer, weight_value_buffer);
 	}
 
+	/// @brief Propagates vertex skinning weights throughout the volume in layers of equal distance from its boundary.
+	/// @param neighborhood_min_k the minimum size of the neighborhood of `v` to gather weights from,
+	///                           see `set_vertex_skinning_weights_from_min_k_neighborhood`
 	template <PropagationDirection Direction>
 	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u,
 			bool update_volume_skin_skinning_attributes_once_done = true,
@@ -969,6 +1016,10 @@ public:
 			update_volume_skin_skinning_attributes(emit_attributes_changed);
 	}
 
+	/// @brief Propagates vertex skinning weights outward from `cs` throughout the volume.
+	/// @param cs the cells set to start propagation from
+	/// @param neighborhood_min_k the minimum size of the neighborhood of `v` to gather weights from,
+	///                           see `set_vertex_skinning_weights_from_min_k_neighborhood`
 	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u,
 			bool update_volume_skin_skinning_attributes_once_done = true,
 			bool emit_attributes_changed = true)
@@ -978,9 +1029,10 @@ public:
 		if (refresh_volume_skin_)
 			refresh_volume_skin();
 
-		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest();
+		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest(); // unhandled cell
 		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertex_buffer;
 		std::vector<Vec4::Scalar> weight_value_buffer;
+		// `propagate` has no concurrency so neither buffer needs to be `thread_local`
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
 		{
@@ -1033,6 +1085,15 @@ public:
 		return buffer;
 	}
 
+	/// @brief Propagates vertex skinning weights separately with `propagate_a` and `propagate_b`,
+	///        then interpolates between each result based on `get_interpolation_weight` (`0`: full `a`; `1`: full `b`)
+	/// @param propagate_a first propagation function, should not be `[[nodiscard]]` or require any arguments
+	/// @param propagate_b second propagation function, should not be `[[nodiscard]]` or require any arguments
+	/// @param get_interpolation_weight `Vec4::Scalar get_interpolation_weight(VolumeVertex v)`, result in `[0.0, 1.0]`
+	/// @param refresh_volume_vertex_distance_from_boundary_before_interpolation
+	///            if at least one propagation function already refreshes the vertex distance from boundary attribute
+	///            and neither changes the topology, this may be toggled off to avoid the superfluous computation
+	/// @param keep_buffer_attributes if toggled off, temporary attributes created to hold weights will be removed
 	template <typename FUNC_PA, typename FUNC_PB, typename FUNC_I>
 	void interpolate_skinning_weights(const FUNC_PA& propagate_a, const FUNC_PB& propagate_b,
 			const FUNC_I& get_interpolation_weight,
@@ -1042,7 +1103,6 @@ public:
 	{
 		cgogn_assert(volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_);
 
-		// Vec4::Scalar get_interpolation_weight(VolumeVertex v)
 		static_assert(is_func_parameter_same<FUNC_I, VolumeVertex>::value,
 				"Given function should take a VolumeVertex as parameter");
 		static_assert(!std::is_integral_v<func_return_type<FUNC_I>>,

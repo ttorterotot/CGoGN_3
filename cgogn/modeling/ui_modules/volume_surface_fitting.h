@@ -738,7 +738,7 @@ public:
 	}
 
 	// Not an actual inside test, could fail for some geometries
-	bool is_inside(const Vec3& p)
+	bool is_inside_surface(const Vec3& p)
 	{
 		auto [face_id, cp] = closest_surface_face_and_point(p);
 		Vec3 dir = (cp - p).normalized();
@@ -766,7 +766,7 @@ public:
 		// 	foreach_incident_face(*volume_skin_, v, [&](SurfaceFace f) -> bool {
 		// 		Vec3 nf = geometry::normal(*volume_skin_, f, volume_skin_vertex_position_.get());
 		// 		Vec3 cf = geometry::centroid<Vec3>(*volume_skin_, f, volume_skin_vertex_position_.get());
-		// 		bool inside = is_inside(cf);
+		// 		bool inside = is_inside_surface(cf);
 		// 		if (!inside)
 		// 			nf *= -1;
 		// 		BVH_Hit h = intersect_bvh({cf, nf, 0, acc::inf});
@@ -776,7 +776,7 @@ public:
 		// 	});
 		// 	n.normalize();
 
-		// 	if (!is_inside(p))
+		// 	if (!is_inside_surface(p))
 		// 		n *= -1;
 
 		// 	BVH_Hit h = intersect_bvh({p, n, 0, acc::inf});
@@ -1390,7 +1390,7 @@ public:
 						foreach_incident_face(*volume_skin_, v, [&](SurfaceFace f) -> bool {
 							Vec3 nf = geometry::normal(*volume_skin_, f, volume_skin_vertex_position_.get());
 							Vec3 cf = geometry::centroid<Vec3>(*volume_skin_, f, volume_skin_vertex_position_.get());
-							bool inside = is_inside(cf);
+							bool inside = is_inside_surface(cf);
 							if (!inside)
 								nf *= -1;
 							BVH_Hit h = intersect_bvh({cf, nf, 0, acc::inf});
@@ -1400,7 +1400,7 @@ public:
 						});
 						n.normalize();
 
-						if (!is_inside(p))
+						if (!is_inside_surface(p))
 							n *= -1;
 
 						BVH_Hit h = intersect_bvh({p, n, 0, acc::inf});

@@ -394,7 +394,7 @@ public:
 	}
 
 	void project_cells_set_to_skeleton(const CellsSet<VOLUME, VolumeVertex>& cs,
-			const VertexToSkeletonProjectionMode& mode)
+			const VertexToSkeletonProjectionMode& mode, bool emit_attributes_changed = true)
 	{
 		cgogn_assert(volume_);
 		cgogn_assert(animation_skeleton_);
@@ -459,6 +459,9 @@ public:
 			volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 			set_volume_caches_dirty(true);
 		}
+
+		if (mode != VertexToSkeletonProjectionMode::PositionOnly && emit_attributes_changed)
+			emit_volume_skinning_attributes_changed();
 	}
 
 	void refresh_volume_vertex_distance_from_boundary()

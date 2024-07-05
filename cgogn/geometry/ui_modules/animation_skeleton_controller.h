@@ -431,7 +431,7 @@ private:
 		if (disabled)
 			ImGui::BeginDisabled();
 
-		if (ImGui::Button(label))
+		if (ImGui::Button(label) && !disabled)
 			res = true;
 
 		if (disabled)

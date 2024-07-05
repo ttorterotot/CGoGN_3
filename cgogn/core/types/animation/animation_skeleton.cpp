@@ -123,6 +123,8 @@ static bool _internal_check_parent_candidate_not_in_descendants(AnimationSkeleto
 	return true;
 }
 
+/// @brief Stable sort in `[child_i, parent_i]` using the partial order requirement that parents must preceed their children
+///        with the assumption that only the bounds might violate this order in the initial state
 static void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
 		size_t child_i, size_t parent_i)
 {
@@ -152,6 +154,8 @@ static void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
 	{
 		auto p = (*as.bone_parent_)[as.bone_traverser_[child_i + i]];
 
+		// If `p == parent`, it means bones at `i` and `child_i` are siblings, so the one at `i` also is a descendant
+		// Otherwise to be a descendant its parent necessarily has to have been marked as one already
 		if (p != parent)
 		{
 			auto p_i = std::find(search_begin, search_end, p);
@@ -165,6 +169,8 @@ static void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
 		is_descendant[i] = true;
 		descendants.push_back(std::move(as.bone_traverser_[child_i + i]));
 	}
+
+	// Write ancesters (including parent) then descendants (including child)
 
 	for (auto r = 1, w = 0;; ++r, ++w)
 	{

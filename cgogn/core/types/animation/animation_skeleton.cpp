@@ -58,7 +58,7 @@ AnimationSkeleton::Bone add_bone_from_existing_joints(
 	return bone;
 }
 
-AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent)
+static AnimationSkeleton::Bone _internal_add_bone(AnimationSkeleton& as, const AnimationSkeleton::Bone& parent)
 {
 	using Joint = AnimationSkeleton::Joint;
 
@@ -111,7 +111,7 @@ AnimationSkeleton::Bone add_bone(AnimationSkeleton& as, const AnimationSkeleton:
 	return bone;
 }
 
-bool _internal_check_parent_candidate_not_in_descendants(AnimationSkeleton& as,
+static bool _internal_check_parent_candidate_not_in_descendants(AnimationSkeleton& as,
 		const AnimationSkeleton::Bone& bone, AnimationSkeleton::Bone parent_candidate)
 {
 	do
@@ -123,7 +123,7 @@ bool _internal_check_parent_candidate_not_in_descendants(AnimationSkeleton& as,
 	return true;
 }
 
-void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
+static void _internal_ensure_bone_traverser_order(AnimationSkeleton& as,
 		size_t child_i, size_t parent_i)
 {
 	if (child_i > parent_i) // child is already after parent in traverser

@@ -34,7 +34,7 @@ class KeyframedAnimationTest : public ::testing::Test
 {
 public:
 	template <typename T>
-	inline static std::enable_if_t<std::is_floating_point_v<T>, bool>
+	static std::enable_if_t<std::is_floating_point_v<T>, bool>
 	approx(const T& a, const T& b, const T& prec = Eigen::NumTraits<T>::dummy_precision())
 	{
 		const T& diff = b - a;

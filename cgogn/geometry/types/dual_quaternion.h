@@ -40,49 +40,49 @@ public:
 	DualQuaternion() : DualQuaternion({0, 0, 0}) {}
 
 	[[nodiscard]]
-	static inline DualQuaternion from_rotation(const Quaternion& r)
+	static DualQuaternion from_rotation(const Quaternion& r)
 	{
 		return DualQuaternion{r, {0, 0, 0}};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion from_translation(const Vec3& t)
+	static DualQuaternion from_translation(const Vec3& t)
 	{
 		return DualQuaternion{0.5 * t};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion from_rt(const Quaternion& r, const Vec3& t)
+	static DualQuaternion from_rt(const Quaternion& r, const Vec3& t)
 	{
 		return DualQuaternion{r, t};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion from_tr(const Vec3& t, const Quaternion& r)
+	static DualQuaternion from_tr(const Vec3& t, const Quaternion& r)
 	{
 		return DualQuaternion{t, r};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion from_point(const Vec3& p)
+	static DualQuaternion from_point(const Vec3& p)
 	{
 		return DualQuaternion{p};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion zero()
+	static DualQuaternion zero()
 	{
 		return DualQuaternion{Quaternion{0, 0, 0, 0}, Quaternion{0, 0, 0, 0}};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion identity()
+	static DualQuaternion identity()
 	{
 		return DualQuaternion{{0, 0, 0}};
 	}
 
 	[[nodiscard]]
-	static inline DualQuaternion lerp(DualQuaternion a, const DualQuaternion& b,
+	static DualQuaternion lerp(DualQuaternion a, const DualQuaternion& b,
 			const Scalar& s, bool shortest = false)
 	{
 		if (shortest && a.dot(b) < 0)
@@ -92,80 +92,80 @@ public:
 	}
 
 	[[nodiscard]]
-	static inline Scalar dot(const DualQuaternion& a, const DualQuaternion& b)
+	static Scalar dot(const DualQuaternion& a, const DualQuaternion& b)
 	{
 		return a.dot(b);
 	}
 
 	[[nodiscard]]
-	inline Quaternion real() const { return r_; }
+	Quaternion real() const { return r_; }
 
 	[[nodiscard]]
-	inline Quaternion dual() const { return d_; }
+	Quaternion dual() const { return d_; }
 
 	[[nodiscard]]
-	inline Quaternion rotation() const { return r_; }
+	Quaternion rotation() const { return r_; }
 
 	[[nodiscard]]
-	inline Vec3 translation() const { return point() * 2.0; }
+	Vec3 translation() const { return point() * 2.0; }
 
 	[[nodiscard]]
-	inline Vec3 point() const { return (d_ * r_.conjugate()).vec(); }
+	Vec3 point() const { return (d_ * r_.conjugate()).vec(); }
 
 	[[nodiscard]]
-	inline Eigen::Isometry3d to_transform() const
+	Eigen::Isometry3d to_transform() const
 	{
 		return Eigen::Translation3d{translation()} * rotation();
 	}
 
 	[[nodiscard]]
-	inline Mat4 to_transform_matrix() const
+	Mat4 to_transform_matrix() const
 	{
 		return to_transform().matrix();
 	}
 
 	[[nodiscard]]
-	inline DualQuaternion transform(const DualQuaternion& p) const
+	DualQuaternion transform(const DualQuaternion& p) const
 	{
 		return *this * p * conjugated();
 	}
 
 	[[nodiscard]]
-	inline Quaternion transform(const Quaternion& r) const
+	Quaternion transform(const Quaternion& r) const
 	{
 		return transform(from_rotation(r)).rotation();
 	}
 
 	[[nodiscard]]
-	inline Vec3 transform(const Vec3& t) const
+	Vec3 transform(const Vec3& t) const
 	{
 		return transform(from_point(t)).point();
 	}
 
-	inline void transform_by(const DualQuaternion& q)
+	void transform_by(const DualQuaternion& q)
 	{
 		*this = q.transform(*this);
 	}
 
 	[[nodiscard]]
-	inline Scalar dot(const DualQuaternion& other) const
+	Scalar dot(const DualQuaternion& other) const
 	{
 		return r_.dot(other.r_);
 	}
 
 	[[nodiscard]]
-	inline Scalar squaredMagnitude() const
+	Scalar squaredMagnitude() const
 	{
 		return r_.dot(r_);
 	}
 
 	[[nodiscard]]
-	inline Scalar magnitude() const
+	Scalar magnitude() const
 	{
 		return std::sqrt(squaredMagnitude());
 	}
 
-	inline void normalize()
+	void normalize()
 	{
 		Scalar m = magnitude();
 
@@ -178,7 +178,7 @@ public:
 	}
 
 	[[nodiscard]]
-	inline DualQuaternion normalized() const
+	DualQuaternion normalized() const
 	{
 		DualQuaternion res = *this;
 		res.normalize();
@@ -186,25 +186,24 @@ public:
 	}
 
 	[[nodiscard]]
-	inline bool isNormalized(
-			const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
+	bool isNormalized(const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
 	{
 		return std::abs(squaredMagnitude() - 1.0) <= prec;
 	}
 
-	inline void conjugate()
+	void conjugate()
 	{
 		r_ = r_.conjugate();
 		d_.w() *= -1.0;
 	}
 
 	[[nodiscard]]
-	inline DualQuaternion conjugated() const
+	DualQuaternion conjugated() const
 	{
 		return DualQuaternion(r_.conjugate(), d_.conjugate() * -1.0);
 	}
 
-	inline void invert(bool assume_normalized = false)
+	void invert(bool assume_normalized = false)
 	{
 		Scalar ism = assume_normalized ? 1.0 : 1.0 / squaredMagnitude();
 
@@ -213,75 +212,75 @@ public:
 	}
 
 	[[nodiscard]]
-	inline DualQuaternion inverse(bool assume_normalized = false) const
+	DualQuaternion inverse(bool assume_normalized = false) const
 	{
 		DualQuaternion res = *this;
 		res.invert(assume_normalized);
 		return res;
 	}
 
-	inline bool isApprox(const DualQuaternion& other,
+	bool isApprox(const DualQuaternion& other,
 		const Scalar& prec = Eigen::NumTraits<Scalar>::dummy_precision()) const
 	{
 		return qIsApprox(r_, other.r_, prec) && qIsApprox(d_, other.d_, prec);
 	}
 
-	friend inline DualQuaternion operator+(DualQuaternion a, const DualQuaternion& b)
+	friend DualQuaternion operator+(DualQuaternion a, const DualQuaternion& b)
 	{
 		return DualQuaternion(a.r_ + b.r_, a.d_ + b.d_);
 	}
 
-	friend inline DualQuaternion operator*(const Scalar& s, const DualQuaternion& dq)
+	friend DualQuaternion operator*(const Scalar& s, const DualQuaternion& dq)
 	{
 		return DualQuaternion(s * dq.r_, s * dq.d_);
 	}
 
-	friend inline DualQuaternion operator*(const DualQuaternion& dq, const Scalar& s)
+	friend DualQuaternion operator*(const DualQuaternion& dq, const Scalar& s)
 	{
 		return s * dq;
 	}
 
-	friend inline DualQuaternion operator*(const DualQuaternion& a, const DualQuaternion& b)
+	friend DualQuaternion operator*(const DualQuaternion& a, const DualQuaternion& b)
 	{
 		return DualQuaternion(a.r_ * b.r_, a.r_ * b.d_ + a.d_ * b.r_);
 	}
 
-	friend inline std::ostream& operator<<(std::ostream& os, const DualQuaternion& dq)
+	friend std::ostream& operator<<(std::ostream& os, const DualQuaternion& dq)
 	{
 		os << dq.r_ << " + (" << dq.d_ << ")e";
 		return os;
 	}
 
-	inline DualQuaternion& operator+=(const DualQuaternion& other)
+	DualQuaternion& operator+=(const DualQuaternion& other)
 	{
 		return (*this = *this + other);
 	}
 
 	template <class T> // Scalar or DualQuaternion
-	inline DualQuaternion& operator*=(const T& other)
+	DualQuaternion& operator*=(const T& other)
 	{
 		return (*this = *this * other);
 	}
 
 private:
-	inline explicit DualQuaternion(Quaternion r, Quaternion d) : r_(r), d_(d) {}
+	explicit DualQuaternion(Quaternion r, Quaternion d) : r_(r), d_(d) {}
 
-	inline explicit DualQuaternion(const Quaternion& r, const Vec3& t) : r_(r.normalized())
+	explicit DualQuaternion(const Quaternion& r, const Vec3& t) : r_(r.normalized())
 	{
 		d_ = r * Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()};
 	}
 
-	inline explicit DualQuaternion(const Vec3& t, const Quaternion& r) : r_(r.normalized())
+	explicit DualQuaternion(const Vec3& t, const Quaternion& r) : r_(r.normalized())
 	{
 		d_ = Quaternion{0, 0.5 * t.x(), 0.5 * t.y(), 0.5 * t.z()} * r;
 	}
 
-	inline explicit DualQuaternion(const Vec3& p) : r_({1, 0, 0, 0})
+	explicit DualQuaternion(const Vec3& p) : r_({1, 0, 0, 0})
 	{
 		d_ = Quaternion{0, p.x(), p.y(), p.z()};
 	}
 
-	inline static bool qIsApprox(const Quaternion& a, const Quaternion& b, const Scalar& prec)
+	static bool qIsApprox(const Quaternion& a, const Quaternion& b, const Scalar& prec)
 	{
 		// isApprox fails for quaternions close to zero
 		// isMuchSmallerThan somehow does not work, so we use squaredNorm instead

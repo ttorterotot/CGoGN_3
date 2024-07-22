@@ -84,7 +84,7 @@ public:
 	/// @brief Retrieves the corresponding save attribute of the provided one
 	/// @param attribute the attribute to get the save of
 	/// @return a pointer to the corresponding save attribute, or `nullptr` if there isn't any
-	inline std::shared_ptr<AttributeSf<Vec3>> get_saved_vertex_position(
+	std::shared_ptr<AttributeSf<Vec3>> get_saved_vertex_position(
 			const std::shared_ptr<AttributeSf<Vec3>>& attribute)
 	{
 		const auto& it = saved_vertex_positions_.find(attribute.get());
@@ -94,7 +94,7 @@ public:
 	/// @brief Saves the selected vertex position attribute's values to the provided attribute.
 	/// @param save the attribute to save positions to
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void save_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& save, bool warn_unset = true)
+	void save_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& save, bool warn_unset = true)
 	{
 		if (selected_vertex_position_)
 		{
@@ -108,7 +108,7 @@ public:
 
 	/// @brief Saves the selected vertex position attribute's values to a dedicated attribute.
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void save_vertex_position(bool warn_unset = true)
+	void save_vertex_position(bool warn_unset = true)
 	{
 		if (!selected_mesh_)
 		{
@@ -132,7 +132,7 @@ public:
 	/// @brief Restores the selected vertex position attribute's values to the provided save if it's non-null.
 	/// @param save the save attribute to restore positions from
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void restore_vertex_position(const std::shared_ptr<const AttributeSf<Vec3>>& save, bool warn_unset = true)
+	void restore_vertex_position(const std::shared_ptr<const AttributeSf<Vec3>>& save, bool warn_unset = true)
 	{
 		if (!save)
 		{
@@ -156,7 +156,7 @@ public:
 
 	/// @brief Restores the selected vertex position attribute's values to its save if such a save exists.
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void restore_vertex_position(bool warn_unset = true)
+	void restore_vertex_position(bool warn_unset = true)
 	{
 		// Emplaces nullptr if no entry for this key, which triggers the intended behavior from the overload above
 		restore_vertex_position(saved_vertex_positions_[selected_vertex_position_.get()], warn_unset);
@@ -411,7 +411,7 @@ private:
 		return boost::core::demangle(typeid(TransformT).name());
 	}
 
-	static inline bool show_button(const char* label, bool enabled)
+	static bool show_button(const char* label, bool enabled)
 	{
 		bool res = false;
 

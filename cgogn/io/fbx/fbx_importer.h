@@ -87,28 +87,28 @@ protected:
 
 		// Model
 
-		inline constexpr std::array<std::optional<AnimScalar>, 3>& pre_rotation(){ return aod3_0_; }
-		inline constexpr std::array<std::optional<AnimScalar>, 3>& post_rotation(){ return aod3_1_; }
-		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_translation(){ return aod3_2_; }
-		inline constexpr std::array<std::optional<AnimScalar>, 3>& lcl_rotation(){ return aod3_3_; }
-		inline constexpr std::optional<AnimScalar>& rotation_order(){ return z_0_; }
+		constexpr std::array<std::optional<AnimScalar>, 3>& pre_rotation(){ return aod3_0_; }
+		constexpr std::array<std::optional<AnimScalar>, 3>& post_rotation(){ return aod3_1_; }
+		constexpr std::array<std::optional<AnimScalar>, 3>& lcl_translation(){ return aod3_2_; }
+		constexpr std::array<std::optional<AnimScalar>, 3>& lcl_rotation(){ return aod3_3_; }
+		constexpr std::optional<AnimScalar>& rotation_order(){ return z_0_; }
 
-		inline constexpr const std::array<std::optional<AnimScalar>, 3>& pre_rotation() const { return aod3_0_; }
-		inline constexpr const std::array<std::optional<AnimScalar>, 3>& post_rotation() const { return aod3_1_; }
-		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_translation() const { return aod3_2_; }
-		inline constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_rotation() const { return aod3_3_; }
-		inline constexpr const std::optional<AnimScalar>& rotation_order() const { return z_0_; }
+		constexpr const std::array<std::optional<AnimScalar>, 3>& pre_rotation() const { return aod3_0_; }
+		constexpr const std::array<std::optional<AnimScalar>, 3>& post_rotation() const { return aod3_1_; }
+		constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_translation() const { return aod3_2_; }
+		constexpr const std::array<std::optional<AnimScalar>, 3>& lcl_rotation() const { return aod3_3_; }
+		constexpr const std::optional<AnimScalar>& rotation_order() const { return z_0_; }
 
 		// AnimationCurveNode
 
-		inline constexpr std::array<std::optional<AnimScalar>, 3>& d(){ return aod3_0_; }
+		constexpr std::array<std::optional<AnimScalar>, 3>& d(){ return aod3_0_; }
 
-		inline constexpr const std::array<std::optional<AnimScalar>, 3>& d() const { return aod3_0_; }
+		constexpr const std::array<std::optional<AnimScalar>, 3>& d() const { return aod3_0_; }
 
 		// Utility
 
 		template <size_t Size>
-		static inline bool any_set(const std::array<std::optional<AnimScalar>, Size>& values)
+		static bool any_set(const std::array<std::optional<AnimScalar>, Size>& values)
 		{
 			for (size_t i = 0; i < Size; ++i) // compilers might be better able to optimize this
 				if (values[i])
@@ -211,7 +211,7 @@ public:
 
 protected:
 
-	inline FbxImporterBase(bool load_surfaces, bool load_skeleton)
+	FbxImporterBase(bool load_surfaces, bool load_skeleton)
 			: load_surfaces_(load_surfaces), load_skeleton_(load_skeleton)
 	{
 	}

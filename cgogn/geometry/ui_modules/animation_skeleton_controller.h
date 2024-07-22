@@ -509,7 +509,7 @@ private:
 	}
 
 private:
-	static inline const std::string GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
+	static constexpr const char* GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};

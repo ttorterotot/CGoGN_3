@@ -461,7 +461,7 @@ private:
 	}
 
 public:
-	static inline const std::string COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME = "computed_bone_influence";
+	static constexpr const char* COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME = "computed_bone_influence";
 
 private:
 	static constexpr const bool USE_LBS_ = !std::is_same_v<TransformT, geometry::DualQuaternion>;

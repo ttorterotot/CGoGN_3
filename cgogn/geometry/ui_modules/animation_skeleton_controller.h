@@ -452,10 +452,10 @@ private:
 		if (ImGui::Button(label) && enabled)
 			res = true;
 
+		show_tooltip_for_ui_above(tooltip_text);
+
 		if (!enabled)
 			ImGui::EndDisabled();
-
-		show_tooltip_for_ui_above(tooltip_text);
 
 		return res;
 	}

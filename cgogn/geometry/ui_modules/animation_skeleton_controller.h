@@ -442,17 +442,17 @@ private:
 		}
 	}
 
-	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
+	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool enabled = true)
 	{
 		bool res = false;
 
-		if (disabled)
+		if (!enabled)
 			ImGui::BeginDisabled();
 
-		if (ImGui::Button(label) && !disabled)
+		if (ImGui::Button(label) && enabled)
 			res = true;
 
-		if (disabled)
+		if (!enabled)
 			ImGui::EndDisabled();
 
 		show_tooltip_for_ui_above(tooltip_text);
@@ -462,7 +462,7 @@ private:
 
 	void show_play_mode_button(const char* label, const char* tooltip_text, PlayMode play_mode)
 	{
-		if (show_button_and_tooltip(label, tooltip_text, play_mode_ == play_mode))
+		if (show_button_and_tooltip(label, tooltip_text, play_mode_ != play_mode))
 			set_play_mode(play_mode);
 	}
 

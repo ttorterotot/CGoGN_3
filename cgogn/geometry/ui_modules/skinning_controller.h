@@ -53,6 +53,14 @@ class SkinningController : public Module
 public:
 	using Skinning = geometry::SkinningHelper<TransformT>;
 
+	enum class UpdatePolicy
+	{
+		Auto,                      // depends on the corresponding auto-bind toggle
+		DoNotBind,                 // only set, don't bind nor update embedding
+		Bind,                      // set and bind, but don't try to update embedding
+		BindAndTryUpdateEmbedding, // set and bind, then try to update embedding
+	};
+
 protected:
 	using Skeleton = AnimationSkeleton;
 
@@ -164,7 +172,8 @@ public:
 
 	/// @brief Changes the linked vertex position attribute, and updates the mesh if possible.
 	/// @param attribute the new attribute to use as positions
-	void set_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& attribute)
+	/// @param policy see `UpdatePolicy
+	void set_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& attribute, UpdatePolicy policy = UpdatePolicy::Auto)
 	{
 		if (restore_vertex_position_on_unbind_ && attribute != selected_vertex_position_)
 			if (const auto& save = get_saved_vertex_position(selected_vertex_position_))
@@ -172,7 +181,10 @@ public:
 
 		selected_vertex_position_ = attribute;
 
-		if (!selected_mesh_)
+		if (policy == UpdatePolicy::Auto)
+			policy = auto_bind_mesh_ ? UpdatePolicy::BindAndTryUpdateEmbedding : UpdatePolicy::DoNotBind;
+
+		if (policy == UpdatePolicy::DoNotBind || !selected_mesh_)
 			return;
 
 		selected_bind_vertex_position_
@@ -184,7 +196,8 @@ public:
 		if (save_vertex_position_on_first_bind_ && !get_saved_vertex_position(attribute))
 			save_vertex_position(false);
 
-		update_embedding();
+		if (policy == UpdatePolicy::BindAndTryUpdateEmbedding)
+			update_embedding();
 	}
 
 	/// @brief Changes the linked vertex weight index attribute, and updates the mesh if possible.
@@ -206,11 +219,15 @@ public:
 
 	/// @brief Changes the linked vertex weight value attribute, and updates the mesh if possible.
 	/// @param attribute the new attribute to use as transforms
-	void set_bone_world_transform(const std::shared_ptr<AttributeSk<TransformT>>& attribute)
+	/// @param policy see `UpdatePolicy`
+	void set_bone_world_transform(const std::shared_ptr<AttributeSk<TransformT>>& attribute, UpdatePolicy policy = UpdatePolicy::Auto)
 	{
 		selected_bone_world_transform_ = attribute;
 
-		if (!selected_skeleton_)
+		if (policy == UpdatePolicy::Auto)
+			policy = auto_bind_skeleton_ ? UpdatePolicy::BindAndTryUpdateEmbedding : UpdatePolicy::DoNotBind;
+
+		if (policy == UpdatePolicy::DoNotBind || !selected_skeleton_)
 			return;
 
 		selected_bind_bone_inv_world_transform_
@@ -224,7 +241,8 @@ public:
 				t = t.inverse();
 		}
 
-		update_embedding();
+		if (policy == UpdatePolicy::BindAndTryUpdateEmbedding)
+			update_embedding();
 	}
 
 	/// @brief Changes the linked mesh, and resets attribute selection for it.
@@ -324,13 +342,22 @@ protected:
 					"World transform", [&](const std::shared_ptr<AttributeSk<TransformT>>& attribute){ set_bone_world_transform(attribute); });
 		}
 
+		if (ImGui::TreeNode("Manual update/binding"))
 		{
+			show_bind_controls("Bind mesh position", selected_vertex_position_ && selected_mesh_, auto_bind_mesh_, "Auto##bind_mesh",
+					[&]{ set_vertex_position(selected_vertex_position_, UpdatePolicy::BindAndTryUpdateEmbedding); });
+
+			show_bind_controls("Bind skeleton pose", selected_bone_world_transform_ && selected_skeleton_, auto_bind_skeleton_, "Auto##bind_skeleton",
+					[&]{ set_bone_world_transform(selected_bone_world_transform_, UpdatePolicy::BindAndTryUpdateEmbedding); });
+
 			// Bypass the need for the embedding to have been detected as dirty by pressing a shift key (should not be needed)
 			const bool enable_button_if_possible = embedding_dirty_ || (ImGui::GetIO().KeyMods & ImGuiModFlags_Shift) != ImGuiModFlags_None;
-			if (show_button("Update", enable_button_if_possible && can_update_embedding()))
+			if (show_button("Update embedding", enable_button_if_possible && can_update_embedding()))
 				update_embedding(true);
 			ImGui::SameLine();
 			ImGui::Checkbox("Auto##update", &auto_update_embedding_);
+
+			ImGui::TreePop();
 		}
 
 		if (ImGui::TreeNode("Embedding saving"))
@@ -381,6 +408,20 @@ private:
 			ImGui::EndDisabled();
 
 		return res;
+	}
+
+	template <bool BindOnAutoCheck = false, typename FUNC>
+	static void show_bind_controls(const char* label, bool enabled, bool& auto_v, const char* auto_label, const FUNC& on_bind)
+	{
+		if (show_button(label, !auto_v && enabled))
+			on_bind();
+
+		ImGui::SameLine();
+
+		if (ImGui::Checkbox(auto_label, &auto_v)) // show checkbox regardless of template parameter
+			if constexpr (BindOnAutoCheck)
+				if (auto_v)
+					on_bind();
 	}
 
 	bool can_update_embedding()
@@ -469,6 +510,8 @@ public:
 
 private:
 	static constexpr const bool USE_LBS_ = !std::is_same_v<TransformT, geometry::DualQuaternion>;
+	bool auto_bind_skeleton_ = true;
+	bool auto_bind_mesh_ = true;
 	bool auto_update_embedding_ = true;
 	bool embedding_dirty_ = true;
 	Mesh* selected_mesh_ = nullptr;

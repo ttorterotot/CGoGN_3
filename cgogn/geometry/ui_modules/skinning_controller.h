@@ -335,51 +335,7 @@ protected:
 
 		if (ImGui::TreeNode("Bone influence visualization"))
 		{
-			ImGui::Checkbox("Global##influence", &global_bone_influence_computation_);
-
-			if (global_bone_influence_computation_)
-			{
-				if (selected_skeleton_)
-					imgui_combo_attribute<Bone, Vec3>(
-							*selected_skeleton_,
-							selected_bone_color_for_influence_computation_,
-							"Bone color##influence",
-							[&](const std::shared_ptr<AttributeSk<Vec3>>& attribute) {
-									selected_bone_color_for_influence_computation_ = attribute; });
-				else
-					ImGui::TextUnformatted("Select skeleton to visualize influences of bones");
-			}
-			else if (selected_skeleton_ && selected_skeleton_->nb_bones() > 0)
-			{
-				int bone_index = static_cast<int>(index_of(*selected_skeleton_, selected_bone_for_influence_computation_));
-				ImGui::SliderInt("Bone index##influence", &bone_index, 0, static_cast<int>(*std::max_element(
-						selected_skeleton_->bone_traverser_.cbegin(), selected_skeleton_->bone_traverser_.cend(),
-						[&](const Bone& a, const Bone& b) {
-								return index_of(*selected_skeleton_, a) < index_of(*selected_skeleton_, b); })));
-				selected_bone_for_influence_computation_ = of_index<Bone>(*selected_skeleton_, static_cast<uint32>(bone_index));
-
-				if (selected_bone_for_influence_computation_.is_valid())
-					ImGui::TextUnformatted((*selected_skeleton_->bone_name_)[static_cast<uint32>(bone_index)].c_str());
-			}
-			else
-				ImGui::TextUnformatted("Select skeleton with bones to pick one");
-
-			if (show_button("Update influence visualization attribute",
-					selected_skeleton_ && selected_mesh_ && selected_vertex_weight_index_ && selected_vertex_weight_value_
-					&& (!global_bone_influence_computation_ || selected_bone_color_for_influence_computation_)))
-			{
-				const auto attribute = get_or_add_attribute<Vec3, Vertex>(*selected_mesh_,
-						COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME);
-				if (global_bone_influence_computation_)
-					Skinning::compute_bone_influence(*selected_mesh_, *selected_skeleton_,
-							*selected_vertex_weight_index_, *selected_vertex_weight_value_,
-							*selected_bone_color_for_influence_computation_, *attribute);
-				else
-					Skinning::compute_bone_influence(*selected_mesh_, selected_bone_for_influence_computation_,
-							*selected_vertex_weight_index_, *selected_vertex_weight_value_, *attribute);
-				mesh_provider_->emit_attribute_changed(*selected_mesh_, attribute.get());
-			}
-
+			show_bone_influence_visualization_controls();
 			ImGui::TreePop();
 		}
 
@@ -458,6 +414,54 @@ private:
 			mesh_provider_->emit_attribute_changed(*selected_mesh_, selected_vertex_position_.get());
 
 		embedding_dirty_ = false;
+	}
+
+	void show_bone_influence_visualization_controls()
+	{
+		ImGui::Checkbox("Global##influence", &global_bone_influence_computation_);
+
+		if (global_bone_influence_computation_)
+		{
+			if (selected_skeleton_)
+				imgui_combo_attribute<Bone, Vec3>(
+						*selected_skeleton_,
+						selected_bone_color_for_influence_computation_,
+						"Bone color##influence",
+						[&](const std::shared_ptr<AttributeSk<Vec3>>& attribute) {
+								selected_bone_color_for_influence_computation_ = attribute; });
+			else
+				ImGui::TextUnformatted("Select skeleton to visualize influences of bones");
+		}
+		else if (selected_skeleton_ && selected_skeleton_->nb_bones() > 0)
+		{
+			int bone_index = static_cast<int>(index_of(*selected_skeleton_, selected_bone_for_influence_computation_));
+			ImGui::SliderInt("Bone index##influence", &bone_index, 0, static_cast<int>(*std::max_element(
+					selected_skeleton_->bone_traverser_.cbegin(), selected_skeleton_->bone_traverser_.cend(),
+					[&](const Bone& a, const Bone& b) {
+							return index_of(*selected_skeleton_, a) < index_of(*selected_skeleton_, b); })));
+			selected_bone_for_influence_computation_ = of_index<Bone>(*selected_skeleton_, static_cast<uint32>(bone_index));
+
+			if (selected_bone_for_influence_computation_.is_valid())
+				ImGui::TextUnformatted((*selected_skeleton_->bone_name_)[static_cast<uint32>(bone_index)].c_str());
+		}
+		else
+			ImGui::TextUnformatted("Select skeleton with bones to pick one");
+
+		if (show_button("Update influence visualization attribute",
+				selected_skeleton_ && selected_mesh_ && selected_vertex_weight_index_ && selected_vertex_weight_value_
+				&& (!global_bone_influence_computation_ || selected_bone_color_for_influence_computation_)))
+		{
+			const auto attribute = get_or_add_attribute<Vec3, Vertex>(*selected_mesh_,
+					COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME);
+			if (global_bone_influence_computation_)
+				Skinning::compute_bone_influence(*selected_mesh_, *selected_skeleton_,
+						*selected_vertex_weight_index_, *selected_vertex_weight_value_,
+						*selected_bone_color_for_influence_computation_, *attribute);
+			else
+				Skinning::compute_bone_influence(*selected_mesh_, selected_bone_for_influence_computation_,
+						*selected_vertex_weight_index_, *selected_vertex_weight_value_, *attribute);
+			mesh_provider_->emit_attribute_changed(*selected_mesh_, attribute.get());
+		}
 	}
 
 public:

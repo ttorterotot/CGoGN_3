@@ -238,9 +238,11 @@ protected:
 				ImGui::TreePop();
 			}
 
-			ImGui::Separator();
-
-			show_bone_color_generation_controls();
+			if (ImGui::TreeNode("Bone color generation"))
+			{
+				show_bone_color_generation_controls();
+				ImGui::TreePop();
+			}
 		}
 
 		advance_play();

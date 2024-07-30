@@ -427,6 +427,18 @@ private:
 			cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
 			generators[color_generation_mode_]();
 			mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+
+			// Alternative attribute (parent bone color)
+			const auto attribute_p = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+					GENERATED_PARENT_BONE_COLOR_ATTRIBUTE_NAME);
+			for (const auto& bone : selected_skeleton_->bone_traverser_)
+			{
+				const auto& bone_index = index_of(*selected_skeleton_, bone);
+				const auto& parent_bone = (*selected_skeleton_->bone_parent_)[bone_index];
+				(*attribute_p)[bone_index] = (*attribute)[parent_bone.is_valid() ?
+						index_of(*selected_skeleton_, parent_bone) : bone_index];
+			}
+			mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute_p.get());
 		}
 	}
 
@@ -516,6 +528,7 @@ private:
 
 public:
 	static constexpr const char* GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
+	static constexpr const char* GENERATED_PARENT_BONE_COLOR_ATTRIBUTE_NAME = "generated_parent_bone_color";
 
 private:
 	PlayMode play_mode_ = PlayMode::Pause;

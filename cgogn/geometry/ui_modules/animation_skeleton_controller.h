@@ -238,33 +238,9 @@ protected:
 				ImGui::TreePop();
 			}
 
-
 			ImGui::Separator();
 
-			ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
-			ImGui::SameLine();
-			ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
-			ImGui::SameLine();
-			ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
-
-			if (ImGui::Button("Generate bone colors"))
-			{
-				const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
-						GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
-				const std::array<std::function<void()>, 3> generators
-				{
-					[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
-					[&]{
-						if (selected_joint_position_)
-							Embedding::generate_bone_colors_from_position(
-									*selected_skeleton_, *selected_joint_position_, *attribute);
-					},
-					[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
-				};
-				cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
-				generators[color_generation_mode_]();
-				mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
-			}
+			show_bone_color_generation_controls();
 		}
 
 		advance_play();
@@ -422,6 +398,34 @@ private:
 		ImGui::Checkbox("Ratio-dependent", &advance_pose_time_ratio_dependence_);
 
 		ImGui::Separator();
+	}
+
+	void show_bone_color_generation_controls()
+	{
+		ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
+
+		if (ImGui::Button("Generate bone colors"))
+		{
+			const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+					GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
+			const std::array<std::function<void()>, 3> generators
+			{
+				[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
+				[&]{
+					if (selected_joint_position_)
+						Embedding::generate_bone_colors_from_position(
+								*selected_skeleton_, *selected_joint_position_, *attribute);
+				},
+				[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
+			};
+			cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
+			generators[color_generation_mode_]();
+			mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+		}
 	}
 
 	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)

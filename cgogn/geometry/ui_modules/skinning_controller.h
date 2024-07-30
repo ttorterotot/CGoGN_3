@@ -333,12 +333,6 @@ protected:
 			ImGui::Checkbox("Auto##update", &auto_update_embedding_);
 		}
 
-		if (ImGui::TreeNode("Bone influence visualization"))
-		{
-			show_bone_influence_visualization_controls();
-			ImGui::TreePop();
-		}
-
 		if (ImGui::TreeNode("Embedding saving"))
 		{
 			if (show_button("Save", selected_mesh_ && selected_vertex_position_))
@@ -352,6 +346,12 @@ protected:
 			ImGui::SameLine();
 			ImGui::Checkbox("Auto on unbind", &restore_vertex_position_on_unbind_);
 
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNode("Bone influence visualization"))
+		{
+			show_bone_influence_visualization_controls();
 			ImGui::TreePop();
 		}
 	}

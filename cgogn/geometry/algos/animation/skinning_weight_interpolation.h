@@ -54,6 +54,27 @@ public:
 
 	SkinningWeightInterpolation() = delete;
 
+	static Vec4 normalize(Vec4 values,
+			const NormalizationType& normalization = NormalizationType::AbsSum,
+			size_t source_cell_count = 0)
+	{
+		switch (normalization)
+		{
+		case NormalizationType::None:
+			return values;
+		case NormalizationType::Sum:
+			return values.isZero() ? values : values / values.sum();
+		case NormalizationType::AbsSum:
+			return values.isZero() ? values : values / std::abs(values.sum());
+		case NormalizationType::CellCount:
+			cgogn_message_assert(source_cell_count > 0, "Source cell count must be non-zero if interpolation uses it");
+			return values / source_cell_count;
+		default:
+			cgogn_assert_not_reached("Missing normalization type case");
+			return values;
+		}
+	}
+
 	static std::pair<Vec4i, Vec4> compute_weights(
 			const std::vector<Vec4::Scalar>& bone_weight_values,
 			const NormalizationType& normalization = NormalizationType::AbsSum,
@@ -88,26 +109,7 @@ public:
 			values[target_coef] = wv;
 		}
 
-		switch (normalization)
-		{
-		case NormalizationType::None:
-			break;
-		case NormalizationType::Sum:
-			if (!values.isZero())
-				values /= values.sum();
-			break;
-		case NormalizationType::AbsSum:
-			if (!values.isZero())
-				values /= std::abs(values.sum());
-			break;
-		case NormalizationType::CellCount:
-			cgogn_message_assert(source_cell_count > 0, "Source cell count must be non-zero if interpolation uses it");
-			values /= source_cell_count;
-			break;
-		default:
-			cgogn_assert_not_reached("Missing normalization type case");
-		}
-
+		values = normalize(values, normalization, source_cell_count);
 		return std::make_pair(indices, values);
 	}
 

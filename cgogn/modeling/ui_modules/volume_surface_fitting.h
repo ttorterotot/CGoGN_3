@@ -858,7 +858,9 @@ public:
 			const VolumeVertex& v,
 			const uint32& k,
 			const FUNC& is_vertex_source,
+			const bool& inverse_distance_weighing,
 			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& source_vertex_weight_buffer, // i -> ith source vertex weight
 			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
 	{
 		static_assert(is_func_parameter_same<FUNC, VolumeVertex>::value,
@@ -879,12 +881,18 @@ public:
 				std::remove_if(source_vertex_buffer.begin(), source_vertex_buffer.end(), is_vertex_not_source)
 						- source_vertex_buffer.begin());
 
+		if (inverse_distance_weighing)
+			geometry::compute_inverse_distances(*volume_, v, source_vertex_buffer,
+					*volume_vertex_position_, source_vertex_weight_buffer, true);
+		else
+			source_vertex_weight_buffer.clear(); // no extra weighing
+
 		std::tie(
 				value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v),
 				value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v)
 		) = geometry::SkinningWeightInterpolation::compute_weights(*volume_,
 				*volume_vertex_skinning_weight_index_, *volume_vertex_skinning_weight_value_,
-				weight_value_buffer, source_vertex_buffer);
+				weight_value_buffer, source_vertex_buffer, source_vertex_weight_buffer);
 
 		return std::make_pair(k_neighborhood_size, source_vertex_buffer.size());
 	}
@@ -900,12 +908,14 @@ public:
 	std::pair<size_t, size_t> set_vertex_skinning_weights_from_k_neighborhood(
 			const VolumeVertex& v,
 			const uint32& k,
-			const FUNC& is_vertex_source)
+			const FUNC& is_vertex_source,
+			const bool& inverse_distance_weighing)
 	{
 		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> source_vertex_weight_buffer;
 		std::vector<Vec4::Scalar> weight_value_buffer;
-		return set_vertex_skinning_weights_from_k_neighborhood(v, k, is_vertex_source,
-				source_vertex_buffer, weight_value_buffer);
+		return set_vertex_skinning_weights_from_k_neighborhood(v, k, is_vertex_source, inverse_distance_weighing,
+				source_vertex_buffer, source_vertex_weight_buffer, weight_value_buffer);
 	}
 
 	/// @brief Sets a vertex's skinning weights from those of its filtered k-neighborhood,
@@ -920,7 +930,9 @@ public:
 			const VolumeVertex& v,
 			const uint32& min_k,
 			const FUNC& is_vertex_source,
+			const bool& inverse_distance_weighing,
 			std::vector<VolumeVertex>& source_vertex_buffer, // i -> ith source vertex
+			std::vector<Vec4::Scalar>& source_vertex_weight_buffer, // i -> ith source vertex weight
 			std::vector<Vec4::Scalar>& weight_value_buffer) // i -> ith bone accumulated weight buffer
 	{
 		// @TODO: could try narrowing faster with doubling then binary search,
@@ -934,7 +946,8 @@ public:
 			previous_neighborhood_size = neighborhood_size;
 			std::tie(neighborhood_size, source_vertices_size) =
 					set_vertex_skinning_weights_from_k_neighborhood(
-							v, k++, is_vertex_source, source_vertex_buffer, weight_value_buffer);
+							v, k++, is_vertex_source, inverse_distance_weighing,
+							source_vertex_buffer, source_vertex_weight_buffer, weight_value_buffer);
 		} while (source_vertices_size == 0 && neighborhood_size > previous_neighborhood_size);
 	}
 
@@ -950,12 +963,14 @@ public:
 	void set_vertex_skinning_weights_from_min_k_neighborhood(
 			const VolumeVertex& v,
 			const uint32& min_k,
-			const FUNC& is_vertex_source)
+			const FUNC& is_vertex_source,
+			const bool& inverse_distance_weighing)
 	{
 		std::vector<VolumeVertex> source_vertex_buffer;
+		std::vector<Vec4::Scalar> source_vertex_weight_buffer;
 		std::vector<Vec4::Scalar> weight_value_buffer;
-		set_vertex_skinning_weights_from_min_k_neighborhood(v, min_k, is_vertex_source,
-				source_vertex_buffer, weight_value_buffer);
+		set_vertex_skinning_weights_from_min_k_neighborhood(v, min_k, is_vertex_source, inverse_distance_weighing,
+				source_vertex_buffer, source_vertex_weight_buffer, weight_value_buffer);
 	}
 
 	/// @brief Propagates vertex skinning weights throughout the volume in layers of equal distance from its boundary.
@@ -963,6 +978,7 @@ public:
 	///                           see `set_vertex_skinning_weights_from_min_k_neighborhood`
 	template <PropagationDirection Direction>
 	void propagate_skinning_weights(uint32 neighborhood_min_k = 1u,
+			bool inverse_distance_weighing = false,
 			bool update_volume_skin_skinning_attributes_once_done = true,
 			bool emit_attributes_changed = true)
 	{
@@ -1001,10 +1017,11 @@ public:
 				// Buffers to avoid reallocations;
 				// constructed on first lambda call of thread, destructed when thread finishes
 				static thread_local std::vector<VolumeVertex> source_vertex_buffer;
+				static thread_local std::vector<Vec4::Scalar> source_vertex_weight_buffer;
 				static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
 				set_vertex_skinning_weights_from_min_k_neighborhood(
-						v, neighborhood_min_k, is_vertex_interpolation_source,
-						source_vertex_buffer, weight_value_buffer);
+						v, neighborhood_min_k, is_vertex_interpolation_source, inverse_distance_weighing,
+						source_vertex_buffer, source_vertex_weight_buffer, weight_value_buffer);
 				return true;
 			});
 		}
@@ -1021,6 +1038,7 @@ public:
 	/// @param neighborhood_min_k the minimum size of the neighborhood of `v` to gather weights from,
 	///                           see `set_vertex_skinning_weights_from_min_k_neighborhood`
 	void propagate_skinning_weights_from_set(const CellsSet<VOLUME, VolumeVertex>& cs, uint32 neighborhood_min_k = 1u,
+			bool inverse_distance_weighing = false,
 			bool update_volume_skin_skinning_attributes_once_done = true,
 			bool emit_attributes_changed = true)
 	{
@@ -1031,7 +1049,7 @@ public:
 
 		constexpr const auto SENTINEL = std::numeric_limits<Vec4i::Scalar>::lowest(); // unhandled cell
 		std::vector<VolumeVertex> propagation_source_vertices, interpolation_source_vertex_buffer;
-		std::vector<Vec4::Scalar> weight_value_buffer;
+		std::vector<Vec4::Scalar> source_vertex_weight_buffer, weight_value_buffer;
 		// `propagate` has no concurrency so neither buffer needs to be `thread_local`
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v)
@@ -1056,8 +1074,8 @@ public:
 				if (value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v_)[0] == SENTINEL)
 				{
 					set_vertex_skinning_weights_from_min_k_neighborhood(
-							v_, neighborhood_min_k, is_vertex_interpolation_source,
-							interpolation_source_vertex_buffer, weight_value_buffer);
+							v_, neighborhood_min_k, is_vertex_interpolation_source, inverse_distance_weighing,
+							interpolation_source_vertex_buffer, source_vertex_weight_buffer, weight_value_buffer);
 					cells_to_visit_next.push_back(v_);
 				}
 				return true;
@@ -2087,6 +2105,11 @@ private:
 			cgogn_assert(k > 0);
 			const auto k_ = static_cast<uint32>(k);
 
+			// Weighing mode, for now simply with or without inverse distance weighing,
+			// just adapt UI then change type to new enum here and in function parameters if more modes are added
+			static bool wm = false;
+			ImGui::Checkbox("Inverse distance weighing", &wm);
+
 			enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN, SOURCE_SKIN_CENTER, SOURCE_SKIN_FROZEN };
 			static int i = SOURCE_SKIN;
 			ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0Skin and center\0Skin and frozen set\0");
@@ -2113,24 +2136,24 @@ private:
 				switch (i)
 				{
 				case SOURCE_SKIN:
-					propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_);
+					propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, wm);
 					break;
 				case SOURCE_CENTER:
-					propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_);
+					propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, wm);
 					break;
 				case SOURCE_FROZEN:
-					propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
+					propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, wm);
 					break;
 				case SOURCE_SKIN_CENTER:
 					interpolate_skinning_weights(
-						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
-						[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, NN, NN); },
+						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, wm, NN, NN); },
+						[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, wm, NN, NN); },
 						boundary_to_center_interpolation, false); // refresh already done by both propagations
 					break;
 				case SOURCE_SKIN_FROZEN:
 					interpolate_skinning_weights(
-						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
-						[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, NN, NN); },
+						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, wm, NN, NN); },
+						[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, wm, NN, NN); },
 						boundary_to_center_interpolation, false); // refresh already done by first propagation
 					break;
 				default:

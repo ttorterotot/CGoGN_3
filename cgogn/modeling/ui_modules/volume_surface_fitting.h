@@ -831,7 +831,7 @@ public:
 
 			const auto [indices, values] = geometry::SkinningWeightInterpolation::compute_weights(*surface_,
 					*surface_vertex_skinning_weight_index_, *surface_vertex_skinning_weight_value_,
-					skinning_weight_value_buffer, source_vertices, std::optional{source_vertex_weights});
+					skinning_weight_value_buffer, source_vertices, source_vertex_weights);
 
 			value<Vec4i>(*volume_skin_, volume_skin_vertex_skinning_weight_index_, v) = indices;
 			value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, vv) = indices;

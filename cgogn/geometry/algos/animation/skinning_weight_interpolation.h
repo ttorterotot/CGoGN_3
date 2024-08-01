@@ -24,7 +24,6 @@
 #ifndef CGOGN_SKINNING_WEIGHT_INTERPOLATION_H_
 #define CGOGN_SKINNING_WEIGHT_INTERPOLATION_H_
 
-#include <optional>
 #include <array>
 #include <vector>
 
@@ -119,7 +118,7 @@ public:
 			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
 			std::vector<Vec4::Scalar>& weight_value_buffer,
 			const CONT_C& source_cells,
-			const std::optional<CONT_W> source_cell_weights = {},
+			const CONT_W& source_cell_weights = {},
 			const NormalizationType& normalization = NormalizationType::AbsSum)
 	{
 		weight_value_buffer.clear();
@@ -127,11 +126,13 @@ public:
 		if (source_cells.empty())
 			return std::make_pair(Vec4i{-1, -1, -1, -1}, Vec4::Zero());
 
+		const bool are_cells_weighted = source_cells.size() == source_cell_weights.size();
+
 		// Sum up all weight contributions per-bone into the buffer
 		for (size_t i = 0; i < source_cells.size(); ++i)
 		{
 			const auto& vi = index_of(m, source_cells[i]);
-			const auto vw = source_cell_weights ? (*source_cell_weights)[i] : 1.0;
+			const auto vw = are_cells_weighted ? source_cell_weights[i] : 1.0;
 			for (size_t j = 0; j < 4; ++j)
 			{
 				const int wi = weight_index[vi][j];
@@ -152,7 +153,7 @@ public:
 			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
 			const typename mesh_traits<MESH>::template Attribute<Vec4>& weight_value,
 			const CONT_C& source_cells,
-			const std::optional<CONT_W> source_cell_weights = {},
+			const CONT_W& source_cell_weights = {},
 			const NormalizationType& normalization = NormalizationType::AbsSum)
 	{
 		std::vector<Vec4::Scalar> weight_value_buffer;

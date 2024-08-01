@@ -164,10 +164,11 @@ public:
 			const std::array<Vec4i, 2>& indices,
 			const std::array<Vec4, 2>& values,
 			const Vec4::Scalar& t,
-			std::vector<Vec4::Scalar>& weight_value_buffer,
 			const NormalizationType& normalization = NormalizationType::AbsSum)
 	{
-		weight_value_buffer.clear();
+		constexpr const size_t BufferSize = 8; // enough to handle weights from both inputs
+		std::array<Vec4i::Scalar, BufferSize> index_buffer{ -1, -1, -1, -1, -1, -1, -1, -1 };
+		std::array<Vec4::Scalar, BufferSize> value_buffer{};
 
 		const Vec4::Scalar w[2] = { 1.0 - t, t };
 
@@ -180,23 +181,36 @@ public:
 				const double wv = w[i] * values[i][j];
 				if (wi < 0 || wv == 0.0)
 					continue;
-				if (weight_value_buffer.size() <= wi)
-					weight_value_buffer.resize(wi + 1, 0.0);
-				weight_value_buffer[wi] += wv;
+				for (size_t k = 0; k < BufferSize; ++k)
+				{
+					auto& index = index_buffer[k];
+					if (index != -1 && index != wi)
+						continue;
+					index = wi;
+					value_buffer[k] += wv;
+					break;
+				}
 			}
 		}
 
-		return compute_weights(weight_value_buffer, normalization, 2);
-	}
+		Vec4i interpolated_indices{ -1, -1, -1, -1 };
+		Vec4 interpolated_values = Vec4::Zero();
 
-	static std::pair<Vec4i, Vec4> lerp(
-			const std::array<Vec4i, 2>& indices,
-			const std::array<Vec4, 2>& values,
-			const Vec4::Scalar& t,
-			const NormalizationType& normalization = NormalizationType::AbsSum)
-	{
-		std::vector<Vec4::Scalar> weight_value_buffer;
-		return lerp(indices, values, t, weight_value_buffer, normalization);
+		for (size_t i = 0; i < 4; ++i)
+		{
+			auto j = std::max_element(value_buffer.cbegin(), value_buffer.cend()) - value_buffer.cbegin();
+			auto& index = index_buffer[j];
+			auto& value = value_buffer[j];
+			if (index == -1)
+				break;
+			interpolated_indices[i] = index;
+			interpolated_values[i] = value;
+			index = -1;
+			value = std::numeric_limits<Vec4::Scalar>::lowest();
+		}
+
+		interpolated_values = normalize(interpolated_values, normalization, 2);
+		return std::make_pair(interpolated_indices, interpolated_values);
 	}
 };
 

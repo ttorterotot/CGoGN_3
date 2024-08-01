@@ -1129,14 +1129,12 @@ public:
 			refresh_volume_vertex_distance_from_boundary();
 
 		parallel_foreach_cell(*volume_, [&](VolumeVertex v) -> bool {
-			static thread_local std::vector<Vec4::Scalar> weight_value_buffer;
 			auto& indices = value<Vec4i>(*volume_, volume_vertex_skinning_weight_index_, v);
 			auto& values = value<Vec4>(*volume_, volume_vertex_skinning_weight_value_, v);
 			std::tie(indices, values) = geometry::SkinningWeightInterpolation::lerp(
 				{value<Vec4i>(*volume_, temp_vvswi, v), indices},
 				{value<Vec4>(*volume_, temp_vvswv, v), values},
-				get_interpolation_weight(v),
-				weight_value_buffer);
+				get_interpolation_weight(v));
 			return true;
 		});
 

@@ -1967,115 +1967,11 @@ protected:
 
 			ImGui::Separator();
 
-			if constexpr (HandlesAnimationSkeleton)
-			{
-				if (selected_frozen_vertices_set_ && animation_skeleton_ && animation_skeleton_joint_position_)
-				{
-					auto& cs = *selected_frozen_vertices_set_;
-					if constexpr (HasSkinningWeightsTransferFromAnimationSkeleton)
-					{
-						const bool skinning_attributes_set =
-								volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
+			show_skeleton_projection_and_skinning_weight_transfer_controls();
+			show_surface_skinning_weight_transfer_controls();
+			show_skinning_weight_propagation_controls();
 
-						const auto ui_warn_skinning_attributes_not_set =
-								[]{ show_tooltip_for_ui_above("Volume skinning attributes must be set to bind"); };
-
-						if (!skinning_attributes_set)
-							ImGui::BeginDisabled();
-						if (ImGui::Button("Project and bind frozen vertices to skeleton"))
-							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
-						if (!skinning_attributes_set)
-						{
-							ui_warn_skinning_attributes_not_set();
-							ImGui::EndDisabled();
-						}
-
-						if (ImGui::Button("Project only"))
-							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-						ImGui::SameLine();
-						if (!skinning_attributes_set)
-							ImGui::BeginDisabled();
-						if (ImGui::Button("Bind only"))
-							project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
-						if (!skinning_attributes_set)
-						{
-							ui_warn_skinning_attributes_not_set();
-							ImGui::EndDisabled();
-						}
-					}
-					else if (ImGui::Button("Project frozen vertices to skeleton"))
-						project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
-				}
-			}
-
-			if constexpr (HasSkinningWeightsTransferFromSurface)
-				if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
-					transfer_skinning_weights_to_skin();
-
-			if constexpr (HasSkinningWeightsPropagation)
-			{
-				if (volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_)
-				{
-					static int k = 1;
-					ImGui::SliderInt("Source minimum neighborhood k", &k, 1, 8);
-					cgogn_assert(k > 0);
-					const auto k_ = static_cast<uint32>(k);
-
-					enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN, SOURCE_SKIN_CENTER, SOURCE_SKIN_FROZEN };
-					static int i = SOURCE_SKIN;
-					ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0Skin and center\0Skin and frozen set\0");
-
-					const auto boundary_to_center_interpolation = [&](VolumeVertex v) {
-						return static_cast<Vec4::Scalar>(value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v))
-								/ volume_vertex_max_distance_from_boundary_;
-					};
-
-					// propagate_skinning_weights(_from_set) calls from interpolate_skinning_weights
-					// don't need to update the volume skin's skinning attributes from the volume's
-					// nor to emit a signal that the volume (and its skin)'s have changed,
-					// because interpolate_skinning_weights needs to do both at the end anyway
-					// (NN stands for "not needed")
-					static constexpr const bool NN = false;
-
-					const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
-
-					if (!can_propagate)
-						ImGui::BeginDisabled();
-
-					if (ImGui::Button("Propagate skinning weights") && can_propagate)
-					{
-						switch (i)
-						{
-						case SOURCE_SKIN:
-							propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_);
-							break;
-						case SOURCE_CENTER:
-							propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_);
-							break;
-						case SOURCE_FROZEN:
-							propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
-							break;
-						case SOURCE_SKIN_CENTER:
-							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
-								[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, NN, NN); },
-								boundary_to_center_interpolation, false); // refresh already done by both propagations
-							break;
-						case SOURCE_SKIN_FROZEN:
-							interpolate_skinning_weights(
-								[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
-								[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, NN, NN); },
-								boundary_to_center_interpolation, false); // refresh already done by first propagation
-							break;
-						default:
-							cgogn_assert_not_reached("Missing propagation source case");
-						}
-					}
-
-					if (!can_propagate)
-						ImGui::EndDisabled();
-				}
-			}
+			ImGui::Separator();
 
 			if (ImGui::Button("Project on surface"))
 				project_on_surface();
@@ -2127,6 +2023,126 @@ protected:
 	{
 		left_panel_meshes();
 		left_panel_operations();
+	}
+
+private:
+	void show_skeleton_projection_and_skinning_weight_transfer_controls()
+	{
+		if constexpr (HandlesAnimationSkeleton)
+		{
+			if (!selected_frozen_vertices_set_ || !animation_skeleton_ || !animation_skeleton_joint_position_)
+				return;
+
+			auto& cs = *selected_frozen_vertices_set_;
+			if constexpr (HasSkinningWeightsTransferFromAnimationSkeleton)
+			{
+				const bool skinning_attributes_set =
+						volume_vertex_skinning_weight_index_ && volume_vertex_skinning_weight_value_;
+
+				const auto ui_warn_skinning_attributes_not_set =
+						[]{ show_tooltip_for_ui_above("Volume skinning attributes must be set to bind"); };
+
+				if (!skinning_attributes_set)
+					ImGui::BeginDisabled();
+				if (ImGui::Button("Project and bind frozen vertices to skeleton"))
+					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionAndSkinningWeight);
+				if (!skinning_attributes_set)
+				{
+					ui_warn_skinning_attributes_not_set();
+					ImGui::EndDisabled();
+				}
+
+				if (ImGui::Button("Project only"))
+					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+				ImGui::SameLine();
+				if (!skinning_attributes_set)
+					ImGui::BeginDisabled();
+				if (ImGui::Button("Bind only"))
+					project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::SkinningWeightOnly);
+				if (!skinning_attributes_set)
+				{
+					ui_warn_skinning_attributes_not_set();
+					ImGui::EndDisabled();
+				}
+			}
+			else if (ImGui::Button("Project frozen vertices to skeleton"))
+				project_cells_set_to_skeleton(cs, VertexToSkeletonProjectionMode::PositionOnly);
+		}
+	}
+
+	void show_surface_skinning_weight_transfer_controls()
+	{
+		if constexpr (HasSkinningWeightsTransferFromSurface)
+			if (can_transfer_skinning_weights_to_skin() && ImGui::Button("Skinning weights to skin"))
+				transfer_skinning_weights_to_skin();
+	}
+
+	void show_skinning_weight_propagation_controls()
+	{
+		if constexpr (HasSkinningWeightsPropagation)
+		{
+			if (!volume_vertex_skinning_weight_index_ || !volume_vertex_skinning_weight_value_)
+				return;
+
+			static int k = 1;
+			ImGui::SliderInt("Source minimum neighborhood k", &k, 1, 8);
+			cgogn_assert(k > 0);
+			const auto k_ = static_cast<uint32>(k);
+
+			enum { SOURCE_SKIN = 0, SOURCE_CENTER, SOURCE_FROZEN, SOURCE_SKIN_CENTER, SOURCE_SKIN_FROZEN };
+			static int i = SOURCE_SKIN;
+			ImGui::Combo("Source", &i, "Skin (boundary)\0Center\0Frozen set\0Skin and center\0Skin and frozen set\0");
+
+			const auto boundary_to_center_interpolation = [&](VolumeVertex v) {
+				return static_cast<Vec4::Scalar>(value<uint32>(*volume_, volume_vertex_distance_from_boundary_, v))
+						/ volume_vertex_max_distance_from_boundary_;
+			};
+
+			// propagate_skinning_weights(_from_set) calls from interpolate_skinning_weights
+			// don't need to update the volume skin's skinning attributes from the volume's
+			// nor to emit a signal that the volume (and its skin)'s have changed,
+			// because interpolate_skinning_weights needs to do both at the end anyway
+			// (NN stands for "not needed")
+			static constexpr const bool NN = false;
+
+			const bool can_propagate = i != SOURCE_FROZEN && i != SOURCE_SKIN_FROZEN || selected_frozen_vertices_set_;
+
+			if (!can_propagate)
+				ImGui::BeginDisabled();
+
+			if (ImGui::Button("Propagate skinning weights") && can_propagate)
+			{
+				switch (i)
+				{
+				case SOURCE_SKIN:
+					propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_);
+					break;
+				case SOURCE_CENTER:
+					propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_);
+					break;
+				case SOURCE_FROZEN:
+					propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_);
+					break;
+				case SOURCE_SKIN_CENTER:
+					interpolate_skinning_weights(
+						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
+						[&]{ propagate_skinning_weights<PropagationDirection::CenterToBoundary>(k_, NN, NN); },
+						boundary_to_center_interpolation, false); // refresh already done by both propagations
+					break;
+				case SOURCE_SKIN_FROZEN:
+					interpolate_skinning_weights(
+						[&]{ propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(k_, NN, NN); },
+						[&]{ propagate_skinning_weights_from_set(*selected_frozen_vertices_set_, k_, NN, NN); },
+						boundary_to_center_interpolation, false); // refresh already done by first propagation
+					break;
+				default:
+					cgogn_assert_not_reached("Missing propagation source case");
+				}
+			}
+
+			if (!can_propagate)
+				ImGui::EndDisabled();
+		}
 	}
 
 public:

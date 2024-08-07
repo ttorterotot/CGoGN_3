@@ -57,7 +57,7 @@ void MeshRender::init_lines(const MESH& m, TablesIndices& table_indices, TablesI
 				table_indices[worker_index].push_back(index_of(m, v));
 				return true;
 			});
-			if (EMB)
+			if constexpr (EMB)
 				table_emb_edge[worker_index].push_back(index_of(m, e));
 			else
 				table_emb_edge[worker_index].push_back(i_e[worker_index]++);
@@ -79,7 +79,7 @@ void MeshRender::init_triangles(const MESH& m, TablesIndices& table_indices, Tab
 		std::vector<uint32> i_f(thread_pool()->nb_workers(), 0);
 		parallel_foreach_cell(m, [&](Face f) -> bool {
 			uint32 worker_index = current_worker_index();
-			if (EMB)
+			if constexpr (EMB)
 				i_f[worker_index] = index_of(m, f);
 			auto& vertices = vvertices[worker_index];
 			vertices.clear();
@@ -92,7 +92,7 @@ void MeshRender::init_triangles(const MESH& m, TablesIndices& table_indices, Tab
 				tif.push_back(index_of(m, vertices[i + 1]));
 				table_emb_face[worker_index].push_back(i_f[worker_index]);
 			}
-			if (!EMB)
+			if constexpr (!EMB)
 				i_f[worker_index]++;
 			return true;
 		});
@@ -114,7 +114,7 @@ void MeshRender::init_ear_triangles(const MESH& m, TablesIndices& table_indices,
 		std::vector<uint32> i_f(thread_pool()->nb_workers(), 0);
 		parallel_foreach_cell(m, [&](Face f) -> bool {
 			uint32 worker_index = current_worker_index();
-			if (EMB)
+			if constexpr (EMB)
 				i_f[worker_index] = index_of(m, f);
 			auto& tif = table_indices[worker_index];
 			if (codegree(m, f) == 3)
@@ -133,7 +133,7 @@ void MeshRender::init_ear_triangles(const MESH& m, TablesIndices& table_indices,
 				cgogn::geometry::append_ear_triangulation(
 					m, f, position, tif, [&]() { table_emb_face[worker_index].push_back(i_f[worker_index]); });
 			}
-			if (!EMB)
+			if constexpr (!EMB)
 				i_f[worker_index]++;
 			return true;
 		});
@@ -186,7 +186,7 @@ void MeshRender::init_volumes(const MESH& m, TablesIndices& table_indices_f, Tab
 			uint32 worker_index = current_worker_index();
 			auto& ivol = i_vol[worker_index];
 
-			if (EMB)
+			if constexpr (EMB)
 				ivol = index_of(m, vol);
 
 			auto& vertices = vvertices[worker_index];
@@ -226,7 +226,7 @@ void MeshRender::init_volumes(const MESH& m, TablesIndices& table_indices_f, Tab
 
 			table_emb_vol[worker_index].push_back(ivol);
 
-			if (!EMB)
+			if constexpr (!EMB)
 				ivol++;
 
 			return true;

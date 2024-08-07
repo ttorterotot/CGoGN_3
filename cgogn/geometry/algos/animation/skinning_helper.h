@@ -301,12 +301,12 @@ private:
 
 	// Pre-computed-transform-type dependent methods
 
-	static inline Vec3 transform_point(const Vec3& v, const AffineTransform& world_transform)
+	static Vec3 transform_point(const Vec3& v, const AffineTransform& world_transform)
 	{
 		return world_transform * v;
 	}
 
-	static inline Vec3 transform_point(const Vec3& v, const Mat4& world_transform)
+	static Vec3 transform_point(const Vec3& v, const Mat4& world_transform)
 	{
 		Vec4 res = world_transform * v.homogeneous().eval();
 		return res.head<3>() / res.w();

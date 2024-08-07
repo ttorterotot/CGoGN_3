@@ -398,6 +398,8 @@ auto foreach_incident_vertex(const MESH& ts, CELL c, const FUNC& func)
 	static_assert(is_func_parameter_same<FUNC, Vertex>::value, "Wrong function cell parameter type");
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
 
+	// Vertex is no-op by design
+
 	if constexpr (std::is_same_v<CELL, Face>)
 	{
 		const std::array<Vertex, 3>& vertices = (*ts.face_incident_vertices_)[c];

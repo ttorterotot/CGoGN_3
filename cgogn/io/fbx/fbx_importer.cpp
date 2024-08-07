@@ -249,7 +249,7 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 
 	const auto get_weight = [&](const uint32& i) -> std::pair<uint32, AnimScalar>& {
 		if (deformer.weights.size() <= i)
-			deformer.weights.resize(i + 1, {uint32(-1), 0.0});
+			deformer.weights.resize(static_cast<size_t>(i) + 1, {uint32(-1), 0.0});
 		return deformer.weights[i];
 	};
 
@@ -316,7 +316,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 
 	const auto get_keyframe = [&](const uint32& i) -> geometry::AnimationKeyframe<AnimTimeT, AnimScalar>& {
 		if (curve.animation.size() <= i)
-			curve.animation.resize(i + 1, {0.0, 0.0});
+			curve.animation.resize(static_cast<size_t>(i) + 1, {0.0, 0.0});
 		return curve.animation[i];
 	};
 
@@ -845,7 +845,7 @@ const FbxImporterBase::LimbNodeModel* FbxImporterBase::get_parent_bone(const Obj
 			continue;
 
 		const auto it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
-				[&](const LimbNodeModel& e) { return e.id == parent_id; });
+				[&, parent_id = parent_id](const LimbNodeModel& e) { return e.id == parent_id; });
 
 		if (it != models_limb_node_.cend())
 			return &*it;
@@ -991,20 +991,18 @@ void FbxImporter::load_bones(Skeleton& skeleton)
 
 void FbxImporter::associate_animations_to_bones()
 {
-	for (const auto& c : connections_op_)
+	for (const auto& [curve_id, curve_node_id, axis_property_name] : connections_op_)
 	{
 		// Get animation curve node's animation curves and targeted property
 
-		const auto& [curve_id, curve_node_id, axis_property_name] = c;
-
 		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+				[&, curve_node_id = curve_node_id](const AnimationCurveNode& node){ return node.id == curve_node_id; });
 
 		if (curve_node_it == animation_curve_nodes_.end())
 			continue;
 
 		const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
-				[&](const AnimationCurve& curve){ return curve.id == curve_id; });
+				[&, curve_id = curve_id](const AnimationCurve& curve){ return curve.id == curve_id; });
 
 		if (curve_it == animation_curves_.cend())
 			continue;
@@ -1017,20 +1015,18 @@ void FbxImporter::associate_animations_to_bones()
 		curve_node_it->set_animation(&curve_it->animation, axis_property_name);
 	}
 
-	for (const auto& c : connections_op_)
+	for (const auto& [curve_node_id, model_id, transform_property_name] : connections_op_)
 	{
 		// Get bone's animation curve node and targeted property
 
-		const auto& [curve_node_id, model_id, transform_property_name] = c;
-
 		const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
-				[&](const LimbNodeModel& model){ return model.id == model_id; });
+				[&, model_id = model_id](const LimbNodeModel& model){ return model.id == model_id; });
 
 		if (model_it == models_limb_node_.end())
 			continue;
 
 		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+				[&, curve_node_id = curve_node_id](const AnimationCurveNode& node){ return node.id == curve_node_id; });
 
 		if (curve_node_it == animation_curve_nodes_.end())
 			continue;

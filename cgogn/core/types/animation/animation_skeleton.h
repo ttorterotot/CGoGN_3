@@ -426,8 +426,7 @@ auto foreach_incident_vertex(const AnimationSkeleton& as, CELL c, const FUNC& fu
 	static_assert(is_func_parameter_same<FUNC, Vertex>::value, "Wrong function cell parameter type");
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
 
-	if constexpr (std::is_same_v<CELL, Vertex>)
-		func(c);
+	// Vertex is no-op by design
 
 	if constexpr (std::is_same_v<CELL, Edge>)
 	{

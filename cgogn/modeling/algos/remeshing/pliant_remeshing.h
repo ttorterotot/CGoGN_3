@@ -151,21 +151,44 @@ struct PliantRemeshing_Helper
 		vertex_lfs_ = get_or_add_attribute<Scalar, Vertex>(m_, "__vertex_lfs");
 		lfs_min_ = std::numeric_limits<float64>::max();
 		lfs_max_ = std::numeric_limits<float64>::lowest();
-		lfs_mean_ = 0.0;
-		uint32 nbv = 0;
+
+		// Persistence of thread-local values in this context, like in e.g. geometry::mean_edge_length,
+		// relies on the fact workers are kept alive between executions, here throughout all three multithreaded steps
+
+		thread_local uint32 nbv_tl;
+		thread_local Scalar lfs_min_tl;
+		thread_local Scalar lfs_max_tl;
+		thread_local Scalar lfs_total_tl;
+
+		thread_pool()->execute_all([]() {
+			nbv_tl = 0;
+			lfs_min_tl = std::numeric_limits<float64>::max();
+			lfs_max_tl = std::numeric_limits<float64>::lowest();
+			lfs_total_tl = 0.0;
+		});
+
 		parallel_foreach_cell(m_, [&](Vertex v) -> bool {
-			++nbv;
+			++nbv_tl;
 			uint32 vidx = index_of(m_, v);
 			Scalar lfs = ((*vertex_medial_point)[vidx] - (*vertex_position_)[vidx]).norm();
-			if (lfs < lfs_min_)
-				lfs_min_ = lfs;
-			if (lfs > lfs_max_)
-				lfs_max_ = lfs;
-			lfs_mean_ += lfs;
+			lfs_min_tl = std::min(lfs_min_tl, lfs);
+			lfs_max_tl = std::max(lfs_max_tl, lfs);
+			lfs_total_tl += lfs;
 			(*vertex_lfs_)[vidx] = lfs;
 			return true;
 		});
-		lfs_mean_ /= Scalar(nbv);
+
+		uint32 nbv = 0;
+		Scalar lfs_total = 0.0;
+		std::mutex mutex;
+		thread_pool()->execute_all([&]() {
+			std::lock_guard<std::mutex> lock(mutex);
+			lfs_min_ = std::min(lfs_min_, lfs_min_tl);
+			lfs_max_ = std::max(lfs_max_, lfs_max_tl);
+			nbv += nbv_tl;
+			lfs_total += lfs_total_tl;
+		});
+		lfs_mean_ = lfs_total / Scalar(nbv);
 
 		remove_attribute<Vertex>(m_, vertex_normal);
 		remove_attribute<Vertex>(m_, vertex_medial_point);

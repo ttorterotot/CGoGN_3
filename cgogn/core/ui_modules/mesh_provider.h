@@ -511,11 +511,12 @@ public:
 	template <typename CELL>
 	using cells_set_changed = struct cells_set_changed_ (*)(CellsSet<MESH, CELL>* set);
 
-	template <typename T>
+	template <bool UpdateVbo = true, typename T>
 	void emit_attribute_changed(const MESH& m, Attribute<T>* attribute)
 	{
 		MeshData<MESH>& md = mesh_data(m);
-		md.update_vbo(attribute);
+		if constexpr (UpdateVbo)
+			md.update_vbo(attribute);
 		if (static_cast<AttributeGen*>(md.bb_vertex_position_.get()) == static_cast<AttributeGen*>(attribute))
 		{
 			md.update_bb();

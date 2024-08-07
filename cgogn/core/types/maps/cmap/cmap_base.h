@@ -350,6 +350,9 @@ auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func, MapBase::T
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 
+	if constexpr (std::is_same_v<CELL, Vertex>)
+		return;
+
 	static_assert(has_cell_type_v<MESH, CELL>, "CELL not supported in this MESH");
 	static_assert(is_func_parameter_same<FUNC, Vertex>::value, "Wrong function cell parameter type");
 	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");

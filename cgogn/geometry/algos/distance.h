@@ -24,6 +24,7 @@
 #ifndef CGOGN_GEOMETRY_ALGOS_DISTANCE_H_
 #define CGOGN_GEOMETRY_ALGOS_DISTANCE_H_
 
+#include <algorithm>
 #include <utility>
 
 #include <cgogn/core/types/cells_set.h>
@@ -258,6 +259,100 @@ void compute_geodesic_distance(MESH& m, const typename mesh_traits<MESH>::templa
 	// remove_attribute<Vertex>(m, vertex_heat);
 	// remove_attribute<Face>(m, face_heat_gradient);
 	// remove_attribute<Vertex>(m, vertex_heat_gradient_div);
+}
+
+/**
+* @brief compute inverse distance weights from a reference position
+* @tparam T the output scalar type
+* @param p the reference position
+* @param cells the cells to consider
+* @param output a vector to be filled with weights corresponding to the input cells
+*/
+template <typename T, typename MESH, typename CONT>
+inline void compute_inverse_distances(
+		const MESH& m, const Vec3& p, const CONT& cells,
+		const typename mesh_traits<MESH>::template Attribute<Vec3>& cell_position,
+		std::vector<T>& output, bool normalized = false)
+{
+	output.clear();
+	for (const auto& c : cells)
+		output.push_back((cell_position[index_of(m, c)] - p).norm());
+
+	if (normalized)
+	{
+		const auto zero_norm_cells = std::count(output.cbegin(), output.cend(), 0.0);
+		if (zero_norm_cells > 0)
+		{
+			const T split = 1.0 / zero_norm_cells;
+			for (auto& w : output)
+				w = w == 0.0 ? split : 0.0;
+			return;
+		}
+	}
+
+	for (auto& w : output)
+		w = 1.0 / w;
+
+	if (normalized)
+	{
+		const T sum = std::accumulate(output.cbegin(), output.cend(), 0.0);
+		for (auto& w : output)
+			w /= sum;
+	}
+}
+
+/**
+* @brief compute inverse distance weights from a reference position
+* @tparam T the output scalar type
+* @param p the reference position
+* @param cells the cells to consider
+* @return a vector of weights corresponding to the input cells
+*/
+template <typename T = Scalar, typename MESH, typename CONT>
+inline std::vector<T> compute_inverse_distances(
+		const MESH& m, const Vec3& p, const CONT& cells,
+		const typename mesh_traits<MESH>::template Attribute<Vec3>& cell_position,
+		bool normalized = false)
+{
+	std::vector<T> output;
+	compute_inverse_distances<T>(m, p, cells, cell_position, output, normalized);
+	return output;
+}
+
+/**
+* @brief compute inverse distance weights from a reference cell's position
+* @tparam T the output scalar type
+* @param c the reference cell
+* @param cells the cells to consider
+* @param output a vector to be filled with weights corresponding to the input cells
+*/
+template <typename T, typename MESH, typename CELL, typename CONT>
+inline auto compute_inverse_distances(
+		const MESH& m, const CELL& c, const CONT& cells,
+		const typename mesh_traits<MESH>::template Attribute<Vec3>& cell_position,
+		std::vector<T>& output, bool normalized = false)
+	-> std::enable_if_t<!std::is_same_v<CELL, Vec3>>
+{
+	static_assert(std::is_same_v<std::remove_cv_t<std::remove_reference_t<decltype(*cells.cbegin())>>, CELL>);
+	compute_inverse_distances(m, cell_position[index_of(m, c)], cells, cell_position, output, normalized);
+}
+
+/**
+* @brief compute inverse distance weights from a reference cell's position
+* @tparam T the output scalar type
+* @param c the reference cell
+* @param cells the cells to consider
+* @return a vector of weights corresponding to the input cells
+*/
+template <typename T = Scalar, typename MESH, typename CELL, typename CONT>
+inline std::enable_if_t<!std::is_same_v<CELL, Vec3>, std::vector<T>> compute_inverse_distances(
+		const MESH& m, const CELL& c, const CONT& cells,
+		const typename mesh_traits<MESH>::template Attribute<Vec3>& cell_position,
+		bool normalized = false)
+{
+	std::vector<T> output;
+	compute_inverse_distances<T>(m, c, cells, cell_position, output, normalized);
+	return output;
 }
 
 } // namespace geometry

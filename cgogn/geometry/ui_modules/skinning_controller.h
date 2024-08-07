@@ -53,6 +53,14 @@ class SkinningController : public Module
 public:
 	using Skinning = geometry::SkinningHelper<TransformT>;
 
+	enum class UpdatePolicy
+	{
+		Auto,                      // depends on the corresponding auto-bind toggle
+		DoNotBind,                 // only set, don't bind nor update embedding
+		Bind,                      // set and bind, but don't try to update embedding
+		BindAndTryUpdateEmbedding, // set and bind, then try to update embedding
+	};
+
 protected:
 	using Skeleton = AnimationSkeleton;
 
@@ -84,7 +92,7 @@ public:
 	/// @brief Retrieves the corresponding save attribute of the provided one
 	/// @param attribute the attribute to get the save of
 	/// @return a pointer to the corresponding save attribute, or `nullptr` if there isn't any
-	inline std::shared_ptr<AttributeSf<Vec3>> get_saved_vertex_position(
+	std::shared_ptr<AttributeSf<Vec3>> get_saved_vertex_position(
 			const std::shared_ptr<AttributeSf<Vec3>>& attribute)
 	{
 		const auto& it = saved_vertex_positions_.find(attribute.get());
@@ -94,7 +102,7 @@ public:
 	/// @brief Saves the selected vertex position attribute's values to the provided attribute.
 	/// @param save the attribute to save positions to
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void save_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& save, bool warn_unset = true)
+	void save_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& save, bool warn_unset = true)
 	{
 		if (selected_vertex_position_)
 		{
@@ -108,7 +116,7 @@ public:
 
 	/// @brief Saves the selected vertex position attribute's values to a dedicated attribute.
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void save_vertex_position(bool warn_unset = true)
+	void save_vertex_position(bool warn_unset = true)
 	{
 		if (!selected_mesh_)
 		{
@@ -132,7 +140,7 @@ public:
 	/// @brief Restores the selected vertex position attribute's values to the provided save if it's non-null.
 	/// @param save the save attribute to restore positions from
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void restore_vertex_position(const std::shared_ptr<const AttributeSf<Vec3>>& save, bool warn_unset = true)
+	void restore_vertex_position(const std::shared_ptr<const AttributeSf<Vec3>>& save, bool warn_unset = true)
 	{
 		if (!save)
 		{
@@ -156,7 +164,7 @@ public:
 
 	/// @brief Restores the selected vertex position attribute's values to its save if such a save exists.
 	/// @param warn_unset whether or not to write a warning to the standard output if the operation fails
-	inline void restore_vertex_position(bool warn_unset = true)
+	void restore_vertex_position(bool warn_unset = true)
 	{
 		// Emplaces nullptr if no entry for this key, which triggers the intended behavior from the overload above
 		restore_vertex_position(saved_vertex_positions_[selected_vertex_position_.get()], warn_unset);
@@ -164,7 +172,8 @@ public:
 
 	/// @brief Changes the linked vertex position attribute, and updates the mesh if possible.
 	/// @param attribute the new attribute to use as positions
-	void set_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& attribute)
+	/// @param policy see `UpdatePolicy
+	void set_vertex_position(const std::shared_ptr<AttributeSf<Vec3>>& attribute, UpdatePolicy policy = UpdatePolicy::Auto)
 	{
 		if (restore_vertex_position_on_unbind_ && attribute != selected_vertex_position_)
 			if (const auto& save = get_saved_vertex_position(selected_vertex_position_))
@@ -172,7 +181,10 @@ public:
 
 		selected_vertex_position_ = attribute;
 
-		if (!selected_mesh_)
+		if (policy == UpdatePolicy::Auto)
+			policy = auto_bind_mesh_ ? UpdatePolicy::BindAndTryUpdateEmbedding : UpdatePolicy::DoNotBind;
+
+		if (policy == UpdatePolicy::DoNotBind || !selected_mesh_)
 			return;
 
 		selected_bind_vertex_position_
@@ -184,7 +196,8 @@ public:
 		if (save_vertex_position_on_first_bind_ && !get_saved_vertex_position(attribute))
 			save_vertex_position(false);
 
-		update_embedding();
+		if (policy == UpdatePolicy::BindAndTryUpdateEmbedding)
+			update_embedding();
 	}
 
 	/// @brief Changes the linked vertex weight index attribute, and updates the mesh if possible.
@@ -206,11 +219,15 @@ public:
 
 	/// @brief Changes the linked vertex weight value attribute, and updates the mesh if possible.
 	/// @param attribute the new attribute to use as transforms
-	void set_bone_world_transform(const std::shared_ptr<AttributeSk<TransformT>>& attribute)
+	/// @param policy see `UpdatePolicy`
+	void set_bone_world_transform(const std::shared_ptr<AttributeSk<TransformT>>& attribute, UpdatePolicy policy = UpdatePolicy::Auto)
 	{
 		selected_bone_world_transform_ = attribute;
 
-		if (!selected_skeleton_)
+		if (policy == UpdatePolicy::Auto)
+			policy = auto_bind_skeleton_ ? UpdatePolicy::BindAndTryUpdateEmbedding : UpdatePolicy::DoNotBind;
+
+		if (policy == UpdatePolicy::DoNotBind || !selected_skeleton_)
 			return;
 
 		selected_bind_bone_inv_world_transform_
@@ -224,7 +241,8 @@ public:
 				t = t.inverse();
 		}
 
-		update_embedding();
+		if (policy == UpdatePolicy::BindAndTryUpdateEmbedding)
+			update_embedding();
 	}
 
 	/// @brief Changes the linked mesh, and resets attribute selection for it.
@@ -324,61 +342,20 @@ protected:
 					"World transform", [&](const std::shared_ptr<AttributeSk<TransformT>>& attribute){ set_bone_world_transform(attribute); });
 		}
 
+		if (ImGui::TreeNode("Manual update/binding"))
 		{
+			show_bind_controls("Bind mesh position", selected_vertex_position_ && selected_mesh_, auto_bind_mesh_, "Auto##bind_mesh",
+					[&]{ set_vertex_position(selected_vertex_position_, UpdatePolicy::BindAndTryUpdateEmbedding); });
+
+			show_bind_controls("Bind skeleton pose", selected_bone_world_transform_ && selected_skeleton_, auto_bind_skeleton_, "Auto##bind_skeleton",
+					[&]{ set_bone_world_transform(selected_bone_world_transform_, UpdatePolicy::BindAndTryUpdateEmbedding); });
+
 			// Bypass the need for the embedding to have been detected as dirty by pressing a shift key (should not be needed)
 			const bool enable_button_if_possible = embedding_dirty_ || (ImGui::GetIO().KeyMods & ImGuiModFlags_Shift) != ImGuiModFlags_None;
-			if (show_button("Update", enable_button_if_possible && can_update_embedding()))
+			if (show_button("Update embedding", enable_button_if_possible && can_update_embedding()))
 				update_embedding(true);
 			ImGui::SameLine();
 			ImGui::Checkbox("Auto##update", &auto_update_embedding_);
-		}
-
-		if (ImGui::TreeNode("Bone influence visualization"))
-		{
-			ImGui::Checkbox("Global##influence", &global_bone_influence_computation_);
-
-			if (global_bone_influence_computation_)
-			{
-				if (selected_skeleton_)
-					imgui_combo_attribute<Bone, Vec3>(
-							*selected_skeleton_,
-							selected_bone_color_for_influence_computation_,
-							"Bone color##influence",
-							[&](const std::shared_ptr<AttributeSk<Vec3>>& attribute) {
-									selected_bone_color_for_influence_computation_ = attribute; });
-				else
-					ImGui::TextUnformatted("Select skeleton to visualize influences of bones");
-			}
-			else if (selected_skeleton_ && selected_skeleton_->nb_bones() > 0)
-			{
-				int bone_index = static_cast<int>(index_of(*selected_skeleton_, selected_bone_for_influence_computation_));
-				ImGui::SliderInt("Bone index##influence", &bone_index, 0, static_cast<int>(*std::max_element(
-						selected_skeleton_->bone_traverser_.cbegin(), selected_skeleton_->bone_traverser_.cend(),
-						[&](const Bone& a, const Bone& b) {
-								return index_of(*selected_skeleton_, a) < index_of(*selected_skeleton_, b); })));
-				selected_bone_for_influence_computation_ = of_index<Bone>(*selected_skeleton_, static_cast<uint32>(bone_index));
-
-				if (selected_bone_for_influence_computation_.is_valid())
-					ImGui::TextUnformatted((*selected_skeleton_->bone_name_)[static_cast<uint32>(bone_index)].c_str());
-			}
-			else
-				ImGui::TextUnformatted("Select skeleton with bones to pick one");
-
-			if (show_button("Update influence visualization attribute",
-					selected_skeleton_ && selected_mesh_ && selected_vertex_weight_index_ && selected_vertex_weight_value_
-					&& (!global_bone_influence_computation_ || selected_bone_color_for_influence_computation_)))
-			{
-				const auto attribute = get_or_add_attribute<Vec3, Vertex>(*selected_mesh_,
-						COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME);
-				if (global_bone_influence_computation_)
-					Skinning::compute_bone_influence(*selected_mesh_, *selected_skeleton_,
-							*selected_vertex_weight_index_, *selected_vertex_weight_value_,
-							*selected_bone_color_for_influence_computation_, *attribute);
-				else
-					Skinning::compute_bone_influence(*selected_mesh_, selected_bone_for_influence_computation_,
-							*selected_vertex_weight_index_, *selected_vertex_weight_value_, *attribute);
-				mesh_provider_->emit_attribute_changed(*selected_mesh_, attribute.get());
-			}
 
 			ImGui::TreePop();
 		}
@@ -398,6 +375,12 @@ protected:
 
 			ImGui::TreePop();
 		}
+
+		if (ImGui::TreeNode("Bone influence visualization"))
+		{
+			show_bone_influence_visualization_controls();
+			ImGui::TreePop();
+		}
 	}
 
 private:
@@ -411,7 +394,7 @@ private:
 		return boost::core::demangle(typeid(TransformT).name());
 	}
 
-	static inline bool show_button(const char* label, bool enabled)
+	static bool show_button(const char* label, bool enabled)
 	{
 		bool res = false;
 
@@ -425,6 +408,20 @@ private:
 			ImGui::EndDisabled();
 
 		return res;
+	}
+
+	template <bool BindOnAutoCheck = false, typename FUNC>
+	static void show_bind_controls(const char* label, bool enabled, bool& auto_v, const char* auto_label, const FUNC& on_bind)
+	{
+		if (show_button(label, !auto_v && enabled))
+			on_bind();
+
+		ImGui::SameLine();
+
+		if (ImGui::Checkbox(auto_label, &auto_v)) // show checkbox regardless of template parameter
+			if constexpr (BindOnAutoCheck)
+				if (auto_v)
+					on_bind();
 	}
 
 	bool can_update_embedding()
@@ -460,11 +457,61 @@ private:
 		embedding_dirty_ = false;
 	}
 
+	void show_bone_influence_visualization_controls()
+	{
+		ImGui::Checkbox("Global##influence", &global_bone_influence_computation_);
+
+		if (global_bone_influence_computation_)
+		{
+			if (selected_skeleton_)
+				imgui_combo_attribute<Bone, Vec3>(
+						*selected_skeleton_,
+						selected_bone_color_for_influence_computation_,
+						"Bone color##influence",
+						[&](const std::shared_ptr<AttributeSk<Vec3>>& attribute) {
+								selected_bone_color_for_influence_computation_ = attribute; });
+			else
+				ImGui::TextUnformatted("Select skeleton to visualize influences of bones");
+		}
+		else if (selected_skeleton_ && selected_skeleton_->nb_bones() > 0)
+		{
+			int bone_index = static_cast<int>(index_of(*selected_skeleton_, selected_bone_for_influence_computation_));
+			ImGui::SliderInt("Bone index##influence", &bone_index, 0, static_cast<int>(*std::max_element(
+					selected_skeleton_->bone_traverser_.cbegin(), selected_skeleton_->bone_traverser_.cend(),
+					[&](const Bone& a, const Bone& b) {
+							return index_of(*selected_skeleton_, a) < index_of(*selected_skeleton_, b); })));
+			selected_bone_for_influence_computation_ = of_index<Bone>(*selected_skeleton_, static_cast<uint32>(bone_index));
+
+			if (selected_bone_for_influence_computation_.is_valid())
+				ImGui::TextUnformatted((*selected_skeleton_->bone_name_)[static_cast<uint32>(bone_index)].c_str());
+		}
+		else
+			ImGui::TextUnformatted("Select skeleton with bones to pick one");
+
+		if (show_button("Update influence visualization attribute",
+				selected_skeleton_ && selected_mesh_ && selected_vertex_weight_index_ && selected_vertex_weight_value_
+				&& (!global_bone_influence_computation_ || selected_bone_color_for_influence_computation_)))
+		{
+			const auto attribute = get_or_add_attribute<Vec3, Vertex>(*selected_mesh_,
+					COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME);
+			if (global_bone_influence_computation_)
+				Skinning::compute_bone_influence(*selected_mesh_, *selected_skeleton_,
+						*selected_vertex_weight_index_, *selected_vertex_weight_value_,
+						*selected_bone_color_for_influence_computation_, *attribute);
+			else
+				Skinning::compute_bone_influence(*selected_mesh_, selected_bone_for_influence_computation_,
+						*selected_vertex_weight_index_, *selected_vertex_weight_value_, *attribute);
+			mesh_provider_->emit_attribute_changed(*selected_mesh_, attribute.get());
+		}
+	}
+
 public:
-	static inline const std::string COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME = "computed_bone_influence";
+	static constexpr const char* COMPUTED_BONE_INFLUENCE_ATTRIBUTE_NAME = "computed_bone_influence";
 
 private:
 	static constexpr const bool USE_LBS_ = !std::is_same_v<TransformT, geometry::DualQuaternion>;
+	bool auto_bind_skeleton_ = true;
+	bool auto_bind_mesh_ = true;
 	bool auto_update_embedding_ = true;
 	bool embedding_dirty_ = true;
 	Mesh* selected_mesh_ = nullptr;

@@ -51,8 +51,8 @@ private:
 
 	inline void manage_index(uint32 index) override
 	{
-		while (index >= uint32(data_.size()))
-			data_.push_back(T());
+		if (index >= uint32(data_.size()))
+			data_.resize(static_cast<size_t>(index) + 1, T());
 	}
 
 public:

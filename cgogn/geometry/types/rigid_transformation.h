@@ -44,32 +44,32 @@ public:
 
 public:
 
-	inline RigidTransformation() : r_(R::Identity()), t_(T{Eigen::Vector<typename R::Scalar, _Dim>::Zero()}) {}
+	RigidTransformation() : r_(R::Identity()), t_(T{Eigen::Vector<typename R::Scalar, _Dim>::Zero()}) {}
 
-	inline RigidTransformation(const R& rotation, const T& translation = Eigen::Vector<typename R::Scalar, _Dim>::Zero()) :
+	RigidTransformation(const R& rotation, const T& translation = Eigen::Vector<typename R::Scalar, _Dim>::Zero()) :
 			r_(rotation), t_(translation) {}
 
 	template <typename OtherScalar, int OtherSize>
-	inline RigidTransformation(const Eigen::Vector<OtherScalar, OtherSize>& translation) :
+	RigidTransformation(const Eigen::Vector<OtherScalar, OtherSize>& translation) :
 			RigidTransformation(R::Identity(), translation) {}
 
 	template <typename OtherScalar>
-	inline RigidTransformation(const Eigen::Vector<OtherScalar, 4>& translation) :
+	RigidTransformation(const Eigen::Vector<OtherScalar, 4>& translation) :
 			RigidTransformation(R::Identity(), translation.template head<_Dim>() / translation[_Dim]) {}
 
 	template <typename OtherScalar, int OtherDim>
-	inline RigidTransformation(Eigen::Translation<OtherScalar, OtherDim> translation) :
+	RigidTransformation(Eigen::Translation<OtherScalar, OtherDim> translation) :
 			RigidTransformation(R::Identity(), translation) {}
 
 	template <typename OtherScalar, int OtherDim, int OtherMode, int OtherOptions>
-	inline RigidTransformation(Eigen::Transform<OtherScalar, OtherDim, OtherMode, OtherOptions> transform) :
+	RigidTransformation(Eigen::Transform<OtherScalar, OtherDim, OtherMode, OtherOptions> transform) :
 			RigidTransformation(R{transform.rotation()}, T{transform.translation()}) {}
 
 	template <typename OtherDerived>
-	inline RigidTransformation(const Eigen::MatrixBase<OtherDerived>& other) :
+	RigidTransformation(const Eigen::MatrixBase<OtherDerived>& other) :
 			RigidTransformation(Eigen::Transform<_Scalar, _Dim, Eigen::Isometry, OtherDerived::Options>(other)) {}
 
-	inline RigidTransformation& operator*=(const RigidTransformation& other)
+	RigidTransformation& operator*=(const RigidTransformation& other)
 	{
 		const auto& transform = to_transform() * other.to_transform();
 		r_ = R{transform.rotation()};
@@ -78,24 +78,24 @@ public:
 	}
 
 	[[nodiscard]]
-	inline friend RigidTransformation operator*(RigidTransformation a, const RigidTransformation& b)
+	friend RigidTransformation operator*(RigidTransformation a, const RigidTransformation& b)
 	{
 		return a *= b;
 	}
 
 	template <typename S>
 	[[nodiscard]]
-	inline static RigidTransformation interpolate(
+	static RigidTransformation interpolate(
 			const RigidTransformation& a, const RigidTransformation& b, const S& t)
 	{
 		return {a.r_.slerp(t, b.r_), (1.0 - t) * a.t_ + t * b.t_};
 	}
 
 	[[nodiscard]]
-	inline R rotation() const { return r_; }
+	R rotation() const { return r_; }
 
 	[[nodiscard]]
-	inline T translation() const { return t_; }
+	T translation() const { return t_; }
 
 	[[nodiscard]]
 	auto to_transform(bool rotation_affects_translation = false) const
@@ -116,7 +116,7 @@ public:
 	}
 
 	[[nodiscard]]
-	inline RigidTransformation inverse()
+	RigidTransformation inverse()
 	{
 		return RigidTransformation{to_transform().inverse()};
 	}

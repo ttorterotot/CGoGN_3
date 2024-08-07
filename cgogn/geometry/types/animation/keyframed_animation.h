@@ -64,7 +64,7 @@ private:
 	};
 
 	template <typename T, typename S>
-	static inline T default_lerp(const T& a, const T& b, const S& t)
+	static T default_lerp(const T& a, const T& b, const S& t)
 	{
 		return (1.0 - t) * a + t * b;
 	}

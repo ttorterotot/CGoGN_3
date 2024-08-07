@@ -238,32 +238,10 @@ protected:
 				ImGui::TreePop();
 			}
 
-
-			ImGui::Separator();
-
-			ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
-			ImGui::SameLine();
-			ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
-			ImGui::SameLine();
-			ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
-
-			if (ImGui::Button("Generate bone colors"))
+			if (ImGui::TreeNode("Bone color generation"))
 			{
-				const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
-						GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
-				const std::array<std::function<void()>, 3> generators
-				{
-					[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
-					[&]{
-						if (selected_joint_position_)
-							Embedding::generate_bone_colors_from_position(
-									*selected_skeleton_, *selected_joint_position_, *attribute);
-					},
-					[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
-				};
-				cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
-				generators[color_generation_mode_]();
-				mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+				show_bone_color_generation_controls();
+				ImGui::TreePop();
 			}
 		}
 
@@ -424,27 +402,67 @@ private:
 		ImGui::Separator();
 	}
 
-	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool disabled = false)
+	void show_bone_color_generation_controls()
+	{
+		ImGui::RadioButton("Random##color_generation_mode", &color_generation_mode_, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Position##color_generation_mode", &color_generation_mode_, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Topo. depth##color_generation_mode", &color_generation_mode_, 2);
+
+		if (ImGui::Button("Generate bone colors"))
+		{
+			const auto attribute = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+					GENERATED_BONE_COLOR_ATTRIBUTE_NAME);
+			const std::array<std::function<void()>, 3> generators
+			{
+				[&]{ Embedding::generate_bone_colors_random(*selected_skeleton_, *attribute); },
+				[&]{
+					if (selected_joint_position_)
+						Embedding::generate_bone_colors_from_position(
+								*selected_skeleton_, *selected_joint_position_, *attribute);
+				},
+				[&]{ Embedding::generate_bone_colors_from_topological_depth(*selected_skeleton_, *attribute); },
+			};
+			cgogn_assert(color_generation_mode_ >= 0 && color_generation_mode_ < generators.size());
+			generators[color_generation_mode_]();
+			mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute.get());
+
+			// Alternative attribute (parent bone color)
+			const auto attribute_p = get_or_add_attribute<Vec3, Bone>(*selected_skeleton_,
+					GENERATED_PARENT_BONE_COLOR_ATTRIBUTE_NAME);
+			for (const auto& bone : selected_skeleton_->bone_traverser_)
+			{
+				const auto& bone_index = index_of(*selected_skeleton_, bone);
+				const auto& parent_bone = (*selected_skeleton_->bone_parent_)[bone_index];
+				(*attribute_p)[bone_index] = (*attribute)[parent_bone.is_valid() ?
+						index_of(*selected_skeleton_, parent_bone) : bone_index];
+			}
+			mesh_provider_->emit_attribute_changed(*selected_skeleton_, attribute_p.get());
+		}
+	}
+
+	bool show_button_and_tooltip(const char* label, const char* tooltip_text, bool enabled = true)
 	{
 		bool res = false;
 
-		if (disabled)
+		if (!enabled)
 			ImGui::BeginDisabled();
 
-		if (ImGui::Button(label))
+		if (ImGui::Button(label) && enabled)
 			res = true;
 
-		if (disabled)
-			ImGui::EndDisabled();
-
 		show_tooltip_for_ui_above(tooltip_text);
+
+		if (!enabled)
+			ImGui::EndDisabled();
 
 		return res;
 	}
 
 	void show_play_mode_button(const char* label, const char* tooltip_text, PlayMode play_mode)
 	{
-		if (show_button_and_tooltip(label, tooltip_text, play_mode_ == play_mode))
+		if (show_button_and_tooltip(label, tooltip_text, play_mode_ != play_mode))
 			set_play_mode(play_mode);
 	}
 
@@ -508,8 +526,11 @@ private:
 		return boost::core::demangle(typeid(AnimationT).name());
 	}
 
+public:
+	static constexpr const char* GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
+	static constexpr const char* GENERATED_PARENT_BONE_COLOR_ATTRIBUTE_NAME = "generated_parent_bone_color";
+
 private:
-	static inline const std::string GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};

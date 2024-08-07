@@ -344,7 +344,7 @@ public:
 		v.request_update();
 	}
 
-	/// @brief Sets the bone transform attribute attribute for a certain type of transform
+	/// @brief Sets the bone transform attribute attribute for a specific type of transform.
 	/// @param v the view to update
 	/// @param m the mesh that holds the attribute
 	/// @param bone_transform the shared pointer to set as the current bone transform attribute
@@ -382,6 +382,13 @@ public:
 		v.request_update();
 	}
 
+	/// @brief Attempts to set the bone transform attribute with the provided one.
+	/// No-op if it fails to dynamically cast to an attribute of a transform type in the template argument list.
+	/// Prefer the identical overload with empty template parameters
+	/// unless you specifically wish to override the list of supported transform types for this call.
+	/// @param v the view to update
+	/// @param m the mesh that holds the attribute
+	/// @param attribute a shared pointer to the generic candidate transform attribute
 	template <typename T, typename ...Args>
 	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<AttributeGen>& attribute)
 	{
@@ -393,6 +400,12 @@ public:
 			set_bone_transform<Args...>(v, m, attribute);
 	}
 
+	/// @brief Attempts to set the bone transform attribute with the provided one.
+	/// No-op if it fails to dynamically cast to an attribute of a supported transform type.
+	/// Prefer the non-generic attribute transform type overload if said type is known at compile time.
+	/// @param v the view to update
+	/// @param m the mesh that holds the attribute
+	/// @param attribute a shared pointer to the generic candidate transform attribute
 	void set_bone_transform(View& v, const MESH& m, const std::shared_ptr<AttributeGen>& attribute)
 	{
 		if (!attribute)

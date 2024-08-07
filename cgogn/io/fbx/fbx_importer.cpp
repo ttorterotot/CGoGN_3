@@ -249,7 +249,7 @@ void FbxImporterBase::read_objects_deformer_subnode(std::istream& is)
 
 	const auto get_weight = [&](const uint32& i) -> std::pair<uint32, AnimScalar>& {
 		if (deformer.weights.size() <= i)
-			deformer.weights.resize(i + 1, {uint32(-1), 0.0});
+			deformer.weights.resize(static_cast<size_t>(i) + 1, {uint32(-1), 0.0});
 		return deformer.weights[i];
 	};
 
@@ -316,7 +316,7 @@ void FbxImporterBase::read_objects_animation_curve_subnode(std::istream& is)
 
 	const auto get_keyframe = [&](const uint32& i) -> geometry::AnimationKeyframe<AnimTimeT, AnimScalar>& {
 		if (curve.animation.size() <= i)
-			curve.animation.resize(i + 1, {0.0, 0.0});
+			curve.animation.resize(static_cast<size_t>(i) + 1, {0.0, 0.0});
 		return curve.animation[i];
 	};
 

@@ -74,6 +74,11 @@ public:
 		}
 	}
 
+	/// @brief Computes the most expressive four-bone set of indices and weights from weight sums.
+	/// @param bone_weight_values a vector which's i-th element is the weight for the bone of index i
+	/// @param normalization how to normalize the output weights (four bones selected among potentially more)
+	/// @param source_cell_count the amount of source cells, required for `CellCount` normalization
+	/// @return a pair of the most fitting bone indices (up to four) and their corresponding weights
 	static std::pair<Vec4i, Vec4> compute_weights(
 			const std::vector<Vec4::Scalar>& bone_weight_values,
 			const NormalizationType& normalization = NormalizationType::AbsSum,
@@ -112,6 +117,18 @@ public:
 		return std::make_pair(indices, values);
 	}
 
+	/// @brief Computes the most expressive four-bone set of indices and weights from those of given cells.
+	/// `source_cell_weights` is optional: passing a container of a different size than `source_cells`,
+	/// such as an instance of `std::array<float, 0>`, will result in uniform weights of 1.0 being used.
+	/// This overload allows for the reuse of a buffer to avoid allocations.
+	/// @param m the mesh containing the source cells
+	/// @param weight_index an attribute on `m` describing each cell's influencing bone indices
+	/// @param weight_index an attribute on `m` describing each cell's corresponding weights
+	/// @param weight_value_buffer a vector to pass between calls to avoid reallocations (no pre-clearing needed)
+	/// @param source_cells an indexable container of cells to interpolate the skinning weights of
+	/// @param source_cell_weights an indexable container of weights to multiply their corresponding cell's weights by
+	/// @param normalization how to normalize the output weights (four bones selected among potentially more)
+	/// @return a pair of the most fitting bone indices (up to four) and their corresponding weights
 	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
 	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
 			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
@@ -148,6 +165,19 @@ public:
 		return compute_weights(weight_value_buffer, normalization, source_cells.size());
 	}
 
+	/// @brief Computes the most expressive four-bone set of indices and weights from those of given cells.
+	/// `source_cell_weights` is optional: passing a container of a different size than `source_cells`,
+	/// such as an instance of `std::array<float, 0>`, will result in uniform weights of 1.0 being used.
+	/// If calling this many times repeatedly, consider using the other overload instead
+	/// in order to avoid allocations (see its `weight_value_buffer` parameter).
+	/// @param m the mesh containing the source cells
+	/// @param weight_index an attribute on `m` describing each cell's influencing bone indices
+	/// @param weight_index an attribute on `m` describing each cell's corresponding weights
+	/// @param weight_value_buffer a vector to pass between calls to avoid reallocations (no pre-clearing needed)
+	/// @param source_cells an indexable container of cells to interpolate the skinning weights of
+	/// @param source_cell_weights an indexable container of weights to multiply their corresponding cell's weights by
+	/// @param normalization how to normalize the output weights (four bones selected among potentially more)
+	/// @return a pair of the most fitting bone indices (up to four) and their corresponding weights
 	template <typename MESH, typename CONT_C, typename CONT_W = std::array<Vec4::Scalar, 0>>
 	static std::pair<Vec4i, Vec4> compute_weights(const MESH& m,
 			const typename mesh_traits<MESH>::template Attribute<Vec4i>& weight_index,
@@ -161,6 +191,13 @@ public:
 				source_cells, source_cell_weights, normalization);
 	}
 
+	/// @brief Interpolates between two sets of skinning indices and weights.
+	/// The order of influencing bones is NOT guaranteed to be preserved, and zero-weight ones might disappear.
+	/// @param indices an array of two source `Vec4i` (reminder: can be inlined as initializer list)
+	/// @param values an array of two source `Vec4` (reminder: can be inlined as initializer list)
+	/// @param t the interpolation factor: the first couple has full influence for 0.0, the second for 1.0
+	/// @param normalization how to normalize the output weights (four bones selected among up to potentially eight)
+	/// @return a pair of the most fitting bone indices (up to four) and their corresponding weights
 	static std::pair<Vec4i, Vec4> lerp(
 			const std::array<Vec4i, 2>& indices,
 			const std::array<Vec4, 2>& values,

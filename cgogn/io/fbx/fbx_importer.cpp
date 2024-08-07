@@ -845,7 +845,7 @@ const FbxImporterBase::LimbNodeModel* FbxImporterBase::get_parent_bone(const Obj
 			continue;
 
 		const auto it = std::find_if(models_limb_node_.cbegin(), models_limb_node_.cend(),
-				[&](const LimbNodeModel& e) { return e.id == parent_id; });
+				[&, parent_id = parent_id](const LimbNodeModel& e) { return e.id == parent_id; });
 
 		if (it != models_limb_node_.cend())
 			return &*it;
@@ -998,13 +998,13 @@ void FbxImporter::associate_animations_to_bones()
 		const auto& [curve_id, curve_node_id, axis_property_name] = c;
 
 		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+				[&, curve_node_id = curve_node_id](const AnimationCurveNode& node){ return node.id == curve_node_id; });
 
 		if (curve_node_it == animation_curve_nodes_.end())
 			continue;
 
 		const auto curve_it = std::find_if(animation_curves_.cbegin(), animation_curves_.cend(),
-				[&](const AnimationCurve& curve){ return curve.id == curve_id; });
+				[&, curve_id = curve_id](const AnimationCurve& curve){ return curve.id == curve_id; });
 
 		if (curve_it == animation_curves_.cend())
 			continue;
@@ -1024,13 +1024,13 @@ void FbxImporter::associate_animations_to_bones()
 		const auto& [curve_node_id, model_id, transform_property_name] = c;
 
 		const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
-				[&](const LimbNodeModel& model){ return model.id == model_id; });
+				[&, model_id = model_id](const LimbNodeModel& model){ return model.id == model_id; });
 
 		if (model_it == models_limb_node_.end())
 			continue;
 
 		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
-				[&](const AnimationCurveNode& node){ return node.id == curve_node_id; });
+				[&, curve_node_id = curve_node_id](const AnimationCurveNode& node){ return node.id == curve_node_id; });
 
 		if (curve_node_it == animation_curve_nodes_.end())
 			continue;

@@ -991,11 +991,9 @@ void FbxImporter::load_bones(Skeleton& skeleton)
 
 void FbxImporter::associate_animations_to_bones()
 {
-	for (const auto& c : connections_op_)
+	for (const auto& [curve_id, curve_node_id, axis_property_name] : connections_op_)
 	{
 		// Get animation curve node's animation curves and targeted property
-
-		const auto& [curve_id, curve_node_id, axis_property_name] = c;
 
 		const auto curve_node_it = std::find_if(animation_curve_nodes_.begin(), animation_curve_nodes_.end(),
 				[&, curve_node_id = curve_node_id](const AnimationCurveNode& node){ return node.id == curve_node_id; });
@@ -1017,11 +1015,9 @@ void FbxImporter::associate_animations_to_bones()
 		curve_node_it->set_animation(&curve_it->animation, axis_property_name);
 	}
 
-	for (const auto& c : connections_op_)
+	for (const auto& [curve_node_id, model_id, transform_property_name] : connections_op_)
 	{
 		// Get bone's animation curve node and targeted property
-
-		const auto& [curve_node_id, model_id, transform_property_name] = c;
 
 		const auto model_it = std::find_if(models_limb_node_.begin(), models_limb_node_.end(),
 				[&, model_id = model_id](const LimbNodeModel& model){ return model.id == model_id; });
